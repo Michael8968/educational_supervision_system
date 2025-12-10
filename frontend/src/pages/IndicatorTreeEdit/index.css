@@ -2,6 +2,7 @@
   padding: 24px;
   background: #f5f7fa;
   min-height: 100vh;
+  width: 100%;
 }
 
 .page-header {
@@ -36,95 +37,246 @@
   margin: 0;
 }
 
-.system-info-card {
+/* 指标体系信息卡片 V2 */
+.system-info-card-v2 {
   background: #fff;
   border-radius: 8px;
-  padding: 16px 20px;
+  padding: 20px 24px;
   margin-bottom: 20px;
-  border-left: 4px solid #1890ff;
 }
 
-.system-info-header {
+.system-info-card-v2 .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.system-info-card-v2 .card-title-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
-.system-name {
+.system-info-card-v2 .system-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.system-info-card-v2 .card-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.system-info-card-v2 .stat-item {
+  color: #666;
+  font-size: 14px;
+}
+
+.system-info-card-v2 .card-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.system-info-card-v2 .card-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+.system-info-card-v2 .card-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.system-info-card-v2 .attachment-link {
+  color: #1677ff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.system-info-card-v2 .attachment-link:hover {
+  text-decoration: underline;
+}
+
+.system-info-card-v2 .card-meta {
+  display: flex;
+  gap: 24px;
+  color: #999;
+  font-size: 13px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 指标列表区域 */
+.indicator-list-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+.indicator-list-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.indicator-list-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.indicator-list-section .section-title h3 {
+  margin: 0;
   font-size: 16px;
   font-weight: 500;
   color: #333;
 }
 
-.system-desc {
+/* 指标树列表 */
+.indicator-tree-list {
+  min-height: 300px;
+}
+
+.indicator-tree-node {
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.indicator-tree-node:last-child {
+  border-bottom: none;
+}
+
+.indicator-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  gap: 8px;
+}
+
+.indicator-row .expand-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #666;
-  font-size: 14px;
-  margin: 0;
-}
-
-.main-content {
-  display: flex;
-  gap: 20px;
-  min-height: calc(100vh - 250px);
-}
-
-.tree-panel {
-  width: 360px;
-  background: #fff;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tree-container {
-  flex: 1;
-  padding: 16px;
-  overflow: auto;
-}
-
-.tree-node-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.node-code {
   font-size: 12px;
-  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.indicator-row .expand-icon.clickable {
+  cursor: pointer;
+}
+
+.indicator-row .expand-icon.clickable:hover {
+  color: #1677ff;
+}
+
+.indicator-row .expand-icon.hidden {
+  visibility: hidden;
+}
+
+.indicator-row .level-tag {
+  font-size: 12px;
+  padding: 0 8px;
+  height: 22px;
+  line-height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.indicator-row .code-tag {
   background: #f0f5ff;
   border-color: #adc6ff;
   color: #1890ff;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
-.node-name {
+.indicator-row .indicator-name {
+  flex: 1;
+  font-size: 14px;
   color: #333;
 }
 
-.leaf-tag {
-  font-size: 10px;
-  padding: 0 4px;
-  line-height: 16px;
+.indicator-row .indicator-actions {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
 }
 
+.indicator-row .indicator-actions .ant-btn {
+  color: #999;
+}
+
+.indicator-row .indicator-actions .ant-btn:hover:not(:disabled) {
+  color: #1677ff;
+}
+
+.indicator-row .indicator-actions .ant-btn:disabled {
+  color: #d9d9d9;
+}
+
+/* 指标描述 */
+.indicator-description {
+  font-size: 13px;
+  color: #666;
+  padding-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* 数据指标和佐证资料详情 */
+.indicator-details {
+  padding-bottom: 12px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.detail-item .detail-code {
+  background: #f0f5ff;
+  border-color: #adc6ff;
+  color: #1890ff;
+  font-size: 11px;
+}
+
+.detail-item .detail-name {
+  font-size: 13px;
+  color: #333;
+}
+
+.detail-item .detail-file-type {
+  font-size: 12px;
+  color: #999;
+}
+
+.detail-description {
+  font-size: 12px;
+  color: #999;
+  padding: 4px 0 8px 0;
+  line-height: 1.5;
+}
+
+/* 空状态 */
 .empty-tree {
   display: flex;
   flex-direction: column;
@@ -140,157 +292,187 @@
   color: #d9d9d9;
 }
 
-.detail-panel {
-  flex: 1;
-  background: #fff;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
+/* 编辑指标弹窗样式 */
+.edit-indicator-modal .ant-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
-.detail-panel .panel-header {
-  flex-shrink: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.indicator-info {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.info-item.full {
-  width: 100%;
-}
-
-.info-item label {
-  font-size: 12px;
-  color: #999;
-}
-
-.info-item span {
+.edit-modal-subtitle {
+  color: #666;
   font-size: 14px;
-  color: #333;
+  margin-bottom: 20px;
 }
 
-.config-section {
-  padding: 16px 0;
+.evaluation-basis-item .ant-checkbox-wrapper {
+  margin-right: 24px;
 }
 
-.section-header {
+/* 编辑区域 - 数据指标和佐证资料 */
+.edit-section {
+  border: 1px solid #e6f4ff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #fafcff;
+}
+
+.data-indicators-section {
+  border-color: #91caff;
+}
+
+.materials-section {
+  border-color: #91caff;
+}
+
+.edit-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.edit-section-header .section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1677ff;
+}
+
+.edit-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 指标卡片样式 */
+.indicator-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.indicator-card-view {
+  padding: 12px 16px;
+}
+
+.indicator-card-view .card-view-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.indicator-card-view .card-code {
+  background: #f0f5ff;
+  border-color: #adc6ff;
+  color: #1890ff;
+  font-size: 12px;
+}
+
+.indicator-card-view .card-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indicator-card-view .card-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.indicator-card-view .card-description {
+  margin-top: 8px;
+  font-size: 13px;
   color: #666;
+  line-height: 1.5;
+}
+
+/* 编辑模式卡片 */
+.indicator-card-edit {
+  padding: 16px;
+  background: #fafafa;
+}
+
+.indicator-card-edit .card-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.indicator-card-edit .card-code {
+  background: #f0f5ff;
+  border-color: #adc6ff;
+  color: #1890ff;
+  font-size: 12px;
+}
+
+.indicator-card-edit .separator {
+  color: #666;
+}
+
+.indicator-card-edit .row-label {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.indicator-card-edit .threshold-label {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.indicator-card-edit .ant-input,
+.indicator-card-edit .ant-select {
   font-size: 13px;
 }
 
-.children-list {
-  padding: 16px 20px;
+.indicator-card-edit .ant-input-number {
+  font-size: 13px;
 }
 
-.children-list h4 {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin: 0 0 12px 0;
+.indicator-card-edit textarea.ant-input {
+  margin-top: 4px;
 }
 
-.children-items {
+.indicator-card-edit .card-edit-actions {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
   gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
 }
 
-.child-item {
+/* 文件类型标签 */
+.file-type-tags {
   display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.file-type-tag {
   cursor: pointer;
+  user-select: none;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  color: #666;
   transition: all 0.2s;
 }
 
-.child-item:hover {
-  background: #e6f7ff;
+.file-type-tag:hover {
+  border-color: #1677ff;
+  color: #1677ff;
 }
 
-.empty-detail {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-}
-
-.empty-detail .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  color: #d9d9d9;
-}
-
-/* Tree样式覆盖 */
-.tree-container .ant-tree-treenode {
-  padding: 4px 0;
-}
-
-.tree-container .ant-tree-node-content-wrapper {
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.tree-container .ant-tree-node-content-wrapper:hover {
-  background: #f5f7fa;
-}
-
-.tree-container .ant-tree-node-selected .ant-tree-node-content-wrapper {
-  background: #e6f7ff !important;
-}
-
-/* Tabs样式 */
-.detail-panel .ant-tabs {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.detail-panel .ant-tabs-nav {
-  padding: 0 20px;
-  margin-bottom: 0;
-}
-
-.detail-panel .ant-tabs-content {
-  flex: 1;
-  padding: 0 20px;
-}
-
-.detail-panel .ant-tabs-tabpane {
-  height: 100%;
-}
-
-/* Table样式 */
-.config-section .ant-table-wrapper {
-  background: #fafafa;
-  border-radius: 6px;
-}
-
-.config-section .ant-table-thead > tr > th {
-  background: #fafafa;
-  font-weight: 500;
+.file-type-tag.selected {
+  background: #e6f4ff;
+  border-color: #1677ff;
+  color: #1677ff;
 }

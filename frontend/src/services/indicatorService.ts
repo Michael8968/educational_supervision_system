@@ -25,6 +25,9 @@ export interface DataIndicator {
   name: string;
   threshold: string;
   description: string;
+  thresholdType?: 'single' | 'range'; // 达标阈值类型：单值比较 | 区间
+  precision?: number; // 精确位数
+  targetType?: string; // 适用对象类型，如"幼儿园"
 }
 
 export interface SupportingMaterial {
@@ -35,6 +38,7 @@ export interface SupportingMaterial {
   maxSize: string;
   description: string;
   required?: boolean;
+  targetType?: string; // 适用对象类型，如"幼儿园"
 }
 
 export interface Indicator {

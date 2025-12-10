@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Tree, Tag, Modal, Form, Input, Switch, message, Tabs, Table, InputNumber, Popconfirm, Spin } from 'antd';
+import { Button, Tag, Modal, Form, Input, Switch, message, InputNumber, Popconfirm, Spin, Checkbox, Select } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
-  SaveOutlined,
   DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
-  DatabaseOutlined,
+  CloseOutlined,
+  CheckOutlined,
+  UpOutlined,
+  DownOutlined,
+  LeftOutlined,
+  RightOutlined,
+  PaperClipOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { DataNode } from 'antd/es/tree';
 import {
   getIndicatorSystem,
   getIndicatorTree,
@@ -59,8 +64,7 @@ const IndicatorTreeEdit: React.FC = () => {
 
   const [system, setSystem] = useState<IndicatorSystem | null>(null);
   const [treeData, setTreeData] = useState<Indicator[]>([]);
-  const [selectedNode, setSelectedNode] = useState<Indicator | null>(null);
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -69,9 +73,31 @@ const IndicatorTreeEdit: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [addParentId, setAddParentId] = useState<string | null>(null);
   const [addLevel, setAddLevel] = useState<number>(1);
+  const [editingNode, setEditingNode] = useState<Indicator | null>(null);
 
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+
+  // 编辑弹窗中的数据指标和佐证资料状态
+  const [editDataIndicators, setEditDataIndicators] = useState<DataIndicator[]>([]);
+  const [editMaterials, setEditMaterials] = useState<SupportingMaterial[]>([]);
+  const [editingDataIndicatorId, setEditingDataIndicatorId] = useState<string | null>(null);
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+  const [tempDataIndicator, setTempDataIndicator] = useState<Partial<DataIndicator>>({});
+  const [tempMaterial, setTempMaterial] = useState<Partial<SupportingMaterial>>({});
+  const [evaluationBasis, setEvaluationBasis] = useState<string[]>(['dataIndicators', 'materials']);
+
+  // 统计指标数量
+  const countIndicators = (nodes: Indicator[]): number => {
+    let count = 0;
+    for (const node of nodes) {
+      count++;
+      if (node.children) {
+        count += countIndicators(node.children);
+      }
+    }
+    return count;
+  };
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -84,8 +110,16 @@ const IndicatorTreeEdit: React.FC = () => {
       ]);
       setSystem(systemData);
       setTreeData(tree);
-      // 默认展开第一级
-      setExpandedKeys(tree.map(node => node.id));
+      // 默认展开所有节点
+      const allKeys = new Set<string>();
+      const collectKeys = (nodes: Indicator[]) => {
+        nodes.forEach(node => {
+          allKeys.add(node.id);
+          if (node.children) collectKeys(node.children);
+        });
+      };
+      collectKeys(tree);
+      setExpandedKeys(allKeys);
     } catch (error) {
       message.error('加载数据失败');
       console.error(error);
@@ -115,42 +149,33 @@ const IndicatorTreeEdit: React.FC = () => {
     }
   };
 
-  // 转换为Tree组件数据格式
-  const convertToTreeData = (nodes: Indicator[]): DataNode[] => {
-    return nodes.map(node => ({
-      key: node.id,
-      title: (
-        <div className="tree-node-content">
-          <Tag className="node-code">{node.code}</Tag>
-          <span className="node-name">{node.name}</span>
-          {node.isLeaf && <Tag color="green" className="leaf-tag">末级</Tag>}
-        </div>
-      ),
-      children: node.children ? convertToTreeData(node.children) : undefined,
-      isLeaf: node.isLeaf,
-    }));
-  };
-
-  // 查找节点
-  const findNode = (nodes: Indicator[], id: string): Indicator | null => {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      if (node.children) {
-        const found = findNode(node.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  // 选择节点
-  const handleSelectNode = (selectedKeys: React.Key[]) => {
-    if (selectedKeys.length > 0) {
-      const node = findNode(treeData, selectedKeys[0] as string);
-      setSelectedNode(node);
+  // 切换节点展开状态
+  const toggleExpand = (id: string) => {
+    const newExpanded = new Set(expandedKeys);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
     } else {
-      setSelectedNode(null);
+      newExpanded.add(id);
     }
+    setExpandedKeys(newExpanded);
+  };
+
+  // 全部收缩
+  const collapseAll = () => {
+    setExpandedKeys(new Set());
+  };
+
+  // 全部展开
+  const expandAll = () => {
+    const allKeys = new Set<string>();
+    const collectKeys = (nodes: Indicator[]) => {
+      nodes.forEach(node => {
+        allKeys.add(node.id);
+        if (node.children) collectKeys(node.children);
+      });
+    };
+    collectKeys(treeData);
+    setExpandedKeys(allKeys);
   };
 
   // 打开添加弹窗
@@ -166,7 +191,7 @@ const IndicatorTreeEdit: React.FC = () => {
   const handleAddIndicator = (values: { name: string; description?: string; isLeaf: boolean }) => {
     const newNode: Indicator = {
       id: generateId(),
-      code: '', // 将重新计算
+      code: '',
       name: values.name,
       description: values.description || '',
       level: addLevel,
@@ -204,29 +229,49 @@ const IndicatorTreeEdit: React.FC = () => {
 
     // 展开父节点
     if (addParentId) {
-      setExpandedKeys([...expandedKeys, addParentId]);
+      const newKeys = new Set(expandedKeys);
+      newKeys.add(addParentId);
+      setExpandedKeys(newKeys);
     }
   };
 
   // 打开编辑弹窗
-  const handleOpenEditModal = () => {
-    if (!selectedNode) return;
+  const handleOpenEditModal = (node: Indicator) => {
+    setEditingNode(node);
     editForm.setFieldsValue({
-      name: selectedNode.name,
-      description: selectedNode.description,
-      isLeaf: selectedNode.isLeaf,
-      weight: selectedNode.weight,
+      name: node.name,
+      description: node.description,
+      isLeaf: node.isLeaf,
+      weight: node.weight,
     });
+    setEditDataIndicators(node.dataIndicators ? [...node.dataIndicators] : []);
+    setEditMaterials(node.supportingMaterials ? [...node.supportingMaterials] : []);
+    setEditingDataIndicatorId(null);
+    setEditingMaterialId(null);
+    setTempDataIndicator({});
+    setTempMaterial({});
+
+    const basis: string[] = [];
+    if (node.dataIndicators && node.dataIndicators.length > 0) {
+      basis.push('dataIndicators');
+    }
+    if (node.supportingMaterials && node.supportingMaterials.length > 0) {
+      basis.push('materials');
+    }
+    if (basis.length === 0 && node.isLeaf) {
+      basis.push('dataIndicators', 'materials');
+    }
+    setEvaluationBasis(basis);
     setEditModalVisible(true);
   };
 
   // 更新指标
   const handleUpdateIndicator = (values: { name: string; description?: string; isLeaf: boolean; weight?: number }) => {
-    if (!selectedNode) return;
+    if (!editingNode) return;
 
     const updateTree = (nodes: Indicator[]): Indicator[] => {
       return nodes.map(node => {
-        if (node.id === selectedNode.id) {
+        if (node.id === editingNode.id) {
           const updated: Indicator = {
             ...node,
             name: values.name,
@@ -234,15 +279,12 @@ const IndicatorTreeEdit: React.FC = () => {
             isLeaf: values.isLeaf,
             weight: values.weight,
           };
-          // 如果变为末级，初始化数据指标和佐证资料
-          if (values.isLeaf && !node.isLeaf) {
-            updated.dataIndicators = [];
-            updated.supportingMaterials = [];
+          if (values.isLeaf) {
+            updated.dataIndicators = evaluationBasis.includes('dataIndicators') ? editDataIndicators : [];
+            updated.supportingMaterials = evaluationBasis.includes('materials') ? editMaterials : [];
             updated.children = undefined;
-          }
-          // 如果变为非末级，初始化children
-          if (!values.isLeaf && node.isLeaf) {
-            updated.children = [];
+          } else {
+            updated.children = node.children || [];
             updated.dataIndicators = undefined;
             updated.supportingMaterials = undefined;
           }
@@ -257,18 +299,16 @@ const IndicatorTreeEdit: React.FC = () => {
 
     const newTree = updateTree(treeData);
     setTreeData(newTree);
-    setSelectedNode({ ...selectedNode, ...values });
     setEditModalVisible(false);
+    setEditingNode(null);
     message.success('更新成功');
   };
 
   // 删除指标
-  const handleDeleteIndicator = () => {
-    if (!selectedNode) return;
-
+  const handleDeleteIndicator = (nodeId: string) => {
     const deleteFromTree = (nodes: Indicator[]): Indicator[] => {
       return nodes
-        .filter(node => node.id !== selectedNode.id)
+        .filter(node => node.id !== nodeId)
         .map(node => ({
           ...node,
           children: node.children ? deleteFromTree(node.children) : undefined,
@@ -277,366 +317,568 @@ const IndicatorTreeEdit: React.FC = () => {
 
     const newTree = recalculateCodes(deleteFromTree(treeData));
     setTreeData(newTree);
-    setSelectedNode(null);
     message.success('删除成功');
   };
 
-  // 添加数据指标
-  const handleAddDataIndicator = () => {
-    if (!selectedNode || !selectedNode.isLeaf) return;
+  // 上移指标
+  const handleMoveUp = (nodeId: string, parentNodes: Indicator[]) => {
+    const index = parentNodes.findIndex(n => n.id === nodeId);
+    if (index <= 0) return;
 
+    const newNodes = [...parentNodes];
+    [newNodes[index - 1], newNodes[index]] = [newNodes[index], newNodes[index - 1]];
+    return newNodes;
+  };
+
+  // 下移指标
+  const handleMoveDown = (nodeId: string, parentNodes: Indicator[]) => {
+    const index = parentNodes.findIndex(n => n.id === nodeId);
+    if (index < 0 || index >= parentNodes.length - 1) return;
+
+    const newNodes = [...parentNodes];
+    [newNodes[index], newNodes[index + 1]] = [newNodes[index + 1], newNodes[index]];
+    return newNodes;
+  };
+
+  // 移动指标
+  const handleMove = (nodeId: string, direction: 'up' | 'down') => {
+    const moveInTree = (nodes: Indicator[]): Indicator[] | null => {
+      const index = nodes.findIndex(n => n.id === nodeId);
+      if (index >= 0) {
+        const result = direction === 'up'
+          ? handleMoveUp(nodeId, nodes)
+          : handleMoveDown(nodeId, nodes);
+        return result || null;
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].children) {
+          const result = moveInTree(nodes[i].children!);
+          if (result) {
+            return nodes.map((n, idx) =>
+              idx === i ? { ...n, children: result } : n
+            );
+          }
+        }
+      }
+      return null;
+    };
+
+    const result = moveInTree(treeData);
+    if (result) {
+      setTreeData(recalculateCodes(result));
+    }
+  };
+
+  // 升级指标（提升到父级的兄弟位置）
+  const handlePromote = (nodeId: string) => {
+    // 查找节点及其父节点路径
+    const findNodePath = (nodes: Indicator[], path: Indicator[] = []): { node: Indicator; parent: Indicator | null; grandParent: Indicator | null } | null => {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === nodeId) {
+          return {
+            node: nodes[i],
+            parent: path.length > 0 ? path[path.length - 1] : null,
+            grandParent: path.length > 1 ? path[path.length - 2] : null,
+          };
+        }
+        if (nodes[i].children) {
+          const result = findNodePath(nodes[i].children!, [...path, nodes[i]]);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+
+    const pathInfo = findNodePath(treeData);
+    if (!pathInfo || !pathInfo.parent) {
+      message.warning('一级指标无法升级');
+      return;
+    }
+
+    const { node, parent, grandParent } = pathInfo;
+
+    // 更新层级
+    const updateLevel = (n: Indicator, levelDelta: number): Indicator => ({
+      ...n,
+      level: n.level + levelDelta,
+      children: n.children?.map(child => updateLevel(child, levelDelta))
+    });
+
+    const promotedNode = updateLevel(node, -1);
+
+    // 从父节点移除
+    const removeFromParent = (nodes: Indicator[]): Indicator[] => {
+      return nodes.map(n => {
+        if (n.id === parent.id) {
+          return {
+            ...n,
+            children: n.children?.filter(c => c.id !== nodeId),
+            isLeaf: (n.children?.filter(c => c.id !== nodeId).length || 0) === 0
+          };
+        }
+        if (n.children) {
+          return { ...n, children: removeFromParent(n.children) };
+        }
+        return n;
+      });
+    };
+
+    // 插入到祖父节点的children中（父节点之后）
+    const insertAfterParent = (nodes: Indicator[]): Indicator[] => {
+      const result: Indicator[] = [];
+      for (const n of nodes) {
+        if (n.id === parent.id) {
+          result.push(n);
+          result.push(promotedNode);
+        } else if (n.children) {
+          result.push({ ...n, children: insertAfterParent(n.children) });
+        } else {
+          result.push(n);
+        }
+      }
+      return result;
+    };
+
+    let newTree: Indicator[];
+    if (grandParent) {
+      // 有祖父节点，插入到祖父节点的children中
+      newTree = removeFromParent(treeData);
+      newTree = insertAfterParent(newTree);
+    } else {
+      // 父节点是一级，升级后变成一级指标
+      newTree = removeFromParent(treeData);
+      const parentIdx = newTree.findIndex(n => n.id === parent.id);
+      newTree.splice(parentIdx + 1, 0, promotedNode);
+    }
+
+    setTreeData(recalculateCodes(newTree));
+    message.success('升级成功');
+  };
+
+  // 降级指标（变成前一个兄弟的子节点）
+  const handleDemote = (nodeId: string, siblings: Indicator[], index: number) => {
+    if (index <= 0) {
+      message.warning('没有前一个兄弟节点，无法降级');
+      return;
+    }
+
+    const prevSibling = siblings[index - 1];
+    if (prevSibling.isLeaf) {
+      message.warning('前一个兄弟是末级指标，无法降级');
+      return;
+    }
+
+    const node = siblings[index];
+
+    // 更新层级
+    const updateLevel = (n: Indicator, levelDelta: number): Indicator => ({
+      ...n,
+      level: n.level + levelDelta,
+      children: n.children?.map(child => updateLevel(child, levelDelta))
+    });
+
+    const demotedNode = updateLevel(node, 1);
+
+    // 检查降级后层级是否超过3级
+    const maxLevel = (n: Indicator): number => {
+      if (!n.children || n.children.length === 0) return n.level;
+      return Math.max(n.level, ...n.children.map(maxLevel));
+    };
+
+    if (maxLevel(demotedNode) > 3) {
+      message.warning('降级后将超过3级，无法降级');
+      return;
+    }
+
+    const updateTree = (nodes: Indicator[]): Indicator[] => {
+      const result: Indicator[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (n.id === nodeId) {
+          // 跳过当前节点（会被移到前一个兄弟的children中）
+          continue;
+        }
+        if (n.id === prevSibling.id) {
+          // 将降级节点添加到前一个兄弟的children中
+          result.push({
+            ...n,
+            isLeaf: false,
+            children: [...(n.children || []), demotedNode]
+          });
+        } else if (n.children) {
+          result.push({ ...n, children: updateTree(n.children) });
+        } else {
+          result.push(n);
+        }
+      }
+      return result;
+    };
+
+    const newTree = updateTree(treeData);
+    setTreeData(recalculateCodes(newTree));
+
+    // 展开前一个兄弟节点
+    const newKeys = new Set(expandedKeys);
+    newKeys.add(prevSibling.id);
+    setExpandedKeys(newKeys);
+
+    message.success('降级成功');
+  };
+
+  // 检查是否可以升级（不是一级指标）
+  const canPromote = (node: Indicator) => {
+    return node.level > 1;
+  };
+
+  // 检查是否可以降级
+  const canDemote = (node: Indicator, siblings: Indicator[], index: number) => {
+    if (index <= 0) return false; // 没有前一个兄弟
+    const prevSibling = siblings[index - 1];
+    if (prevSibling.isLeaf) return false; // 前一个兄弟是末级指标
+
+    // 检查降级后是否会超过3级
+    const maxLevel = (n: Indicator): number => {
+      if (!n.children || n.children.length === 0) return n.level;
+      return Math.max(n.level, ...n.children.map(maxLevel));
+    };
+    const currentMaxLevel = maxLevel(node);
+    return currentMaxLevel < 3; // 降级后level+1，所以当前最大level必须<3
+  };
+
+  // ========== 编辑弹窗中的数据指标操作 ==========
+  const handleAddEditDataIndicator = () => {
     const newDI: DataIndicator = {
       id: generateId(),
-      code: `${selectedNode.code}-D${(selectedNode.dataIndicators?.length || 0) + 1}`,
-      name: '新数据指标',
+      code: `${editingNode?.code}-D${editDataIndicators.length + 1}`,
+      name: '',
       threshold: '',
       description: '',
+      thresholdType: 'single',
+      precision: 2,
+      targetType: '幼儿园',
     };
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            dataIndicators: [...(node.dataIndicators || []), newDI],
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    setTreeData(updateTree(treeData));
-    setSelectedNode({
-      ...selectedNode,
-      dataIndicators: [...(selectedNode.dataIndicators || []), newDI],
-    });
+    setEditDataIndicators([...editDataIndicators, newDI]);
+    setEditingDataIndicatorId(newDI.id);
+    setTempDataIndicator(newDI);
   };
 
-  // 更新数据指标
-  const handleUpdateDataIndicator = (diId: string, field: keyof DataIndicator, value: string) => {
-    if (!selectedNode) return;
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            dataIndicators: node.dataIndicators?.map(di =>
-              di.id === diId ? { ...di, [field]: value } : di
-            ),
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    const newTree = updateTree(treeData);
-    setTreeData(newTree);
-    setSelectedNode({
-      ...selectedNode,
-      dataIndicators: selectedNode.dataIndicators?.map(di =>
-        di.id === diId ? { ...di, [field]: value } : di
-      ),
-    });
+  const handleStartEditDataIndicator = (di: DataIndicator) => {
+    setEditingDataIndicatorId(di.id);
+    setTempDataIndicator({ ...di });
   };
 
-  // 删除数据指标
-  const handleDeleteDataIndicator = (diId: string) => {
-    if (!selectedNode) return;
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            dataIndicators: node.dataIndicators?.filter(di => di.id !== diId),
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    const newTree = updateTree(treeData);
-    setTreeData(newTree);
-    setSelectedNode({
-      ...selectedNode,
-      dataIndicators: selectedNode.dataIndicators?.filter(di => di.id !== diId),
-    });
+  const handleConfirmEditDataIndicator = () => {
+    if (!editingDataIndicatorId) return;
+    setEditDataIndicators(editDataIndicators.map(di =>
+      di.id === editingDataIndicatorId ? { ...di, ...tempDataIndicator } as DataIndicator : di
+    ));
+    setEditingDataIndicatorId(null);
+    setTempDataIndicator({});
   };
 
-  // 添加佐证资料
-  const handleAddMaterial = () => {
-    if (!selectedNode || !selectedNode.isLeaf) return;
+  const handleCancelEditDataIndicator = () => {
+    const di = editDataIndicators.find(d => d.id === editingDataIndicatorId);
+    if (di && !di.name) {
+      setEditDataIndicators(editDataIndicators.filter(d => d.id !== editingDataIndicatorId));
+    }
+    setEditingDataIndicatorId(null);
+    setTempDataIndicator({});
+  };
 
+  const handleDeleteEditDataIndicator = (diId: string) => {
+    setEditDataIndicators(editDataIndicators.filter(di => di.id !== diId));
+  };
+
+  // ========== 编辑弹窗中的佐证资料操作 ==========
+  const handleAddEditMaterial = () => {
     const newSM: SupportingMaterial = {
       id: generateId(),
-      code: `${selectedNode.code}-M${(selectedNode.supportingMaterials?.length || 0) + 1}`,
-      name: '新佐证资料',
-      fileTypes: 'PDF,Word,Excel',
+      code: `${editingNode?.code}-M${editMaterials.length + 1}`,
+      name: '',
+      fileTypes: 'PDF,Word',
       maxSize: '10MB',
       description: '',
       required: false,
+      targetType: '幼儿园',
     };
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            supportingMaterials: [...(node.supportingMaterials || []), newSM],
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    setTreeData(updateTree(treeData));
-    setSelectedNode({
-      ...selectedNode,
-      supportingMaterials: [...(selectedNode.supportingMaterials || []), newSM],
-    });
+    setEditMaterials([...editMaterials, newSM]);
+    setEditingMaterialId(newSM.id);
+    setTempMaterial(newSM);
   };
 
-  // 更新佐证资料
-  const handleUpdateMaterial = (smId: string, field: keyof SupportingMaterial, value: string | boolean) => {
-    if (!selectedNode) return;
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            supportingMaterials: node.supportingMaterials?.map(sm =>
-              sm.id === smId ? { ...sm, [field]: value } : sm
-            ),
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    const newTree = updateTree(treeData);
-    setTreeData(newTree);
-    setSelectedNode({
-      ...selectedNode,
-      supportingMaterials: selectedNode.supportingMaterials?.map(sm =>
-        sm.id === smId ? { ...sm, [field]: value } : sm
-      ),
-    });
+  const handleStartEditMaterial = (sm: SupportingMaterial) => {
+    setEditingMaterialId(sm.id);
+    setTempMaterial({ ...sm });
   };
 
-  // 删除佐证资料
-  const handleDeleteMaterial = (smId: string) => {
-    if (!selectedNode) return;
-
-    const updateTree = (nodes: Indicator[]): Indicator[] => {
-      return nodes.map(node => {
-        if (node.id === selectedNode.id) {
-          return {
-            ...node,
-            supportingMaterials: node.supportingMaterials?.filter(sm => sm.id !== smId),
-          };
-        }
-        if (node.children) {
-          return { ...node, children: updateTree(node.children) };
-        }
-        return node;
-      });
-    };
-
-    const newTree = updateTree(treeData);
-    setTreeData(newTree);
-    setSelectedNode({
-      ...selectedNode,
-      supportingMaterials: selectedNode.supportingMaterials?.filter(sm => sm.id !== smId),
-    });
+  const handleConfirmEditMaterial = () => {
+    if (!editingMaterialId) return;
+    setEditMaterials(editMaterials.map(sm =>
+      sm.id === editingMaterialId ? { ...sm, ...tempMaterial } as SupportingMaterial : sm
+    ));
+    setEditingMaterialId(null);
+    setTempMaterial({});
   };
 
-  // 数据指标表格列
-  const dataIndicatorColumns = [
-    { title: '编码', dataIndex: 'code', key: 'code', width: 100 },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: DataIndicator) => (
-        <Input
-          value={text}
-          size="small"
-          onChange={e => handleUpdateDataIndicator(record.id, 'name', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '阈值要求',
-      dataIndex: 'threshold',
-      key: 'threshold',
-      width: 150,
-      render: (text: string, record: DataIndicator) => (
-        <Input
-          value={text}
-          size="small"
-          placeholder="如: >=0.8"
-          onChange={e => handleUpdateDataIndicator(record.id, 'threshold', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '说明',
-      dataIndex: 'description',
-      key: 'description',
-      render: (text: string, record: DataIndicator) => (
-        <Input
-          value={text}
-          size="small"
-          placeholder="指标说明"
-          onChange={e => handleUpdateDataIndicator(record.id, 'description', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 60,
-      render: (_: unknown, record: DataIndicator) => (
-        <Popconfirm title="确定删除?" onConfirm={() => handleDeleteDataIndicator(record.id)}>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
+  const handleCancelEditMaterial = () => {
+    const sm = editMaterials.find(m => m.id === editingMaterialId);
+    if (sm && !sm.name) {
+      setEditMaterials(editMaterials.filter(m => m.id !== editingMaterialId));
+    }
+    setEditingMaterialId(null);
+    setTempMaterial({});
+  };
 
-  // 佐证资料表格列
-  const materialColumns = [
-    { title: '编码', dataIndex: 'code', key: 'code', width: 100 },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: SupportingMaterial) => (
-        <Input
-          value={text}
-          size="small"
-          onChange={e => handleUpdateMaterial(record.id, 'name', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '文件类型',
-      dataIndex: 'fileTypes',
-      key: 'fileTypes',
-      width: 140,
-      render: (text: string, record: SupportingMaterial) => (
-        <Input
-          value={text}
-          size="small"
-          placeholder="PDF,Word"
-          onChange={e => handleUpdateMaterial(record.id, 'fileTypes', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '大小限制',
-      dataIndex: 'maxSize',
-      key: 'maxSize',
-      width: 100,
-      render: (text: string, record: SupportingMaterial) => (
-        <Input
-          value={text}
-          size="small"
-          placeholder="10MB"
-          onChange={e => handleUpdateMaterial(record.id, 'maxSize', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: '必填',
-      dataIndex: 'required',
-      key: 'required',
-      width: 60,
-      render: (value: boolean, record: SupportingMaterial) => (
-        <Switch
-          size="small"
-          checked={value}
-          onChange={checked => handleUpdateMaterial(record.id, 'required', checked)}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 60,
-      render: (_: unknown, record: SupportingMaterial) => (
-        <Popconfirm title="确定删除?" onConfirm={() => handleDeleteMaterial(record.id)}>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
+  const handleDeleteEditMaterial = (smId: string) => {
+    setEditMaterials(editMaterials.filter(sm => sm.id !== smId));
+  };
+
+  const fileTypeOptions = ['PDF', 'Word', 'Excel', 'JPG', 'PNG'];
+
+  const handleToggleFileType = (fileType: string) => {
+    const currentTypes = tempMaterial.fileTypes?.split(',').map(t => t.trim()).filter(t => t) || [];
+    const index = currentTypes.indexOf(fileType);
+    if (index > -1) {
+      currentTypes.splice(index, 1);
+    } else {
+      currentTypes.push(fileType);
+    }
+    setTempMaterial({ ...tempMaterial, fileTypes: currentTypes.join(',') });
+  };
+
+  // 获取层级标签颜色
+  const getLevelColor = (level: number) => {
+    switch (level) {
+      case 1: return '#1677ff';
+      case 2: return '#722ed1';
+      case 3: return '#13c2c2';
+      default: return '#666';
+    }
+  };
+
+  // 渲染指标树节点
+  const renderIndicatorNode = (node: Indicator, siblings: Indicator[], depth: number = 0) => {
+    const isExpanded = expandedKeys.has(node.id);
+    const hasChildren = node.children && node.children.length > 0;
+    const index = siblings.findIndex(n => n.id === node.id);
+    const isFirst = index === 0;
+    const isLast = index === siblings.length - 1;
+
+    return (
+      <div key={node.id} className="indicator-tree-node">
+        {/* 指标行 */}
+        <div className="indicator-row" style={{ paddingLeft: depth * 24 }}>
+          {/* 展开/收缩按钮 */}
+          <span
+            className={`expand-icon ${hasChildren ? 'clickable' : 'hidden'}`}
+            onClick={() => hasChildren && toggleExpand(node.id)}
+          >
+            {hasChildren && (isExpanded ? '∨' : '>')}
+          </span>
+
+          {/* 层级标签 */}
+          <Tag
+            className="level-tag"
+            style={{ backgroundColor: getLevelColor(node.level), color: '#fff', border: 'none' }}
+          >
+            L{node.level}
+          </Tag>
+
+          {/* 编码标签 */}
+          <Tag className="code-tag">{node.code}</Tag>
+
+          {/* 名称 */}
+          <span className="indicator-name">{node.name}</span>
+
+          {/* 操作按钮 */}
+          <div className="indicator-actions">
+            <Button
+              type="text"
+              size="small"
+              icon={<UpOutlined />}
+              disabled={isFirst}
+              onClick={() => handleMove(node.id, 'up')}
+              title="上移"
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<DownOutlined />}
+              disabled={isLast}
+              onClick={() => handleMove(node.id, 'down')}
+              title="下移"
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<LeftOutlined />}
+              disabled={!canPromote(node)}
+              onClick={() => handlePromote(node.id)}
+              title="升级"
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<RightOutlined />}
+              disabled={!canDemote(node, siblings, index)}
+              onClick={() => handleDemote(node.id, siblings, index)}
+              title="降级"
+            />
+            {node.level < 3 && !node.isLeaf && (
+              <Button
+                type="text"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => handleOpenAddModal(node.id, node.level + 1)}
+                title="添加子指标"
+              />
+            )}
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEditModal(node)}
+              title="编辑"
+            />
+            <Popconfirm
+              title="确定删除该指标及其子指标?"
+              onConfirm={() => handleDeleteIndicator(node.id)}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                title="删除"
+              />
+            </Popconfirm>
+          </div>
+        </div>
+
+        {/* 描述 */}
+        {node.description && (
+          <div className="indicator-description" style={{ paddingLeft: depth * 24 + 76 }}>
+            {node.description}
+          </div>
+        )}
+
+        {/* 数据指标和佐证资料 - 仅末级指标显示 */}
+        {node.isLeaf && (
+          <div className="indicator-details" style={{ paddingLeft: depth * 24 + 76 }}>
+            {node.dataIndicators?.map(di => (
+              <div key={di.id} className="detail-item data-indicator-item">
+                <Tag className="detail-code">{di.code}</Tag>
+                <Tag color="blue">数据指标</Tag>
+                <span className="detail-name">{di.name}</span>
+                {di.threshold && <Tag color="orange">{di.threshold}</Tag>}
+              </div>
+            ))}
+            {node.dataIndicators && node.dataIndicators.length > 0 && node.dataIndicators[0].description && (
+              <div className="detail-description">
+                {node.dataIndicators[0].description}
+              </div>
+            )}
+            {node.supportingMaterials?.map(sm => (
+              <div key={sm.id} className="detail-item material-item">
+                <Tag className="detail-code">{sm.code}</Tag>
+                <Tag color="green">佐证资料</Tag>
+                <span className="detail-name">{sm.name}</span>
+                <span className="detail-file-type">({sm.fileTypes})</span>
+              </div>
+            ))}
+            {node.supportingMaterials && node.supportingMaterials.length > 0 && node.supportingMaterials[0].description && (
+              <div className="detail-description">
+                {node.supportingMaterials[0].description}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 子节点 */}
+        {isExpanded && hasChildren && (
+          <div className="indicator-children">
+            {node.children!.map(child => renderIndicatorNode(child, node.children!, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <Spin spinning={loading} size="large" tip="加载中...">
-    <div className="indicator-tree-edit-page">
-      {/* 页面头部 */}
-      <div className="page-header">
-        <div className="header-left">
-          <span className="back-btn" onClick={() => navigate(-1)}>
-            <ArrowLeftOutlined /> 返回
-          </span>
-          <h1 className="page-title">编辑指标树</h1>
-        </div>
-        <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>
-          保存指标树
-        </Button>
-      </div>
-
-      {/* 指标体系信息 */}
-      {system && (
-        <div className="system-info-card">
-          <div className="system-info-header">
-            <span className="system-name">{system.name}</span>
-            <Tag color={system.type === '达标类' ? 'blue' : 'purple'}>{system.type}</Tag>
-            <Tag color="cyan">评估对象: {system.target}</Tag>
+    <Spin spinning={loading} size="large" tip="加载中..." style={{ width: '100%' }}>
+      <div className="indicator-tree-edit-page">
+        {/* 页面头部 */}
+        <div className="page-header">
+          <div className="header-left">
+            <span className="back-btn" onClick={() => navigate(-1)}>
+              <ArrowLeftOutlined /> 返回
+            </span>
+            <h1 className="page-title">编辑指标</h1>
           </div>
-          <p className="system-desc">{system.description}</p>
         </div>
-      )}
 
-      {/* 主内容区域 */}
-      <div className="main-content">
-        {/* 左侧指标树 */}
-        <div className="tree-panel">
-          <div className="panel-header">
-            <h3>指标结构</h3>
-            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => handleOpenAddModal(null, 1)}>
+        {/* 指标体系信息卡片 */}
+        {system && (
+          <div className="system-info-card-v2">
+            <div className="card-header">
+              <div className="card-title-row">
+                <h2 className="system-title">{system.name}</h2>
+                <Tag color={system.type === '达标类' ? 'blue' : 'purple'}>{system.type}</Tag>
+                <Tag color="cyan">评估对象: {system.target}</Tag>
+              </div>
+              <div className="card-stats">
+                <span className="stat-item">指标数: {countIndicators(treeData)}</span>
+                <Tag color={system.status === 'published' ? 'green' : 'orange'}>
+                  {system.status === 'published' ? '已发布' : system.status === 'editing' ? '编辑中' : '草稿'}
+                </Tag>
+              </div>
+            </div>
+
+            <div className="card-tags">
+              {system.tags.map((tag, idx) => (
+                <Tag key={idx}>{tag}</Tag>
+              ))}
+            </div>
+
+            <p className="card-description">{system.description}</p>
+
+            {system.attachments && system.attachments.length > 0 && (
+              <div className="card-attachments">
+                {system.attachments.map((att, idx) => (
+                  <a key={idx} className="attachment-link">
+                    <PaperClipOutlined /> {att.name} ({att.size})
+                  </a>
+                ))}
+              </div>
+            )}
+
+            <div className="card-meta">
+              <span>创建时间: {system.createdAt}</span>
+              <span>创建人: {system.createdBy}</span>
+              <span>更新时间: {system.updatedAt}</span>
+              <span>更新人: {system.updatedBy}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 指标列表 */}
+        <div className="indicator-list-section">
+          <div className="section-header">
+            <div className="section-title">
+              <h3>指标列表</h3>
+              <Button type="link" icon={<StarOutlined />} onClick={collapseAll}>
+                全部收缩
+              </Button>
+            </div>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenAddModal(null, 1)}>
               添加一级指标
             </Button>
           </div>
-          <div className="tree-container">
+
+          <div className="indicator-tree-list">
             {treeData.length > 0 ? (
-              <Tree
-                treeData={convertToTreeData(treeData)}
-                selectedKeys={selectedNode ? [selectedNode.id] : []}
-                expandedKeys={expandedKeys}
-                onSelect={handleSelectNode}
-                onExpand={(keys) => setExpandedKeys(keys as string[])}
-                blockNode
-              />
+              treeData.map(node => renderIndicatorNode(node, treeData, 0))
             ) : (
               <div className="empty-tree">
                 <FileTextOutlined className="empty-icon" />
@@ -646,216 +888,338 @@ const IndicatorTreeEdit: React.FC = () => {
           </div>
         </div>
 
-        {/* 右侧详情面板 */}
-        <div className="detail-panel">
-          {selectedNode ? (
-            <>
-              <div className="panel-header">
-                <h3>
-                  <Tag color="blue">{selectedNode.code}</Tag>
-                  {selectedNode.name}
-                </h3>
-                <div className="header-actions">
-                  {selectedNode.level < 3 && !selectedNode.isLeaf && (
-                    <Button
-                      size="small"
-                      icon={<PlusOutlined />}
-                      onClick={() => handleOpenAddModal(selectedNode.id, selectedNode.level + 1)}
+        {/* 添加指标弹窗 */}
+        <Modal
+          title={`添加${addLevel}级指标`}
+          open={addModalVisible}
+          onCancel={() => setAddModalVisible(false)}
+          footer={null}
+          width={500}
+        >
+          <Form form={form} onFinish={handleAddIndicator} layout="vertical">
+            <Form.Item
+              label="指标名称"
+              name="name"
+              rules={[{ required: true, message: '请输入指标名称' }]}
+            >
+              <Input placeholder="请输入指标名称" />
+            </Form.Item>
+            <Form.Item label="描述" name="description">
+              <TextArea placeholder="请输入指标描述" rows={3} />
+            </Form.Item>
+            <Form.Item
+              label="是否末级指标"
+              name="isLeaf"
+              valuePropName="checked"
+              extra={addLevel === 3 ? '三级指标必须为末级指标' : '末级指标可配置数据指标和佐证资料'}
+            >
+              <Switch disabled={addLevel === 3} />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+              <Button onClick={() => setAddModalVisible(false)} style={{ marginRight: 8 }}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit">
+                添加
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* 编辑指标弹窗 */}
+        <Modal
+          title="编辑指标"
+          open={editModalVisible}
+          onCancel={() => { setEditModalVisible(false); setEditingNode(null); }}
+          footer={null}
+          width={680}
+          className="edit-indicator-modal"
+        >
+          <div className="edit-modal-subtitle">修改指标信息</div>
+          <Form form={editForm} onFinish={handleUpdateIndicator} layout="vertical">
+            <Form.Item
+              label="指标名称"
+              name="name"
+              rules={[{ required: true, message: '请输入指标名称' }]}
+            >
+              <Input placeholder="请输入指标名称" />
+            </Form.Item>
+            <Form.Item label="指标说明" name="description">
+              <TextArea placeholder="该指标用于评估教育资源配置的均衡性" rows={3} />
+            </Form.Item>
+            <Form.Item
+              label="是否为末级指标"
+              name="isLeaf"
+              valuePropName="checked"
+            >
+              <Switch disabled={editingNode?.level === 3 || (editingNode?.children?.length || 0) > 0} />
+            </Form.Item>
+
+            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.isLeaf !== curr.isLeaf}>
+              {({ getFieldValue }) => getFieldValue('isLeaf') && (
+                <>
+                  <Form.Item label="评价依据" className="evaluation-basis-item">
+                    <Checkbox.Group
+                      value={evaluationBasis}
+                      onChange={(values) => setEvaluationBasis(values as string[])}
                     >
-                      添加子指标
-                    </Button>
-                  )}
-                  <Button size="small" icon={<EditOutlined />} onClick={handleOpenEditModal}>
-                    编辑
-                  </Button>
-                  <Popconfirm title="确定删除该指标及其子指标?" onConfirm={handleDeleteIndicator}>
-                    <Button size="small" danger icon={<DeleteOutlined />}>
-                      删除
-                    </Button>
-                  </Popconfirm>
-                </div>
-              </div>
+                      <Checkbox value="dataIndicators">数据指标</Checkbox>
+                      <Checkbox value="materials">佐证资料</Checkbox>
+                    </Checkbox.Group>
+                  </Form.Item>
 
-              <div className="indicator-info">
-                <div className="info-item">
-                  <label>层级</label>
-                  <span>{selectedNode.level}级指标</span>
-                </div>
-                <div className="info-item">
-                  <label>类型</label>
-                  <Tag color={selectedNode.isLeaf ? 'green' : 'default'}>
-                    {selectedNode.isLeaf ? '末级指标' : '分类指标'}
-                  </Tag>
-                </div>
-                {selectedNode.description && (
-                  <div className="info-item full">
-                    <label>描述</label>
-                    <span>{selectedNode.description}</span>
-                  </div>
-                )}
-              </div>
-
-              {selectedNode.isLeaf && (
-                <Tabs
-                  defaultActiveKey="dataIndicators"
-                  items={[
-                    {
-                      key: 'dataIndicators',
-                      label: (
-                        <span>
-                          <DatabaseOutlined /> 数据指标 ({selectedNode.dataIndicators?.length || 0})
-                        </span>
-                      ),
-                      children: (
-                        <div className="config-section">
-                          <div className="section-header">
-                            <span>配置该指标的评价数据指标</span>
-                            <Button size="small" icon={<PlusOutlined />} onClick={handleAddDataIndicator}>
-                              添加
-                            </Button>
-                          </div>
-                          <Table
-                            dataSource={selectedNode.dataIndicators || []}
-                            columns={dataIndicatorColumns}
-                            rowKey="id"
-                            size="small"
-                            pagination={false}
-                          />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'materials',
-                      label: (
-                        <span>
-                          <FileTextOutlined /> 佐证资料 ({selectedNode.supportingMaterials?.length || 0})
-                        </span>
-                      ),
-                      children: (
-                        <div className="config-section">
-                          <div className="section-header">
-                            <span>配置需要上传的佐证资料</span>
-                            <Button size="small" icon={<PlusOutlined />} onClick={handleAddMaterial}>
-                              添加
-                            </Button>
-                          </div>
-                          <Table
-                            dataSource={selectedNode.supportingMaterials || []}
-                            columns={materialColumns}
-                            rowKey="id"
-                            size="small"
-                            pagination={false}
-                          />
-                        </div>
-                      ),
-                    },
-                  ]}
-                />
-              )}
-
-              {!selectedNode.isLeaf && selectedNode.children && selectedNode.children.length > 0 && (
-                <div className="children-list">
-                  <h4>子指标 ({selectedNode.children.length})</h4>
-                  <div className="children-items">
-                    {selectedNode.children.map(child => (
-                      <div key={child.id} className="child-item" onClick={() => setSelectedNode(child)}>
-                        <Tag>{child.code}</Tag>
-                        <span>{child.name}</span>
-                        {child.isLeaf && <Tag color="green" className="leaf-tag">末级</Tag>}
+                  {evaluationBasis.includes('dataIndicators') && (
+                    <div className="edit-section data-indicators-section">
+                      <div className="edit-section-header">
+                        <span className="section-title">数据指标</span>
+                        <Button type="link" icon={<PlusOutlined />} onClick={handleAddEditDataIndicator}>
+                          添加
+                        </Button>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="edit-section-content">
+                        {editDataIndicators.map((di, index) => (
+                          <div key={di.id} className="indicator-card">
+                            {editingDataIndicatorId === di.id ? (
+                              <div className="indicator-card-edit">
+                                <div className="card-edit-row">
+                                  <Tag className="card-code">{editingNode?.code}-D{index + 1}</Tag>
+                                  <Select
+                                    value={tempDataIndicator.targetType || '幼儿园'}
+                                    onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, targetType: val })}
+                                    size="small"
+                                    style={{ width: 100 }}
+                                    options={[
+                                      { value: '幼儿园', label: '【幼儿园】' },
+                                      { value: '小学', label: '【小学】' },
+                                      { value: '初中', label: '【初中】' },
+                                      { value: '高中', label: '【高中】' },
+                                    ]}
+                                  />
+                                  <span className="separator">.</span>
+                                  <Input
+                                    value={tempDataIndicator.name}
+                                    onChange={(e) => setTempDataIndicator({ ...tempDataIndicator, name: e.target.value })}
+                                    placeholder="数据指标名称"
+                                    style={{ flex: 1 }}
+                                  />
+                                </div>
+                                <div className="card-edit-row">
+                                  <span className="row-label">达标阈值</span>
+                                  <Select
+                                    value={tempDataIndicator.thresholdType || 'single'}
+                                    onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, thresholdType: val })}
+                                    size="small"
+                                    style={{ width: 100 }}
+                                    options={[
+                                      { value: 'single', label: '单值比较' },
+                                      { value: 'range', label: '区间' },
+                                    ]}
+                                  />
+                                  <span className="row-label" style={{ marginLeft: 16 }}>精确位数</span>
+                                  <Select
+                                    value={tempDataIndicator.precision || 2}
+                                    onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, precision: val })}
+                                    size="small"
+                                    style={{ width: 80 }}
+                                    options={[
+                                      { value: 0, label: '整数' },
+                                      { value: 1, label: '1位' },
+                                      { value: 2, label: '2位' },
+                                      { value: 3, label: '3位' },
+                                    ]}
+                                  />
+                                </div>
+                                <div className="card-edit-row">
+                                  <span className="threshold-label">【数据指标】</span>
+                                  <Select
+                                    value={tempDataIndicator.threshold?.split(' ')[0] || '>='}
+                                    onChange={(val) => {
+                                      const parts = tempDataIndicator.threshold?.split(' ') || ['>=', ''];
+                                      setTempDataIndicator({ ...tempDataIndicator, threshold: `${val} ${parts[1] || ''}` });
+                                    }}
+                                    size="small"
+                                    style={{ width: 70 }}
+                                    options={[
+                                      { value: '>=', label: '>=' },
+                                      { value: '>', label: '>' },
+                                      { value: '<=', label: '<=' },
+                                      { value: '<', label: '<' },
+                                      { value: '=', label: '=' },
+                                    ]}
+                                  />
+                                  <Input
+                                    value={tempDataIndicator.threshold?.split(' ')[1] || ''}
+                                    onChange={(e) => {
+                                      const parts = tempDataIndicator.threshold?.split(' ') || ['>=', ''];
+                                      setTempDataIndicator({ ...tempDataIndicator, threshold: `${parts[0]} ${e.target.value}` });
+                                    }}
+                                    placeholder="精确到2位小数"
+                                    style={{ flex: 1 }}
+                                  />
+                                </div>
+                                <div className="card-edit-row">
+                                  <span className="row-label">数据指标说明</span>
+                                </div>
+                                <TextArea
+                                  value={tempDataIndicator.description}
+                                  onChange={(e) => setTempDataIndicator({ ...tempDataIndicator, description: e.target.value })}
+                                  placeholder="请输入数据指标说明（非必填）"
+                                  rows={2}
+                                />
+                                <div className="card-edit-actions">
+                                  <Button size="small" icon={<CloseOutlined />} onClick={handleCancelEditDataIndicator}>
+                                    取消
+                                  </Button>
+                                  <Button size="small" type="primary" icon={<CheckOutlined />} onClick={handleConfirmEditDataIndicator}>
+                                    确认
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="indicator-card-view">
+                                <div className="card-view-header">
+                                  <Tag className="card-code">{di.code}</Tag>
+                                  <span className="card-name">
+                                    {di.name} {di.threshold && <Tag color="orange">{di.threshold}</Tag>}
+                                  </span>
+                                  <div className="card-actions">
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<EditOutlined />}
+                                      onClick={() => handleStartEditDataIndicator(di)}
+                                    />
+                                    <Popconfirm title="确定删除?" onConfirm={() => handleDeleteEditDataIndicator(di.id)}>
+                                      <Button type="text" size="small" icon={<DeleteOutlined />} />
+                                    </Popconfirm>
+                                  </div>
+                                </div>
+                                {di.description && <div className="card-description">{di.description}</div>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {evaluationBasis.includes('materials') && (
+                    <div className="edit-section materials-section">
+                      <div className="edit-section-header">
+                        <span className="section-title">佐证资料</span>
+                        <Button type="link" icon={<PlusOutlined />} onClick={handleAddEditMaterial}>
+                          添加
+                        </Button>
+                      </div>
+                      <div className="edit-section-content">
+                        {editMaterials.map((sm, index) => (
+                          <div key={sm.id} className="indicator-card">
+                            {editingMaterialId === sm.id ? (
+                              <div className="indicator-card-edit">
+                                <div className="card-edit-row">
+                                  <Tag className="card-code">{editingNode?.code}-M{index + 1}</Tag>
+                                  <Select
+                                    value={tempMaterial.targetType || '幼儿园'}
+                                    onChange={(val) => setTempMaterial({ ...tempMaterial, targetType: val })}
+                                    size="small"
+                                    style={{ width: 100 }}
+                                    options={[
+                                      { value: '幼儿园', label: '【幼儿园】' },
+                                      { value: '小学', label: '【小学】' },
+                                      { value: '初中', label: '【初中】' },
+                                      { value: '高中', label: '【高中】' },
+                                    ]}
+                                  />
+                                  <span className="separator">.</span>
+                                  <Input
+                                    value={tempMaterial.name}
+                                    onChange={(e) => setTempMaterial({ ...tempMaterial, name: e.target.value })}
+                                    placeholder="佐证资料名称"
+                                    style={{ flex: 1 }}
+                                  />
+                                  <span className="row-label" style={{ marginLeft: 16 }}>大小(MB)</span>
+                                  <InputNumber
+                                    value={parseInt(tempMaterial.maxSize || '10')}
+                                    onChange={(val) => setTempMaterial({ ...tempMaterial, maxSize: `${val}MB` })}
+                                    min={1}
+                                    max={100}
+                                    style={{ width: 70 }}
+                                  />
+                                </div>
+                                <div className="card-edit-row">
+                                  <span className="row-label">文件格式:</span>
+                                  <div className="file-type-tags">
+                                    {fileTypeOptions.map(type => (
+                                      <Tag
+                                        key={type}
+                                        className={`file-type-tag ${tempMaterial.fileTypes?.includes(type) ? 'selected' : ''}`}
+                                        onClick={() => handleToggleFileType(type)}
+                                      >
+                                        {type}
+                                      </Tag>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="card-edit-row">
+                                  <span className="row-label">佐证资料说明</span>
+                                </div>
+                                <TextArea
+                                  value={tempMaterial.description}
+                                  onChange={(e) => setTempMaterial({ ...tempMaterial, description: e.target.value })}
+                                  placeholder="请输入佐证资料说明（选填）"
+                                  rows={2}
+                                />
+                                <div className="card-edit-actions">
+                                  <Button size="small" icon={<CloseOutlined />} onClick={handleCancelEditMaterial}>
+                                    取消
+                                  </Button>
+                                  <Button size="small" type="primary" icon={<CheckOutlined />} onClick={handleConfirmEditMaterial}>
+                                    确认
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="indicator-card-view">
+                                <div className="card-view-header">
+                                  <Tag className="card-code">{sm.code}</Tag>
+                                  <span className="card-name">{sm.name}</span>
+                                  <Tag>{sm.fileTypes}</Tag>
+                                  <Tag>{sm.maxSize}</Tag>
+                                  <div className="card-actions">
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<EditOutlined />}
+                                      onClick={() => handleStartEditMaterial(sm)}
+                                    />
+                                    <Popconfirm title="确定删除?" onConfirm={() => handleDeleteEditMaterial(sm.id)}>
+                                      <Button type="text" size="small" icon={<DeleteOutlined />} />
+                                    </Popconfirm>
+                                  </div>
+                                </div>
+                                {sm.description && <div className="card-description">{sm.description}</div>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          ) : (
-            <div className="empty-detail">
-              <FileTextOutlined className="empty-icon" />
-              <p>选择一个指标查看详情</p>
-            </div>
-          )}
-        </div>
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 24 }}>
+              <Button onClick={() => { setEditModalVisible(false); setEditingNode(null); }} style={{ marginRight: 8 }}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit">
+                保存
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
-
-      {/* 添加指标弹窗 */}
-      <Modal
-        title={`添加${addLevel}级指标`}
-        open={addModalVisible}
-        onCancel={() => setAddModalVisible(false)}
-        footer={null}
-        width={500}
-      >
-        <Form form={form} onFinish={handleAddIndicator} layout="vertical">
-          <Form.Item
-            label="指标名称"
-            name="name"
-            rules={[{ required: true, message: '请输入指标名称' }]}
-          >
-            <Input placeholder="请输入指标名称" />
-          </Form.Item>
-          <Form.Item label="描述" name="description">
-            <TextArea placeholder="请输入指标描述" rows={3} />
-          </Form.Item>
-          <Form.Item
-            label="是否末级指标"
-            name="isLeaf"
-            valuePropName="checked"
-            extra={addLevel === 3 ? '三级指标必须为末级指标' : '末级指标可配置数据指标和佐证资料'}
-          >
-            <Switch disabled={addLevel === 3} />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Button onClick={() => setAddModalVisible(false)} style={{ marginRight: 8 }}>
-              取消
-            </Button>
-            <Button type="primary" htmlType="submit">
-              添加
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 编辑指标弹窗 */}
-      <Modal
-        title="编辑指标"
-        open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        footer={null}
-        width={500}
-      >
-        <Form form={editForm} onFinish={handleUpdateIndicator} layout="vertical">
-          <Form.Item
-            label="指标名称"
-            name="name"
-            rules={[{ required: true, message: '请输入指标名称' }]}
-          >
-            <Input placeholder="请输入指标名称" />
-          </Form.Item>
-          <Form.Item label="描述" name="description">
-            <TextArea placeholder="请输入指标描述" rows={3} />
-          </Form.Item>
-          <Form.Item label="权重" name="weight">
-            <InputNumber placeholder="如: 10" min={0} max={100} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item
-            label="是否末级指标"
-            name="isLeaf"
-            valuePropName="checked"
-            extra="切换后将影响子指标和数据指标配置"
-          >
-            <Switch disabled={selectedNode?.level === 3 || (selectedNode?.children?.length || 0) > 0} />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Button onClick={() => setEditModalVisible(false)} style={{ marginRight: 8 }}>
-              取消
-            </Button>
-            <Button type="primary" htmlType="submit">
-              保存
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
     </Spin>
   );
 };

@@ -249,10 +249,7 @@ const IndicatorLibrary: React.FC = () => {
                 <EyeOutlined /> 基础信息
               </span>
               <span className="action-btn" onClick={() => handleEditTree(system)}>
-                <ApartmentOutlined /> 指标树
-              </span>
-              <span className="action-btn" onClick={() => handleEditIndicators(system)}>
-                <EditOutlined /> 编辑指标
+                <ApartmentOutlined /> 编辑指标
               </span>
               {system.status === 'published' ? (
                 <span className="action-btn">取消发布</span>
