@@ -29,8 +29,10 @@ import {
   ExclamationCircleFilled,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toolService, FormField } from '../../services/toolService';
-import { submissionService, Submission } from '../../services/submissionService';
+import * as toolService from '../../services/toolService';
+import type { FormField } from '../../services/toolService';
+import * as submissionService from '../../services/submissionService';
+import type { Submission } from '../../services/submissionService';
 import './index.css';
 
 // 扩展 FormField 类型以包含更多属性

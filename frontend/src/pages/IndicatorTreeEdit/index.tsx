@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Tree, Tag, Modal, Form, Input, Select, Switch, message, Tabs, Table, InputNumber, Popconfirm } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Tree, Tag, Modal, Form, Input, Switch, message, Tabs, Table, InputNumber, Popconfirm, Spin } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -74,13 +74,7 @@ const IndicatorTreeEdit: React.FC = () => {
   const [editForm] = Form.useForm();
 
   // 加载数据
-  useEffect(() => {
-    if (systemId) {
-      loadData();
-    }
-  }, [systemId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!systemId) return;
     setLoading(true);
     try {
@@ -98,7 +92,13 @@ const IndicatorTreeEdit: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [systemId]);
+
+  useEffect(() => {
+    if (systemId) {
+      loadData();
+    }
+  }, [systemId, loadData]);
 
   // 保存指标树
   const handleSave = async () => {
@@ -590,6 +590,7 @@ const IndicatorTreeEdit: React.FC = () => {
   ];
 
   return (
+    <Spin spinning={loading} size="large" tip="加载中...">
     <div className="indicator-tree-edit-page">
       {/* 页面头部 */}
       <div className="page-header">
@@ -855,6 +856,7 @@ const IndicatorTreeEdit: React.FC = () => {
         </Form>
       </Modal>
     </div>
+    </Spin>
   );
 };
 

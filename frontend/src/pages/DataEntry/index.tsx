@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Tag, Select, Table, message, Card, Statistic, Row, Col, Input } from 'antd';
+import { Button, Tag, Select, Table, message, Card, Statistic, Row, Col } from 'antd';
 import {
   ArrowLeftOutlined,
   FileTextOutlined,
@@ -14,8 +14,6 @@ import { useNavigate } from 'react-router-dom';
 import { getProjects, getSubmissions, Project, Submission } from '../../services/submissionService';
 import { getTools, DataTool } from '../../services/toolService';
 import './index.css';
-
-const { Search } = Input;
 
 const DataEntry: React.FC = () => {
   const navigate = useNavigate();

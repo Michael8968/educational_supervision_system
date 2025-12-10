@@ -87,6 +87,16 @@ export async function getTool(id: string): Promise<DataTool> {
   return get<DataTool>(`/tools/${id}`);
 }
 
+// 获取工具（别名）
+export async function getById(id: string): Promise<DataTool> {
+  return getTool(id);
+}
+
+// 获取工具的schema
+export async function getSchema(id: string): Promise<{ schema: FormField[] }> {
+  return get<{ schema: FormField[] }>(`/tools/${id}/schema`);
+}
+
 // 创建采集工具
 export async function createTool(data: Partial<DataTool>): Promise<{ id: string }> {
   return post<{ id: string }>('/tools', data);

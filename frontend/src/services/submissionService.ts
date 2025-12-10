@@ -150,3 +150,32 @@ export async function deleteSubmission(id: string): Promise<void> {
 export async function getProjectStats(projectId: string): Promise<SubmissionStats> {
   return get<SubmissionStats>(`/projects/${projectId}/stats`);
 }
+
+// ==================== 别名方法（简化调用）====================
+
+// 根据项目ID获取填报记录
+export async function getByProject(projectId: string): Promise<Submission[]> {
+  return getSubmissions({ projectId });
+}
+
+// 创建填报（别名）
+export async function create(data: {
+  projectId: string;
+  formId: string;
+  submitterName?: string;
+  submitterOrg?: string;
+  data?: Record<string, unknown>;
+}): Promise<Submission> {
+  const result = await createSubmission(data);
+  return { ...data, id: result.id, status: 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Submission;
+}
+
+// 更新填报（别名）
+export async function update(id: string, data: { data?: Record<string, unknown> }): Promise<void> {
+  return updateSubmission(id, data);
+}
+
+// 提交填报（别名）
+export async function submit(id: string): Promise<void> {
+  return submitSubmission(id);
+}
