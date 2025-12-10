@@ -178,8 +178,9 @@ const ToolLibrary: React.FC = () => {
         onCancel={() => setCreateModalVisible(false)}
         footer={null}
         width={480}
+        className="tool-edit-modal"
       >
-        <p style={{ color: '#666', marginBottom: 24 }}>填写工具的基本信息</p>
+        <p className="edit-subtitle">填写工具的基本信息</p>
         <Form form={form} onFinish={handleCreate} layout="vertical">
           <Form.Item
             label="工具类型"
@@ -226,18 +227,23 @@ const ToolLibrary: React.FC = () => {
         closable={true}
         closeIcon={<CloseOutlined />}
         className="tool-view-modal"
+        title={null}
       >
         {currentTool && (
           <div className="tool-view-content">
             <div className="tool-view-header">
-              <h2 className="tool-view-title">{currentTool.name}</h2>
-              <div className="tool-view-tags">
-                <Tag icon={currentTool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
-                  {currentTool.type}
-                </Tag>
-                <Tag>{currentTool.target}</Tag>
+              <div className="tool-view-title-row">
+                <h2 className="tool-view-title">{currentTool.name}</h2>
+                <div className="tool-view-tags">
+                  <Tag icon={currentTool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
+                    {currentTool.type}
+                  </Tag>
+                  <Tag>{currentTool.target}</Tag>
+                </div>
               </div>
-              {getStatusTag(currentTool.status)}
+              <div className="tool-view-status">
+                {getStatusTag(currentTool.status)}
+              </div>
             </div>
             <div className="tool-view-meta">
               <span>创建时间: {currentTool.createdAt}</span>
@@ -272,8 +278,9 @@ const ToolLibrary: React.FC = () => {
         }}
         footer={null}
         width={480}
+        className="tool-edit-modal"
       >
-        <p style={{ color: '#666', marginBottom: 24 }}>修改工具的基本信息</p>
+        <p className="edit-subtitle">修改工具的基本信息</p>
         <Form form={editForm} onFinish={handleSaveEdit} layout="vertical">
           <Form.Item
             label="工具类型"

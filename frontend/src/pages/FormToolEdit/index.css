@@ -1,0 +1,584 @@
+.form-tool-edit-page {
+  min-height: 100%;
+  background: #f5f7fa;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 页面头部 */
+.form-tool-edit-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.form-tool-edit-page .header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-tool-edit-page .back-btn {
+  color: #1890ff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-tool-edit-page .back-btn:hover {
+  color: #40a9ff;
+}
+
+.form-tool-edit-page .page-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+/* 工具信息卡片 */
+.tool-info-card {
+  margin: 16px 24px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #1890ff;
+}
+
+.tool-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tool-info-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tool-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.tool-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.tool-meta {
+  display: flex;
+  gap: 24px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  padding: 0 24px 24px;
+  min-height: 0;
+}
+
+/* 控件库面板 */
+.control-library {
+  width: 240px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 12px;
+}
+
+.control-library .ant-tabs {
+  margin-bottom: 12px;
+}
+
+.control-library .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.control-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-item:hover {
+  border-color: #1890ff;
+  background: #f6ffed;
+}
+
+.control-icon {
+  font-size: 16px;
+  color: #1890ff;
+  padding-top: 2px;
+}
+
+.control-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.control-desc {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 表单设计区 */
+.form-designer {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.designer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.designer-header h3 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+.designer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.designer-actions .ant-btn {
+  font-size: 13px;
+}
+
+.designer-canvas {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.form-header {
+  background: #f0f7ff;
+  border: 1px solid #d6e8fc;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.form-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.form-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-icon {
+  color: #999;
+  cursor: pointer;
+}
+
+.edit-icon:hover {
+  color: #1890ff;
+}
+
+.form-desc {
+  color: #666;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.empty-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  color: #999;
+  font-size: 14px;
+  width: 100%;
+}
+
+.form-field-item {
+  background: #fff;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.form-field-item:hover {
+  border-color: #1890ff;
+}
+
+.form-field-item.selected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.field-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.required-mark {
+  color: #ff4d4f;
+  margin-left: 4px;
+}
+
+.field-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.form-field-item:hover .field-actions {
+  opacity: 1;
+}
+
+.field-actions .anticon {
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.field-actions .anticon:hover {
+  color: #1890ff;
+}
+
+.field-actions .anticon-delete:hover {
+  color: #ff4d4f;
+}
+
+.field-content {
+  margin-bottom: 4px;
+}
+
+.field-content .ant-input,
+.field-content .ant-select {
+  pointer-events: none;
+}
+
+.field-help {
+  font-size: 12px;
+  color: #999;
+}
+
+.options-preview {
+  display: flex;
+  gap: 8px;
+}
+
+.options-preview.vertical {
+  flex-direction: column;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 14px;
+}
+
+.divider-preview {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 8px 0;
+}
+
+/* 属性面板 */
+.property-panel {
+  width: 280px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.property-panel .ant-tabs {
+  margin-bottom: 16px;
+}
+
+.property-panel .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.property-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.property-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.property-item.inline {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.property-item label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.property-item .ant-input,
+.property-item .ant-select {
+  font-size: 13px;
+}
+
+.evaluation-config {
+  display: flex;
+  gap: 8px;
+}
+
+.evaluation-config .ant-btn {
+  font-size: 13px;
+}
+
+.evaluation-hint {
+  font-size: 12px;
+  color: #1890ff;
+  margin-top: 4px;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-row .ant-input {
+  flex: 1;
+}
+
+.delete-option {
+  color: #999;
+  cursor: pointer;
+}
+
+.delete-option:hover {
+  color: #ff4d4f;
+}
+
+.add-option-btn {
+  margin-top: 8px;
+}
+
+.empty-properties {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+}
+
+/* 拖拽相关样式 */
+.control-item {
+  cursor: grab;
+  user-select: none;
+}
+
+.control-item:active {
+  cursor: grabbing;
+}
+
+.control-item[draggable="true"]:hover {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+/* 拖拽时控件库项目样式 */
+.control-item:active,
+.control-item.dragging {
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+/* 表单字段拖拽手柄 */
+.field-drag-handle {
+  cursor: grab;
+  color: #999;
+  margin-right: 8px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.field-drag-handle:hover {
+  color: #1890ff;
+}
+
+.field-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* 字段拖拽时样式 */
+.form-field-item.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+/* 拖拽放置指示器 */
+.drop-indicator {
+  width: 100%;
+  height: 4px;
+  background: #1890ff;
+  border-radius: 2px;
+  margin: 8px 0;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 空画布拖拽悬停状态 */
+.empty-canvas.drag-over {
+  border-color: #1890ff;
+  background: #e6f7ff;
+  border-width: 3px;
+}
+
+/* 表单字段容器拖拽状态 */
+.form-fields.dragging {
+  min-height: 200px;
+}
+
+.form-fields.drag-over {
+  background: rgba(24, 144, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* 末尾放置区域 */
+.drop-zone-end {
+  width: 100%;
+  min-height: 60px;
+  margin-top: 8px;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.drop-zone-end.active {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+/* 字段header调整 */
+.field-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.field-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 拖拽悬停时字段样式 */
+.form-field-item:not(.dragging) {
+  transition: transform 0.2s, border-color 0.2s;
+}
