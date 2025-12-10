@@ -8,6 +8,7 @@ import {
   EyeOutlined,
   EditOutlined,
   CloseOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { dataTools, DataTool } from '../../mock/data';
@@ -98,12 +99,28 @@ const ToolLibrary: React.FC = () => {
   const getStatusTag = (status: string) => {
     switch (status) {
       case 'published':
-        return <Tag color="green">已发布</Tag>;
+        return <span className="tool-status-tag published">已发布</span>;
       case 'editing':
-        return <Tag color="orange">编辑中</Tag>;
+        return <span className="tool-status-tag editing">编辑中</span>;
       default:
-        return <Tag>草稿</Tag>;
+        return <span className="tool-status-tag draft">草稿</span>;
     }
+  };
+
+  const handleTogglePublish = (tool: DataTool) => {
+    const newStatus = tool.status === 'published' ? 'editing' : 'published';
+    const updatedTools = tools.map(t =>
+      t.id === tool.id
+        ? { ...t, status: newStatus as 'published' | 'editing' | 'draft', updatedAt: new Date().toISOString().split('T')[0] }
+        : t
+    );
+    setTools(updatedTools);
+    message.success(newStatus === 'published' ? '发布成功' : '已取消发布');
+  };
+
+  const handleDelete = (toolId: string) => {
+    setTools(tools.filter(t => t.id !== toolId));
+    message.success('删除成功');
   };
 
   return (
@@ -115,61 +132,70 @@ const ToolLibrary: React.FC = () => {
         <h1 className="page-title">数据采集工具库</h1>
       </div>
 
-      <div className="list-header">
-        <h3>数据采集工具列表</h3>
-        <div className="list-actions">
-          <Search
-            placeholder="搜索采集工具"
-            onSearch={handleSearch}
-            style={{ width: 200 }}
-            allowClear
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
-            创建数据采集工具
-          </Button>
-        </div>
-      </div>
-
-      <div className="tool-list">
-        {tools.map(tool => (
-          <div key={tool.id} className="tool-card">
-            <div className="tool-card-header">
-              <div className="tool-info">
-                <span className="tool-name">{tool.name}</span>
-                <Tag icon={tool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
-                  {tool.type}
-                </Tag>
-                <Tag>{tool.target}</Tag>
-              </div>
-              {getStatusTag(tool.status)}
-            </div>
-            <p className="tool-desc">{tool.description}</p>
-            <div className="tool-meta">
-              创建时间: {tool.createdAt} &nbsp;&nbsp;
-              创建人: {tool.createdBy} &nbsp;&nbsp;
-              更新时间: {tool.updatedAt} &nbsp;&nbsp;
-              更新人: {tool.updatedBy}
-            </div>
-            <div className="tool-actions">
-              <span className="action-btn" onClick={() => handleViewTool(tool)}>
-                <EyeOutlined /> 工具信息
-              </span>
-              <span className="action-btn" onClick={() => navigate(`/home/balanced/tools/${tool.id}/edit`)}>
-                <EditOutlined /> 编辑工具
-              </span>
-              {tool.status === 'published' ? (
-                <span className="action-btn">取消发布</span>
-              ) : tool.status === 'editing' ? (
-                <>
-                  <span className="action-btn danger">删除</span>
-                  <Button type="primary" size="small">发布</Button>
-                </>
-              ) : (
-                <span className="action-btn">取消发布</span>
-              )}
-            </div>
+      <div className="tool-list-section">
+        <div className="list-header">
+          <h3>数据采集工具列表</h3>
+          <div className="list-actions">
+            <Search
+              placeholder="搜索采集工具"
+              onSearch={handleSearch}
+              allowClear
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+              创建数据采集工具
+            </Button>
           </div>
-        ))}
+        </div>
+
+        <div className="tool-list">
+          {tools.map(tool => (
+            <div key={tool.id} className="tool-card">
+              <div className="tool-card-header">
+                <div className="tool-info">
+                  <span className="tool-name">{tool.name}</span>
+                  <Tag icon={tool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
+                    {tool.type}
+                  </Tag>
+                  <Tag>{tool.target}</Tag>
+                </div>
+                {getStatusTag(tool.status)}
+              </div>
+              <p className="tool-desc">{tool.description}</p>
+              <div className="tool-meta">
+                <span>创建时间: {tool.createdAt}</span>
+                <span>创建人: {tool.createdBy}</span>
+                <span>更新时间: {tool.updatedAt}</span>
+                <span>更新人: {tool.updatedBy}</span>
+              </div>
+              <div className="tool-actions">
+                <span className="action-btn" onClick={() => handleViewTool(tool)}>
+                  <EyeOutlined /> 工具信息
+                </span>
+                <span className="action-btn" onClick={() => navigate(`/home/balanced/tools/${tool.id}/edit`)}>
+                  <EditOutlined /> 编辑工具
+                </span>
+                {tool.status === 'published' ? (
+                  <span className="action-btn" onClick={() => handleTogglePublish(tool)}>
+                    取消发布
+                  </span>
+                ) : tool.status === 'editing' ? (
+                  <>
+                    <span className="action-btn danger" onClick={() => handleDelete(tool.id)}>
+                      <DeleteOutlined /> 删除
+                    </span>
+                    <Button type="primary" size="small" onClick={() => handleTogglePublish(tool)}>
+                      发布
+                    </Button>
+                  </>
+                ) : (
+                  <span className="action-btn" onClick={() => handleTogglePublish(tool)}>
+                    取消发布
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <Modal

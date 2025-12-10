@@ -5,113 +5,220 @@
   width: 100%;
 }
 
-.page-header {
+.tool-library-page .page-header {
   display: flex;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.back-btn {
+.tool-library-page .back-btn {
   color: #1890ff;
   cursor: pointer;
   margin-right: 16px;
+  font-size: 14px;
 }
 
-.page-title {
+.tool-library-page .back-btn:hover {
+  color: #40a9ff;
+}
+
+.tool-library-page .page-title {
   font-size: 18px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.list-header {
+/* 列表区域 */
+.tool-library-page .tool-list-section {
+  display: block;
+}
+
+.tool-library-page .list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
-.list-header h3 {
+.tool-library-page .list-header h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.list-actions {
+.tool-library-page .list-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
-.tool-list {
+.tool-library-page .list-actions .ant-input-search {
+  width: 200px;
+}
+
+.tool-library-page .list-actions .ant-input-search .ant-input {
+  border-radius: 6px;
+}
+
+.tool-library-page .list-actions .ant-btn-primary {
+  background-color: #1677ff;
+  border-radius: 6px;
+}
+
+/* 工具卡片列表 */
+.tool-library-page .tool-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.tool-card {
+/* 工具卡片 */
+.tool-library-page .tool-card {
   background: #fff;
   border-radius: 8px;
-  padding: 20px;
-  border-left: 4px solid #1890ff;
+  padding: 20px 24px;
+  border: 1px solid #e8e8e8;
+  border-left: 4px solid #1677ff;
+  box-sizing: border-box;
 }
 
-.tool-card-header {
+.tool-library-page .tool-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 卡片头部：名称+标签 | 状态 */
+.tool-library-page .tool-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  width: 100%;
 }
 
-.tool-info {
+.tool-library-page .tool-info {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.tool-name {
+.tool-library-page .tool-name {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: #333;
+  margin-right: 4px;
 }
 
-.tool-desc {
+.tool-library-page .tool-info .ant-tag {
+  margin: 0;
+  border-radius: 4px;
+}
+
+/* 状态标签样式 - 使用更具体的选择器避免冲突 */
+.tool-library-page .tool-status-tag {
+  border-radius: 4px;
+  padding: 2px 12px;
+  font-size: 12px;
+  border: none;
+  display: inline-block;
+  flex-shrink: 0;
+  position: static;
+}
+
+.tool-library-page .tool-status-tag.published {
+  background-color: #52c41a;
+  color: #fff;
+}
+
+.tool-library-page .tool-status-tag.editing {
+  background-color: #faad14;
+  color: #fff;
+}
+
+.tool-library-page .tool-status-tag.draft {
+  background-color: #d9d9d9;
+  color: #666;
+}
+
+/* 描述 */
+.tool-library-page .tool-desc {
   color: #666;
   font-size: 14px;
-  margin-bottom: 12px;
+  margin: 0 0 12px 0;
   line-height: 1.6;
+  display: block;
+  width: 100%;
 }
 
-.tool-meta {
+/* 元信息 */
+.tool-library-page .tool-meta {
   font-size: 12px;
   color: #999;
   margin-bottom: 16px;
+  display: block;
+  width: 100%;
 }
 
-.tool-actions {
+.tool-library-page .tool-meta span {
+  margin-right: 24px;
+  white-space: nowrap;
+}
+
+.tool-library-page .tool-meta span:last-child {
+  margin-right: 0;
+}
+
+/* 操作按钮区域 */
+.tool-library-page .tool-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 20px;
-  padding-top: 12px;
+  gap: 16px;
+  padding-top: 16px;
   border-top: 1px solid #f0f0f0;
   align-items: center;
+  width: 100%;
 }
 
-.action-btn {
-  display: flex;
+.tool-library-page .action-btn {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   color: #666;
   cursor: pointer;
   font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
-.action-btn:hover {
-  color: #1890ff;
+.tool-library-page .action-btn:hover {
+  color: #1677ff;
+  background-color: #f0f5ff;
 }
 
-.action-btn.danger:hover {
+.tool-library-page .action-btn.danger {
+  color: #666;
+}
+
+.tool-library-page .action-btn.danger:hover {
   color: #ff4d4f;
+  background-color: #fff2f0;
+}
+
+.tool-library-page .tool-actions .ant-btn-primary {
+  background-color: #1677ff;
+  border-color: #1677ff;
+  border-radius: 4px;
+  font-size: 14px;
+  height: 32px;
+  padding: 0 16px;
+}
+
+.tool-library-page .tool-actions .ant-btn-primary:hover {
+  background-color: #4096ff;
+  border-color: #4096ff;
 }
 
 /* 查看工具信息弹窗样式 */
@@ -164,8 +271,20 @@
   flex-shrink: 0;
 }
 
-.tool-view-status .ant-tag-green {
+.tool-view-status .tool-status-tag {
+  position: static;
+}
+
+.tool-view-status .tool-status-tag.published {
   background-color: #52c41a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 12px;
+}
+
+.tool-view-status .tool-status-tag.editing {
+  background-color: #faad14;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -247,4 +366,22 @@
 .tool-edit-modal .ant-btn-primary:hover {
   background-color: #555;
   border-color: #555;
+}
+
+/* 空状态 */
+.tool-library-page .empty-list {
+  text-align: center;
+  padding: 60px 0;
+  color: #999;
+}
+
+.tool-library-page .empty-list .anticon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 16px;
+}
+
+.tool-library-page .empty-list p {
+  font-size: 14px;
+  margin: 0;
 }
