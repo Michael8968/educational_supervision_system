@@ -1,23 +1,23 @@
-.data-entry-page {
+.dataEntryPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100vh;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.header-left {
+.headerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.back-btn {
+.backBtn {
   color: #666;
   cursor: pointer;
   display: flex;
@@ -25,18 +25,18 @@
   gap: 4px;
 }
 
-.back-btn:hover {
+.backBtn:hover {
   color: #1890ff;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.project-selector {
+.projectSelector {
   background: #fff;
   border-radius: 8px;
   padding: 16px 20px;
@@ -46,21 +46,21 @@
   gap: 12px;
 }
 
-.selector-label {
+.selectorLabel {
   color: #666;
   font-weight: 500;
 }
 
-.no-project-hint {
+.noProjectHint {
   color: #999;
   font-size: 13px;
 }
 
-.stats-row {
+.statsRow {
   margin-bottom: 20px;
 }
 
-.stats-row .ant-card {
+.statsRow :global(.ant-card) {
   border-radius: 8px;
 }
 
@@ -71,14 +71,14 @@
   margin-bottom: 20px;
 }
 
-.section-header {
+.sectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.section-header h3 {
+.sectionHeader h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
@@ -88,13 +88,13 @@
   gap: 8px;
 }
 
-.tool-cards {
+.toolCards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 16px;
 }
 
-.tool-card {
+.toolCard {
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   padding: 16px;
@@ -104,52 +104,52 @@
   transition: all 0.2s;
 }
 
-.tool-card:hover {
+.toolCard:hover {
   border-color: #1890ff;
   box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
 }
 
-.tool-info h4 {
+.toolInfo h4 {
   font-size: 15px;
   font-weight: 500;
   color: #333;
   margin: 0 0 8px 0;
 }
 
-.tool-info p {
+.toolInfo p {
   color: #666;
   font-size: 13px;
   margin: 0 0 12px 0;
   max-width: 300px;
 }
 
-.tool-meta {
+.toolMeta {
   display: flex;
   gap: 8px;
 }
 
-.empty-tools {
+.emptyTools {
   text-align: center;
   padding: 40px;
   color: #999;
 }
 
-.filter-actions {
+.filterActions {
   display: flex;
   gap: 12px;
 }
 
-.form-name {
+.formName {
   font-weight: 500;
   color: #333;
 }
 
-.action-buttons {
+.actionButtons {
   display: flex;
   gap: 8px;
 }
 
 /* Table样式 */
-.section .ant-table-wrapper {
+.section :global(.ant-table-wrapper) {
   margin-top: 8px;
 }

@@ -7,7 +7,7 @@ import {
   FileSearchOutlined,
   AuditOutlined,
 } from '@ant-design/icons';
-import './index.css';
+import styles from './index.module.css';
 
 interface ModuleCard {
   key: string;
@@ -61,23 +61,23 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="home-container">
-      <h2 className="section-title">督导模块</h2>
-      <div className="module-grid">
+    <div className={styles.homeContainer}>
+      <h2 className={styles.sectionTitle}>督导模块</h2>
+      <div className={styles.moduleGrid}>
         {modules.map(module => (
           <Card
             key={module.key}
-            className={`module-card ${module.status ? 'disabled' : ''}`}
+            className={`${styles.moduleCard} ${module.status ? styles.moduleCardDisabled : ''}`}
             onClick={() => handleCardClick(module)}
           >
-            <div className="module-content">
-              <div className="module-icon" style={{ color: module.color }}>
+            <div className={styles.moduleContent}>
+              <div className={styles.moduleIcon} style={{ color: module.color }}>
                 {module.icon}
               </div>
-              <span className="module-title">{module.title}</span>
+              <span className={styles.moduleTitle}>{module.title}</span>
             </div>
             {module.status && (
-              <Tag className="status-tag">开发中</Tag>
+              <Tag className={styles.statusTag}>开发中</Tag>
             )}
           </Card>
         ))}

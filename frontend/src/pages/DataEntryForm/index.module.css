@@ -1,31 +1,31 @@
-.data-entry-form-page {
+.dataEntryFormPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100vh;
   padding-bottom: 80px;
 }
 
-.loading-container {
+.loadingContainer {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 400px;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.header-left {
+.headerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.back-btn {
+.backBtn {
   color: #666;
   cursor: pointer;
   display: flex;
@@ -33,24 +33,24 @@
   gap: 4px;
 }
 
-.back-btn:hover {
+.backBtn:hover {
   color: #1890ff;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.header-actions {
+.headerActions {
   display: flex;
   gap: 12px;
 }
 
 /* 表单信息卡片 */
-.form-info-card {
+.formInfoCard {
   background: #fff;
   border-radius: 8px;
   padding: 16px 20px;
@@ -58,112 +58,112 @@
   border-left: 4px solid #1890ff;
 }
 
-.form-info-header {
+.formInfoHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.form-info-left {
+.formInfoLeft {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.form-name {
+.formName {
   font-size: 16px;
   font-weight: 500;
   color: #333;
 }
 
-.form-description {
+.formDescription {
   color: #666;
   font-size: 14px;
   margin: 0;
 }
 
 /* 状态提示 */
-.status-alert {
+.statusAlert {
   margin-bottom: 20px;
 }
 
 /* 表单内容卡片 */
-.form-content-card {
+.formContentCard {
   background: #fff;
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
 }
 
-.form-fields-container {
+.formFieldsContainer {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.form-fields-container > .ant-form-item {
+.formFieldsContainer > :global(.ant-form-item) {
   margin-bottom: 0;
 }
 
 /* 字段宽度 */
-.form-fields-container > .ant-form-item[style*="25%"] {
+.formFieldsContainer > :global(.ant-form-item[style*="25%"]) {
   flex: 0 0 calc(25% - 12px);
 }
 
-.form-fields-container > .ant-form-item[style*="50%"] {
+.formFieldsContainer > :global(.ant-form-item[style*="50%"]) {
   flex: 0 0 calc(50% - 8px);
 }
 
-.form-fields-container > .ant-form-item[style*="75%"] {
+.formFieldsContainer > :global(.ant-form-item[style*="75%"]) {
   flex: 0 0 calc(75% - 4px);
 }
 
-.form-fields-container > .ant-form-item[style*="100%"] {
+.formFieldsContainer > :global(.ant-form-item[style*="100%"]) {
   flex: 0 0 100%;
 }
 
 /* 字段单位 */
-.field-unit {
+.fieldUnit {
   color: #999;
   font-weight: normal;
   margin-left: 4px;
 }
 
 /* 复选框和单选框组 */
-.checkbox-group,
-.radio-group {
+.checkboxGroup,
+.radioGroup {
   display: flex;
 }
 
-.checkbox-group.vertical,
-.radio-group.vertical {
+.checkboxGroup.vertical,
+.radioGroup.vertical {
   flex-direction: column;
   gap: 8px;
 }
 
-.checkbox-group.horizontal,
-.radio-group.horizontal {
+.checkboxGroup.horizontal,
+.radioGroup.horizontal {
   flex-direction: row;
   flex-wrap: wrap;
   gap: 16px;
 }
 
 /* 分组卡片 */
-.form-group-card {
+.formGroupCard {
   margin-bottom: 0;
 }
 
-.form-group-card .form-fields-container {
+.formGroupCard .formFieldsContainer {
   padding: 0;
 }
 
 /* 动态列表 */
-.dynamic-list-card {
+.dynamicListCard {
   margin-bottom: 0;
 }
 
-.dynamic-list-item {
+.dynamicListItem {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -173,31 +173,31 @@
   margin-bottom: 12px;
 }
 
-.dynamic-list-item:last-child {
+.dynamicListItem:last-child {
   margin-bottom: 0;
 }
 
-.dynamic-list-fields {
+.dynamicListFields {
   flex: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-.dynamic-list-fields .ant-form-item {
+.dynamicListFields :global(.ant-form-item) {
   margin-bottom: 0;
   flex: 1;
   min-width: 200px;
 }
 
-.empty-dynamic-list {
+.emptyDynamicList {
   text-align: center;
   color: #999;
   padding: 24px;
 }
 
 /* 空表单状态 */
-.empty-form {
+.emptyForm {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -206,24 +206,24 @@
   color: #999;
 }
 
-.empty-form .empty-icon {
+.emptyForm .emptyIcon {
   font-size: 48px;
   margin-bottom: 16px;
   color: #d9d9d9;
 }
 
-.empty-form p {
+.emptyForm p {
   margin: 0;
   font-size: 14px;
 }
 
-.empty-form .empty-hint {
+.emptyForm .emptyHint {
   font-size: 12px;
   margin-top: 8px;
 }
 
 /* 底部操作栏 */
-.form-footer {
+.formFooter {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -237,29 +237,29 @@
   z-index: 100;
 }
 
-.footer-left {
+.footerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.last-saved {
+.lastSaved {
   color: #999;
   font-size: 13px;
 }
 
-.footer-actions {
+.footerActions {
   display: flex;
   gap: 12px;
 }
 
 /* 表单样式覆盖 */
-.form-content-card .ant-form-item-label > label {
+.formContentCard :global(.ant-form-item-label > label) {
   font-weight: 500;
   color: #333;
 }
 
-.form-content-card .ant-form-item-extra {
+.formContentCard :global(.ant-form-item-extra) {
   color: #999;
   font-size: 12px;
   margin-top: 4px;
@@ -267,29 +267,29 @@
 
 /* 响应式布局 */
 @media (max-width: 768px) {
-  .form-fields-container > .ant-form-item[style*="25%"],
-  .form-fields-container > .ant-form-item[style*="50%"],
-  .form-fields-container > .ant-form-item[style*="75%"] {
+  .formFieldsContainer > :global(.ant-form-item[style*="25%"]),
+  .formFieldsContainer > :global(.ant-form-item[style*="50%"]),
+  .formFieldsContainer > :global(.ant-form-item[style*="75%"]) {
     flex: 0 0 100%;
   }
 
-  .page-header {
+  .pageHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 
-  .header-actions {
+  .headerActions {
     width: 100%;
     justify-content: flex-end;
   }
 
-  .form-footer {
+  .formFooter {
     flex-direction: column;
     gap: 12px;
   }
 
-  .footer-actions {
+  .footerActions {
     width: 100%;
     justify-content: center;
   }

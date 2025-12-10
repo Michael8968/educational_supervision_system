@@ -1,40 +1,40 @@
-.element-library-page {
+.elementLibraryPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100%;
   width: 100%;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.back-btn {
+.backBtn {
   color: #1890ff;
   cursor: pointer;
   margin-right: 16px;
 }
 
-.back-btn:hover {
+.backBtn:hover {
   text-decoration: underline;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.stats-cards {
+.statsCards {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.stat-card {
+.statCard {
   background: #fff;
   border-radius: 8px;
   padding: 16px 24px;
@@ -45,99 +45,99 @@
   flex: 1;
 }
 
-.stat-info {
+.statInfo {
   flex: 1;
 }
 
-.stat-label {
+.statLabel {
   font-size: 14px;
   color: #666;
   margin-bottom: 4px;
 }
 
-.stat-value {
+.statValue {
   font-size: 28px;
   font-weight: 600;
   color: #333;
 }
 
-.stat-icon {
+.statIcon {
   font-size: 32px;
 }
 
-.list-header {
+.listHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.list-header h3 {
+.listHeader h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.list-actions {
+.listActions {
   display: flex;
   gap: 12px;
 }
 
-.library-list {
+.libraryList {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.list-card {
+.listCard {
   background: #fff;
   border-radius: 8px;
   padding: 20px;
   border-left: 4px solid #1890ff;
 }
 
-.list-card.purple {
+.listCard.purple {
   border-left-color: #722ed1;
 }
 
-.list-card.orange {
+.listCard.orange {
   border-left-color: #fa8c16;
 }
 
-.list-card-header {
+.listCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 }
 
-.list-card-title {
+.listCardTitle {
   font-size: 16px;
   font-weight: 500;
   color: #1890ff;
   cursor: pointer;
 }
 
-.list-card-title:hover {
+.listCardTitle:hover {
   text-decoration: underline;
 }
 
-.list-card-meta {
+.listCardMeta {
   font-size: 12px;
   color: #999;
   text-align: right;
   line-height: 1.8;
 }
 
-.list-card-desc {
+.listCardDesc {
   color: #666;
   font-size: 14px;
   margin-bottom: 16px;
   line-height: 1.6;
 }
 
-.list-card-actions {
+.listCardActions {
   display: flex;
   justify-content: flex-end;
   gap: 20px;
@@ -145,7 +145,7 @@
   border-top: 1px solid #f0f0f0;
 }
 
-.action-btn {
+.actionBtn {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -154,51 +154,51 @@
   font-size: 14px;
 }
 
-.action-btn:hover {
+.actionBtn:hover {
   color: #1890ff;
 }
 
-.action-btn.danger:hover {
+.actionBtn.danger:hover {
   color: #ff4d4f;
 }
 
-.info-modal-content .info-header {
+.infoModalContent .infoHeader {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
 }
 
-.info-modal-content .info-header h3 {
+.infoModalContent .infoHeader h3 {
   margin: 0;
   color: #1890ff;
 }
 
-.info-modal-content .info-meta {
+.infoModalContent .infoMeta {
   font-size: 12px;
   color: #999;
   margin-bottom: 16px;
 }
 
-.info-modal-content .info-desc {
+.infoModalContent .infoDesc {
   color: #666;
   margin-bottom: 20px;
   line-height: 1.6;
 }
 
-.info-modal-content h4 {
+.infoModalContent h4 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 12px;
 }
 
-.element-list {
+.elementList {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.element-item {
+.elementItem {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -207,13 +207,13 @@
   border-radius: 4px;
 }
 
-.element-code {
+.elementCode {
   font-family: monospace;
   color: #666;
   min-width: 50px;
 }
 
-.element-name {
+.elementName {
   flex: 1;
   color: #333;
 }

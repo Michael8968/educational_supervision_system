@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { dataTools, DataTool } from '../../mock/data';
-import './index.css';
+import styles from './index.module.css';
 
 // 控件类型定义
 type ControlType =
@@ -423,9 +423,9 @@ const FormToolEdit: React.FC = () => {
       case 'checkbox':
       case 'radio':
         return (
-          <div className={`options-preview ${field.optionLayout}`}>
+          <div className={`${styles.optionsPreview} ${field.optionLayout === 'vertical' ? styles.vertical : ''}`}>
             {field.options?.map((opt, i) => (
-              <span key={i} className="option-item">
+              <span key={i} className={styles.optionItem}>
                 {field.type === 'radio' ? <CheckCircleOutlined /> : <CheckSquareOutlined />}
                 {opt.label}
               </span>
@@ -441,39 +441,39 @@ const FormToolEdit: React.FC = () => {
       case 'switch':
         return <Switch disabled />;
       case 'divider':
-        return <div className="divider-preview" />;
+        return <div className={styles.dividerPreview} />;
       default:
         return null;
     }
   };
 
   if (!tool) {
-    return <div className="form-tool-edit-page">加载中...</div>;
+    return <div className={styles.formToolEditPage}>加载中...</div>;
   }
 
   return (
-    <div className="form-tool-edit-page">
+    <div className={styles.formToolEditPage}>
       {/* 页面头部 */}
-      <div className="page-header">
-        <div className="header-left">
-          <span className="back-btn" onClick={() => navigate(-1)}>
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <span className={styles.backBtn} onClick={() => navigate(-1)}>
             <ArrowLeftOutlined /> 返回
           </span>
-          <h1 className="page-title">表单工具编辑</h1>
+          <h1 className={styles.pageTitle}>表单工具编辑</h1>
         </div>
       </div>
 
       {/* 工具信息卡片 */}
-      <div className="tool-info-card">
-        <div className="tool-info-header">
-          <div className="tool-info-left">
-            <span className="tool-name">{tool.name}</span>
+      <div className={styles.toolInfoCard}>
+        <div className={styles.toolInfoHeader}>
+          <div className={styles.toolInfoLeft}>
+            <span className={styles.toolName}>{tool.name}</span>
             <Tag icon={<FormOutlined />}>{tool.type}</Tag>
           </div>
           {getStatusTag(tool.status)}
         </div>
-        <p className="tool-description">{tool.description}</p>
-        <div className="tool-meta">
+        <p className={styles.toolDescription}>{tool.description}</p>
+        <div className={styles.toolMeta}>
           <span>创建时间: {tool.createdAt}</span>
           <span>创建人: {tool.createdBy}</span>
           <span>更新时间: {tool.updatedAt}</span>
@@ -482,10 +482,10 @@ const FormToolEdit: React.FC = () => {
       </div>
 
       {/* 主内容区域 */}
-      <div className="main-content">
+      <div className={styles.mainContent}>
         {/* 左侧控件库 */}
-        <div className="control-library">
-          <h3 className="panel-title">控件库</h3>
+        <div className={styles.controlLibrary}>
+          <h3 className={styles.panelTitle}>控件库</h3>
           <Tabs
             activeKey={controlTab}
             onChange={setControlTab}
@@ -496,20 +496,20 @@ const FormToolEdit: React.FC = () => {
             ]}
             size="small"
           />
-          <div className="control-list">
+          <div className={styles.controlList}>
             {getFilteredControls().map(control => (
               <div
                 key={control.type}
-                className="control-item"
+                className={styles.controlItem}
                 draggable
                 onDragStart={(e) => handleControlDragStart(e, control.type)}
                 onDragEnd={handleControlDragEnd}
                 onClick={() => handleAddControl(control)}
               >
-                <span className="control-icon">{control.icon}</span>
-                <div className="control-info">
-                  <span className="control-name">{control.name}</span>
-                  <span className="control-desc">{control.description}</span>
+                <span className={styles.controlIcon}>{control.icon}</span>
+                <div className={styles.controlInfo}>
+                  <span className={styles.controlName}>{control.name}</span>
+                  <span className={styles.controlDesc}>{control.description}</span>
                 </div>
               </div>
             ))}
@@ -517,10 +517,10 @@ const FormToolEdit: React.FC = () => {
         </div>
 
         {/* 中间表单设计区 */}
-        <div className="form-designer">
-          <div className="designer-header">
+        <div className={styles.formDesigner}>
+          <div className={styles.designerHeader}>
             <h3>表单设计</h3>
-            <div className="designer-actions">
+            <div className={styles.designerActions}>
               <Button icon={<UploadOutlined />}>导入102字段Schema</Button>
               <Button icon={<DeleteOutlined />} danger onClick={handleClearForm}>
                 清除数据
@@ -529,26 +529,26 @@ const FormToolEdit: React.FC = () => {
             </div>
           </div>
 
-          <div className="designer-canvas">
-            <div className="form-header">
-              <div className="form-header-content">
-                <h2 className="form-title">
+          <div className={styles.designerCanvas}>
+            <div className={styles.formHeader}>
+              <div className={styles.formHeaderContent}>
+                <h2 className={styles.formTitle}>
                   {tool.name}
                   <Tag>{tool.target}</Tag>
                 </h2>
-                <EditOutlined className="edit-icon" />
+                <EditOutlined className={styles.editIcon} />
               </div>
-              <p className="form-desc">{tool.description}</p>
+              <p className={styles.formDesc}>{tool.description}</p>
             </div>
 
             <div
-              className={`form-fields ${dragOverCanvas ? 'drag-over' : ''} ${isDraggingControl || isDraggingField ? 'dragging' : ''}`}
+              className={`${styles.formFields} ${dragOverCanvas ? styles.dragOver : ''} ${isDraggingControl || isDraggingField ? styles.dragging : ''}`}
               onDragOver={handleCanvasDragOver}
               onDragLeave={handleCanvasDragLeave}
               onDrop={handleCanvasDrop}
             >
               {formFields.length === 0 ? (
-                <div className={`empty-canvas ${dragOverCanvas ? 'drag-over' : ''}`}>
+                <div className={`${styles.emptyCanvas} ${dragOverCanvas ? styles.dragOver : ''}`}>
                   <p>从左侧控件库拖拽或点击控件添加到表单</p>
                 </div>
               ) : (
@@ -557,11 +557,11 @@ const FormToolEdit: React.FC = () => {
                     <React.Fragment key={field.id}>
                       {/* 拖拽放置指示器 */}
                       {dragOverIndex === index && (
-                        <div className="drop-indicator" />
+                        <div className={styles.dropIndicator} />
                       )}
                       <div
-                        className={`form-field-item ${selectedField?.id === field.id ? 'selected' : ''} ${
-                          isDraggingField && draggedFieldIndexRef.current === index ? 'dragging' : ''
+                        className={`${styles.formFieldItem} ${selectedField?.id === field.id ? styles.selected : ''} ${
+                          isDraggingField && draggedFieldIndexRef.current === index ? styles.dragging : ''
                         }`}
                         style={{ width: field.width }}
                         draggable
@@ -571,33 +571,33 @@ const FormToolEdit: React.FC = () => {
                         onDrop={(e) => handleFieldDrop(e, index)}
                         onClick={() => handleSelectField(field)}
                       >
-                        <div className="field-header">
-                          <div className="field-drag-handle">
+                        <div className={styles.fieldHeader}>
+                          <div className={styles.fieldDragHandle}>
                             <HolderOutlined />
                           </div>
-                          <span className="field-label">
+                          <span className={styles.fieldLabel}>
                             {field.label}
-                            {field.required && <span className="required-mark">*</span>}
+                            {field.required && <span className={styles.requiredMark}>*</span>}
                           </span>
-                          <div className="field-actions">
+                          <div className={styles.fieldActions}>
                             <CopyOutlined onClick={(e) => { e.stopPropagation(); handleCopyField(field); }} />
                             <DeleteOutlined onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} />
                           </div>
                         </div>
-                        <div className="field-content">
+                        <div className={styles.fieldContent}>
                           {renderFieldPreview(field)}
                         </div>
-                        {field.helpText && <div className="field-help">{field.helpText}</div>}
+                        {field.helpText && <div className={styles.fieldHelp}>{field.helpText}</div>}
                       </div>
                     </React.Fragment>
                   ))}
                   {/* 末尾放置区域 */}
                   <div
-                    className={`drop-zone-end ${dragOverIndex === formFields.length ? 'active' : ''}`}
+                    className={`${styles.dropZoneEnd} ${dragOverIndex === formFields.length ? styles.active : ''}`}
                     onDragOver={handleEndDragOver}
                     onDrop={handleEndDrop}
                   >
-                    {dragOverIndex === formFields.length && <div className="drop-indicator" />}
+                    {dragOverIndex === formFields.length && <div className={styles.dropIndicator} />}
                   </div>
                 </>
               )}
@@ -606,8 +606,8 @@ const FormToolEdit: React.FC = () => {
         </div>
 
         {/* 右侧属性面板 */}
-        <div className="property-panel">
-          <h3 className="panel-title">控件属性</h3>
+        <div className={styles.propertyPanel}>
+          <h3 className={styles.panelTitle}>控件属性</h3>
           {selectedField ? (
             <>
               <Tabs
@@ -621,8 +621,8 @@ const FormToolEdit: React.FC = () => {
               />
 
               {propertyTab === 'basic' && (
-                <div className="property-content">
-                  <div className="property-item">
+                <div className={styles.propertyContent}>
+                  <div className={styles.propertyItem}>
                     <label>标签</label>
                     <Input
                       value={selectedField.label}
@@ -632,7 +632,7 @@ const FormToolEdit: React.FC = () => {
 
                   {!['divider', 'group', 'dynamicList'].includes(selectedField.type) && (
                     <>
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>占位提示</label>
                         <Input
                           value={selectedField.placeholder}
@@ -641,7 +641,7 @@ const FormToolEdit: React.FC = () => {
                         />
                       </div>
 
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>帮助文本</label>
                         <Input
                           value={selectedField.helpText}
@@ -652,7 +652,7 @@ const FormToolEdit: React.FC = () => {
                     </>
                   )}
 
-                  <div className="property-item">
+                  <div className={styles.propertyItem}>
                     <label>宽度</label>
                     <Select
                       value={selectedField.width}
@@ -667,7 +667,7 @@ const FormToolEdit: React.FC = () => {
                   </div>
 
                   {!['divider'].includes(selectedField.type) && (
-                    <div className="property-item inline">
+                    <div className={`${styles.propertyItem} ${styles.inline}`}>
                       <label>必填</label>
                       <Switch
                         checked={selectedField.required}
@@ -678,7 +678,7 @@ const FormToolEdit: React.FC = () => {
 
                   {selectedField.type === 'number' && (
                     <>
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>小数位数</label>
                         <Select
                           value={selectedField.decimalPlaces}
@@ -691,7 +691,7 @@ const FormToolEdit: React.FC = () => {
                         </Select>
                       </div>
 
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>最小值</label>
                         <Input
                           value={selectedField.minValue}
@@ -700,7 +700,7 @@ const FormToolEdit: React.FC = () => {
                         />
                       </div>
 
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>最大值</label>
                         <Input
                           value={selectedField.maxValue}
@@ -709,7 +709,7 @@ const FormToolEdit: React.FC = () => {
                         />
                       </div>
 
-                      <div className="property-item">
+                      <div className={styles.propertyItem}>
                         <label>单位</label>
                         <Input
                           value={selectedField.unit}
@@ -720,9 +720,9 @@ const FormToolEdit: React.FC = () => {
                     </>
                   )}
 
-                  <div className="property-item">
+                  <div className={styles.propertyItem}>
                     <label>评价依据</label>
-                    <div className="evaluation-config">
+                    <div className={styles.evaluationConfig}>
                       <Select defaultValue="数据指标" style={{ flex: 1 }}>
                         <Select.Option value="数据指标">数据指标</Select.Option>
                         <Select.Option value="佐证资料">佐证资料</Select.Option>
@@ -730,7 +730,7 @@ const FormToolEdit: React.FC = () => {
                       <Button>输入</Button>
                       <Button>添加</Button>
                     </div>
-                    <div className="evaluation-hint">
+                    <div className={styles.evaluationHint}>
                       完整名称格式：学校基础数据采集表 - (评价依据名称)
                     </div>
                   </div>
@@ -738,29 +738,29 @@ const FormToolEdit: React.FC = () => {
               )}
 
               {propertyTab === 'options' && selectedField.options && (
-                <div className="property-content">
-                  <div className="property-item">
+                <div className={styles.propertyContent}>
+                  <div className={styles.propertyItem}>
                     <label>选项</label>
-                    <div className="options-list">
+                    <div className={styles.optionsList}>
                       {selectedField.options.map((opt, index) => (
-                        <div key={index} className="option-row">
+                        <div key={index} className={styles.optionRow}>
                           <Input
                             value={opt.label}
                             onChange={e => handleUpdateOptions(index, e.target.value)}
                           />
                           <DeleteOutlined
-                            className="delete-option"
+                            className={styles.deleteOption}
                             onClick={() => handleDeleteOption(index)}
                           />
                         </div>
                       ))}
                     </div>
-                    <Button block onClick={handleAddOption} className="add-option-btn">
+                    <Button block onClick={handleAddOption} className={styles.addOptionBtn}>
                       添加选项
                     </Button>
                   </div>
 
-                  <div className="property-item">
+                  <div className={styles.propertyItem}>
                     <label>选项布局</label>
                     <Select
                       value={selectedField.optionLayout}
@@ -772,7 +772,7 @@ const FormToolEdit: React.FC = () => {
                     </Select>
                   </div>
 
-                  <div className="property-item inline">
+                  <div className={`${styles.propertyItem} ${styles.inline}`}>
                     <label>条件显示</label>
                     <Switch
                       checked={selectedField.conditionalDisplay}
@@ -783,7 +783,7 @@ const FormToolEdit: React.FC = () => {
               )}
             </>
           ) : (
-            <div className="empty-properties">
+            <div className={styles.emptyProperties}>
               <p>选择一个控件查看属性</p>
             </div>
           )}

@@ -1,46 +1,46 @@
-.indicator-library-page {
+.indicatorLibraryPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100%;
   width: 100%;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.back-btn {
+.backBtn {
   color: #1890ff;
   cursor: pointer;
   margin-right: 16px;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.stats-section {
+.statsSection {
   margin-bottom: 24px;
 }
 
-.stats-section h3 {
+.statsSection h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin-bottom: 16px;
 }
 
-.stats-cards {
+.statsCards {
   display: flex;
   gap: 16px;
 }
 
-.stat-card {
+.statCard {
   background: #fff;
   border-radius: 8px;
   padding: 16px 24px;
@@ -51,78 +51,78 @@
   flex: 1;
 }
 
-.stat-info {
+.statInfo {
   flex: 1;
 }
 
-.stat-label {
+.statLabel {
   font-size: 14px;
   color: #666;
   margin-bottom: 4px;
 }
 
-.stat-value {
+.statValue {
   font-size: 28px;
   font-weight: 600;
   color: #333;
 }
 
-.stat-icon {
+.statIcon {
   font-size: 28px;
 }
 
-.list-header {
+.listHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.list-header h3 {
+.listHeader h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.list-actions {
+.listActions {
   display: flex;
   gap: 12px;
 }
 
-.system-list {
+.systemList {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.system-card {
+.systemCard {
   background: #fff;
   border-radius: 8px;
   padding: 20px;
   border-left: 4px solid #1890ff;
 }
 
-.system-card-header {
+.systemCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.system-main-info {
+.systemMainInfo {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.system-name {
+.systemName {
   font-size: 16px;
   font-weight: 500;
   color: #333;
 }
 
-.system-stats {
+.systemStats {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -130,28 +130,28 @@
   color: #666;
 }
 
-.system-tags {
+.systemTags {
   margin-bottom: 12px;
 }
 
-.system-desc {
+.systemDesc {
   color: #666;
   font-size: 14px;
   margin-bottom: 12px;
   line-height: 1.6;
 }
 
-.system-attachments {
+.systemAttachments {
   margin-bottom: 12px;
 }
 
-.system-meta {
+.systemMeta {
   font-size: 12px;
   color: #999;
   margin-bottom: 16px;
 }
 
-.system-actions {
+.systemActions {
   display: flex;
   justify-content: flex-end;
   gap: 20px;
@@ -160,7 +160,7 @@
   align-items: center;
 }
 
-.action-btn {
+.actionBtn {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -169,31 +169,26 @@
   font-size: 14px;
 }
 
-.action-btn:hover {
+.actionBtn:hover {
   color: #1890ff;
 }
 
-.action-btn.danger:hover {
+.danger:hover {
   color: #ff4d4f;
 }
 
-/* 基础信息查看弹窗样式 */
-.info-modal .ant-modal-body {
-  padding: 24px;
-}
-
-.info-modal-content {
+.infoModalContent {
   position: relative;
 }
 
-.info-modal-header {
+.infoModalHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 }
 
-.info-modal-title {
+.infoModalTitle {
   font-size: 20px;
   font-weight: 600;
   color: #333;
@@ -201,49 +196,49 @@
   flex: 1;
 }
 
-.info-status-tag {
+.infoStatusTag {
   margin-left: 16px;
 }
 
-.info-modal-meta {
+.infoModalMeta {
   font-size: 13px;
   color: #999;
   margin-bottom: 16px;
 }
 
-.info-modal-tags {
+.infoModalTags {
   margin-bottom: 12px;
 }
 
-.info-modal-keywords {
+.infoModalKeywords {
   margin-bottom: 16px;
 }
 
-.info-modal-desc {
+.infoModalDesc {
   color: #666;
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 24px;
 }
 
-.info-modal-attachments {
+.infoModalAttachments {
   margin-bottom: 24px;
 }
 
-.info-modal-attachments h4 {
+.infoModalAttachments h4 {
   font-size: 14px;
   font-weight: 500;
   color: #333;
   margin-bottom: 12px;
 }
 
-.attachment-list {
+.attachmentList {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.attachment-item {
+.attachmentItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -253,28 +248,28 @@
   border-radius: 6px;
 }
 
-.attachment-info {
+.attachmentInfo {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.attachment-icon {
+.attachmentIcon {
   color: #1890ff;
   font-size: 16px;
 }
 
-.attachment-name {
+.attachmentName {
   color: #1890ff;
   font-size: 14px;
 }
 
-.attachment-size {
+.attachmentSize {
   color: #999;
   font-size: 13px;
 }
 
-.info-modal-footer {
+.infoModalFooter {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -282,23 +277,18 @@
   border-top: 1px solid #f0f0f0;
 }
 
-/* 基础信息编辑弹窗样式 */
-.edit-info-modal .ant-modal-body {
-  padding: 24px;
-}
-
-.attachment-uploader {
+.attachmentUploader {
   margin-bottom: 16px;
 }
 
-.uploaded-attachments {
+.uploadedAttachments {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
 }
 
-.uploaded-attachment-item {
+.uploadedAttachmentItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -308,23 +298,23 @@
   border-radius: 4px;
 }
 
-.uploaded-attachment-info {
+.uploadedAttachmentInfo {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #333;
 }
 
-.uploaded-attachment-info .file-size {
+.fileSize {
   color: #999;
   font-size: 12px;
 }
 
-.uploaded-attachment-item .remove-btn {
+.removeBtn {
   color: #999;
   cursor: pointer;
 }
 
-.uploaded-attachment-item .remove-btn:hover {
+.removeBtn:hover {
   color: #ff4d4f;
 }

@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getProjects, getSubmissions, Project, Submission } from '../../services/submissionService';
 import { getTools, DataTool } from '../../services/toolService';
-import './index.css';
+import styles from './index.module.css';
 
 const DataEntry: React.FC = () => {
   const navigate = useNavigate();
@@ -112,7 +112,7 @@ const DataEntry: React.FC = () => {
       title: '表单名称',
       dataIndex: 'formName',
       key: 'formName',
-      render: (text: string) => <span className="form-name">{text}</span>,
+      render: (text: string) => <span className={styles.formName}>{text}</span>,
     },
     {
       title: '填报单位',
@@ -140,7 +140,7 @@ const DataEntry: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: Submission) => (
-        <div className="action-buttons">
+        <div className={styles.actionButtons}>
           {record.status === 'draft' ? (
             <Button
               type="link"
@@ -166,20 +166,20 @@ const DataEntry: React.FC = () => {
   const stats = getStats();
 
   return (
-    <div className="data-entry-page">
+    <div className={styles.dataEntryPage}>
       {/* 页面头部 */}
-      <div className="page-header">
-        <div className="header-left">
-          <span className="back-btn" onClick={() => navigate('/home/balanced')}>
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <span className={styles.backBtn} onClick={() => navigate('/home/balanced')}>
             <ArrowLeftOutlined /> 返回
           </span>
-          <h1 className="page-title">数据填报</h1>
+          <h1 className={styles.pageTitle}>数据填报</h1>
         </div>
       </div>
 
       {/* 项目选择 */}
-      <div className="project-selector">
-        <span className="selector-label">当前项目：</span>
+      <div className={styles.projectSelector}>
+        <span className={styles.selectorLabel}>当前项目：</span>
         <Select
           value={selectedProject}
           onChange={setSelectedProject}
@@ -193,14 +193,14 @@ const DataEntry: React.FC = () => {
           ))}
         </Select>
         {projects.length === 0 && (
-          <span className="no-project-hint">暂无进行中的填报项目</span>
+          <span className={styles.noProjectHint}>暂无进行中的填报项目</span>
         )}
       </div>
 
       {selectedProject && (
         <>
           {/* 统计卡片 */}
-          <Row gutter={16} className="stats-row">
+          <Row gutter={16} className={styles.statsRow}>
             <Col span={4}>
               <Card>
                 <Statistic title="总填报数" value={stats.total} />
@@ -229,19 +229,19 @@ const DataEntry: React.FC = () => {
           </Row>
 
           {/* 填报工具列表 */}
-          <div className="section">
-            <div className="section-header">
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
               <h3>
                 <FileTextOutlined /> 开始填报
               </h3>
             </div>
-            <div className="tool-cards">
+            <div className={styles.toolCards}>
               {tools.map(tool => (
-                <div key={tool.id} className="tool-card">
-                  <div className="tool-info">
+                <div key={tool.id} className={styles.toolCard}>
+                  <div className={styles.toolInfo}>
                     <h4>{tool.name}</h4>
                     <p>{tool.description}</p>
-                    <div className="tool-meta">
+                    <div className={styles.toolMeta}>
                       <Tag>{tool.type}</Tag>
                       <Tag color="cyan">填报对象: {tool.target}</Tag>
                     </div>
@@ -256,7 +256,7 @@ const DataEntry: React.FC = () => {
                 </div>
               ))}
               {tools.length === 0 && (
-                <div className="empty-tools">
+                <div className={styles.emptyTools}>
                   <p>暂无可用的填报工具</p>
                 </div>
               )}
@@ -264,12 +264,12 @@ const DataEntry: React.FC = () => {
           </div>
 
           {/* 填报记录列表 */}
-          <div className="section">
-            <div className="section-header">
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
               <h3>
                 <EditOutlined /> 填报记录
               </h3>
-              <div className="filter-actions">
+              <div className={styles.filterActions}>
                 <Select
                   value={statusFilter}
                   onChange={setStatusFilter}

@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { projects, projectStats, indicatorSystems } from '../../mock/data';
-import './index.css';
+import styles from './index.module.css';
 
 const { Search } = Input;
 
@@ -49,13 +49,13 @@ const Project: React.FC = () => {
   };
 
   return (
-    <div className="project-page">
-      <div className="page-header">
-        <span className="back-btn" onClick={() => navigate('/home')}>
+    <div className={styles.projectPage}>
+      <div className={styles.pageHeader}>
+        <span className={styles.backBtn} onClick={() => navigate('/home')}>
           <ArrowLeftOutlined /> 返回
         </span>
-        <h1 className="page-title">评估项目主页</h1>
-        <div className="header-actions">
+        <h1 className={styles.pageTitle}>评估项目主页</h1>
+        <div className={styles.headerActions}>
           <Button onClick={() => navigate('/home/balanced/indicators')}>
             <DatabaseOutlined /> 评估指标体系库
           </Button>
@@ -71,45 +71,45 @@ const Project: React.FC = () => {
         </div>
       </div>
 
-      <div className="stats-section">
+      <div className={styles.statsSection}>
         <h3>本年度项目情况</h3>
-        <div className="stats-cards">
-          <div className="stat-card">
-            <div className="stat-info">
-              <div className="stat-label">配置中</div>
-              <div className="stat-value" style={{ color: '#1890ff' }}>{projectStats.configuring}</div>
+        <div className={styles.statsCards}>
+          <div className={styles.statCard}>
+            <div className={styles.statInfo}>
+              <div className={styles.statLabel}>配置中</div>
+              <div className={styles.statValue} style={{ color: '#1890ff' }}>{projectStats.configuring}</div>
             </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-info">
-              <div className="stat-label">填报中</div>
-              <div className="stat-value" style={{ color: '#52c41a' }}>{projectStats.filling}</div>
+          <div className={styles.statCard}>
+            <div className={styles.statInfo}>
+              <div className={styles.statLabel}>填报中</div>
+              <div className={styles.statValue} style={{ color: '#52c41a' }}>{projectStats.filling}</div>
             </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-info">
-              <div className="stat-label">评审中</div>
-              <div className="stat-value" style={{ color: '#fa8c16' }}>{projectStats.reviewing}</div>
+          <div className={styles.statCard}>
+            <div className={styles.statInfo}>
+              <div className={styles.statLabel}>评审中</div>
+              <div className={styles.statValue} style={{ color: '#fa8c16' }}>{projectStats.reviewing}</div>
             </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-info">
-              <div className="stat-label">已中止</div>
-              <div className="stat-value">{projectStats.stopped}</div>
+          <div className={styles.statCard}>
+            <div className={styles.statInfo}>
+              <div className={styles.statLabel}>已中止</div>
+              <div className={styles.statValue}>{projectStats.stopped}</div>
             </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-info">
-              <div className="stat-label">已完成</div>
-              <div className="stat-value" style={{ color: '#722ed1' }}>{projectStats.completed}</div>
+          <div className={styles.statCard}>
+            <div className={styles.statInfo}>
+              <div className={styles.statLabel}>已完成</div>
+              <div className={styles.statValue} style={{ color: '#722ed1' }}>{projectStats.completed}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="list-header">
+      <div className={styles.listHeader}>
         <h3>项目列表</h3>
-        <div className="list-actions">
+        <div className={styles.listActions}>
           <Select defaultValue="2025" style={{ width: 100 }}>
             <Select.Option value="2025">2025</Select.Option>
             <Select.Option value="2024">2024</Select.Option>
@@ -127,18 +127,18 @@ const Project: React.FC = () => {
         </div>
       </div>
 
-      <div className="project-list">
+      <div className={styles.projectList}>
         {projectList.length === 0 ? (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             <p>暂无项目数据</p>
           </div>
         ) : (
           projectList.map(project => (
-            <div key={project.id} className="project-card">
-              <div className="project-info">
+            <div key={project.id} className={styles.projectCard}>
+              <div className={styles.projectInfo}>
                 <h4>{project.name}</h4>
                 <p>{project.description}</p>
-                <div className="project-meta">
+                <div className={styles.projectMeta}>
                   <span>指标体系: {project.indicatorSystem}</span>
                   <span>时间: {project.startDate} - {project.endDate}</span>
                   <span>状态: {project.status}</span>

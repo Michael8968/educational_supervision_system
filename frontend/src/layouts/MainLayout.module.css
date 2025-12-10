@@ -1,12 +1,12 @@
-.main-layout {
+.mainLayout {
   min-height: 100vh;
 }
 
-.main-sider {
+.mainSider {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
-.main-sider .ant-layout-sider-children {
+.mainSider :global(.ant-layout-sider-children) {
   display: flex;
   flex-direction: column;
 }
@@ -21,14 +21,14 @@
   margin-bottom: 8px;
 }
 
-.logo-text {
+.logoText {
   font-size: 14px;
   font-weight: 600;
   color: #1a365d;
   white-space: nowrap;
 }
 
-.main-header {
+.mainHeader {
   background: #fff;
   padding: 0 24px;
   display: flex;
@@ -39,31 +39,31 @@
   line-height: 56px;
 }
 
-.header-right {
+.headerRight {
   display: flex;
   align-items: center;
 }
 
-.user-info {
+.userInfo {
   cursor: pointer;
   color: #333;
 }
 
-.user-info:hover {
+.userInfo:hover {
   color: #1890ff;
 }
 
-.main-content {
+.mainContent {
   background: #f5f7fa;
   min-height: calc(100vh - 56px);
   overflow-y: auto;
 }
 
-.ant-menu-item {
+:global(.ant-menu-item) {
   margin: 4px 8px !important;
   border-radius: 6px;
 }
 
-.ant-menu-item-selected {
+:global(.ant-menu-item-selected) {
   background: #e6f4ff !important;
 }

@@ -1,24 +1,24 @@
-.indicator-tree-edit-page {
+.indicatorTreeEditPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100vh;
   width: 100%;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.header-left {
+.headerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.back-btn {
+.backBtn {
   color: #666;
   cursor: pointer;
   display: flex;
@@ -26,11 +26,11 @@
   gap: 4px;
 }
 
-.back-btn:hover {
+.backBtn:hover {
   color: #1890ff;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
@@ -38,66 +38,66 @@
 }
 
 /* 指标体系信息卡片 V2 */
-.system-info-card-v2 {
+.systemInfoCardV2 {
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 20px;
 }
 
-.system-info-card-v2 .card-header {
+.systemInfoCardV2 .cardHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 }
 
-.system-info-card-v2 .card-title-row {
+.systemInfoCardV2 .cardTitleRow {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.system-info-card-v2 .system-title {
+.systemInfoCardV2 .systemTitle {
   font-size: 18px;
   font-weight: 600;
   color: #333;
   margin: 0;
 }
 
-.system-info-card-v2 .card-stats {
+.systemInfoCardV2 .cardStats {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.system-info-card-v2 .stat-item {
+.systemInfoCardV2 .statItem {
   color: #666;
   font-size: 14px;
 }
 
-.system-info-card-v2 .card-tags {
+.systemInfoCardV2 .cardTags {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.system-info-card-v2 .card-description {
+.systemInfoCardV2 .cardDescription {
   color: #666;
   font-size: 14px;
   line-height: 1.6;
   margin: 0 0 12px 0;
 }
 
-.system-info-card-v2 .card-attachments {
+.systemInfoCardV2 .cardAttachments {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 12px;
 }
 
-.system-info-card-v2 .attachment-link {
+.systemInfoCardV2 .attachmentLink {
   color: #1677ff;
   font-size: 14px;
   cursor: pointer;
@@ -106,11 +106,11 @@
   gap: 4px;
 }
 
-.system-info-card-v2 .attachment-link:hover {
+.systemInfoCardV2 .attachmentLink:hover {
   text-decoration: underline;
 }
 
-.system-info-card-v2 .card-meta {
+.systemInfoCardV2 .cardMeta {
   display: flex;
   gap: 24px;
   color: #999;
@@ -120,13 +120,13 @@
 }
 
 /* 指标列表区域 */
-.indicator-list-section {
+.indicatorListSection {
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
 }
 
-.indicator-list-section .section-header {
+.indicatorListSection .sectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -135,13 +135,13 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
-.indicator-list-section .section-title {
+.indicatorListSection .sectionTitle {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.indicator-list-section .section-title h3 {
+.indicatorListSection .sectionTitle h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
@@ -149,26 +149,26 @@
 }
 
 /* 指标树列表 */
-.indicator-tree-list {
+.indicatorTreeList {
   min-height: 300px;
 }
 
-.indicator-tree-node {
+.indicatorTreeNode {
   border-bottom: 1px solid #f5f5f5;
 }
 
-.indicator-tree-node:last-child {
+.indicatorTreeNode:last-child {
   border-bottom: none;
 }
 
-.indicator-row {
+.indicatorRow {
   display: flex;
   align-items: center;
   padding: 12px 0;
   gap: 8px;
 }
 
-.indicator-row .expand-icon {
+.indicatorRow .expandIcon {
   width: 20px;
   height: 20px;
   display: flex;
@@ -179,19 +179,19 @@
   flex-shrink: 0;
 }
 
-.indicator-row .expand-icon.clickable {
+.indicatorRow .expandIcon.clickable {
   cursor: pointer;
 }
 
-.indicator-row .expand-icon.clickable:hover {
+.indicatorRow .expandIcon.clickable:hover {
   color: #1677ff;
 }
 
-.indicator-row .expand-icon.hidden {
+.indicatorRow .expandIcon.hidden {
   visibility: hidden;
 }
 
-.indicator-row .level-tag {
+.indicatorRow .levelTag {
   font-size: 12px;
   padding: 0 8px;
   height: 22px;
@@ -200,7 +200,7 @@
   flex-shrink: 0;
 }
 
-.indicator-row .code-tag {
+.indicatorRow .codeTag {
   background: #f0f5ff;
   border-color: #adc6ff;
   color: #1890ff;
@@ -208,32 +208,32 @@
   flex-shrink: 0;
 }
 
-.indicator-row .indicator-name {
+.indicatorRow .indicatorName {
   flex: 1;
   font-size: 14px;
   color: #333;
 }
 
-.indicator-row .indicator-actions {
+.indicatorRow .indicatorActions {
   display: flex;
   gap: 0;
   flex-shrink: 0;
 }
 
-.indicator-row .indicator-actions .ant-btn {
+.indicatorRow .indicatorActions :global(.ant-btn) {
   color: #999;
 }
 
-.indicator-row .indicator-actions .ant-btn:hover:not(:disabled) {
+.indicatorRow .indicatorActions :global(.ant-btn:hover:not(:disabled)) {
   color: #1677ff;
 }
 
-.indicator-row .indicator-actions .ant-btn:disabled {
+.indicatorRow .indicatorActions :global(.ant-btn:disabled) {
   color: #d9d9d9;
 }
 
 /* 指标描述 */
-.indicator-description {
+.indicatorDescription {
   font-size: 13px;
   color: #666;
   padding-bottom: 8px;
@@ -241,35 +241,35 @@
 }
 
 /* 数据指标和佐证资料详情 */
-.indicator-details {
+.indicatorDetails {
   padding-bottom: 12px;
 }
 
-.detail-item {
+.detailItem {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
 }
 
-.detail-item .detail-code {
+.detailItem .detailCode {
   background: #f0f5ff;
   border-color: #adc6ff;
   color: #1890ff;
   font-size: 11px;
 }
 
-.detail-item .detail-name {
+.detailItem .detailName {
   font-size: 13px;
   color: #333;
 }
 
-.detail-item .detail-file-type {
+.detailItem .detailFileType {
   font-size: 12px;
   color: #999;
 }
 
-.detail-description {
+.detailDescription {
   font-size: 12px;
   color: #999;
   padding: 4px 0 8px 0;
@@ -277,7 +277,7 @@
 }
 
 /* 空状态 */
-.empty-tree {
+.emptyTree {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -286,30 +286,30 @@
   color: #999;
 }
 
-.empty-tree .empty-icon {
+.emptyTree .emptyIcon {
   font-size: 48px;
   margin-bottom: 16px;
   color: #d9d9d9;
 }
 
 /* 编辑指标弹窗样式 */
-.edit-indicator-modal .ant-modal-body {
+.editIndicatorModal :global(.ant-modal-body) {
   max-height: 70vh;
   overflow-y: auto;
 }
 
-.edit-modal-subtitle {
+.editModalSubtitle {
   color: #666;
   font-size: 14px;
   margin-bottom: 20px;
 }
 
-.evaluation-basis-item .ant-checkbox-wrapper {
+.evaluationBasisItem :global(.ant-checkbox-wrapper) {
   margin-right: 24px;
 }
 
 /* 编辑区域 - 数据指标和佐证资料 */
-.edit-section {
+.editSection {
   border: 1px solid #e6f4ff;
   border-radius: 8px;
   padding: 16px;
@@ -317,60 +317,60 @@
   background: #fafcff;
 }
 
-.data-indicators-section {
+.dataIndicatorsSection {
   border-color: #91caff;
 }
 
-.materials-section {
+.materialsSection {
   border-color: #91caff;
 }
 
-.edit-section-header {
+.editSectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.edit-section-header .section-title {
+.editSectionHeader .sectionTitle {
   font-size: 14px;
   font-weight: 500;
   color: #1677ff;
 }
 
-.edit-section-content {
+.editSectionContent {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 /* 指标卡片样式 */
-.indicator-card {
+.indicatorCard {
   background: #fff;
   border: 1px solid #f0f0f0;
   border-radius: 6px;
   overflow: hidden;
 }
 
-.indicator-card-view {
+.indicatorCardView {
   padding: 12px 16px;
 }
 
-.indicator-card-view .card-view-header {
+.indicatorCardView .cardViewHeader {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.indicator-card-view .card-code {
+.indicatorCardView .cardCode {
   background: #f0f5ff;
   border-color: #adc6ff;
   color: #1890ff;
   font-size: 12px;
 }
 
-.indicator-card-view .card-name {
+.indicatorCardView .cardName {
   flex: 1;
   font-size: 14px;
   color: #333;
@@ -379,13 +379,13 @@
   gap: 8px;
 }
 
-.indicator-card-view .card-actions {
+.indicatorCardView .cardActions {
   display: flex;
   gap: 4px;
   margin-left: auto;
 }
 
-.indicator-card-view .card-description {
+.indicatorCardView .cardDescription {
   margin-top: 8px;
   font-size: 13px;
   color: #666;
@@ -393,55 +393,55 @@
 }
 
 /* 编辑模式卡片 */
-.indicator-card-edit {
+.indicatorCardEdit {
   padding: 16px;
   background: #fafafa;
 }
 
-.indicator-card-edit .card-edit-row {
+.indicatorCardEdit .cardEditRow {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.indicator-card-edit .card-code {
+.indicatorCardEdit .cardCode {
   background: #f0f5ff;
   border-color: #adc6ff;
   color: #1890ff;
   font-size: 12px;
 }
 
-.indicator-card-edit .separator {
+.indicatorCardEdit .separator {
   color: #666;
 }
 
-.indicator-card-edit .row-label {
-  font-size: 13px;
-  color: #666;
-  white-space: nowrap;
-}
-
-.indicator-card-edit .threshold-label {
+.indicatorCardEdit .rowLabel {
   font-size: 13px;
   color: #666;
   white-space: nowrap;
 }
 
-.indicator-card-edit .ant-input,
-.indicator-card-edit .ant-select {
+.indicatorCardEdit .thresholdLabel {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.indicatorCardEdit :global(.ant-input),
+.indicatorCardEdit :global(.ant-select) {
   font-size: 13px;
 }
 
-.indicator-card-edit .ant-input-number {
+.indicatorCardEdit :global(.ant-input-number) {
   font-size: 13px;
 }
 
-.indicator-card-edit textarea.ant-input {
+.indicatorCardEdit :global(textarea.ant-input) {
   margin-top: 4px;
 }
 
-.indicator-card-edit .card-edit-actions {
+.indicatorCardEdit .cardEditActions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -451,13 +451,13 @@
 }
 
 /* 文件类型标签 */
-.file-type-tags {
+.fileTypeTags {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.file-type-tag {
+.fileTypeTag {
   cursor: pointer;
   user-select: none;
   background: #fff;
@@ -466,12 +466,12 @@
   transition: all 0.2s;
 }
 
-.file-type-tag:hover {
+.fileTypeTag:hover {
   border-color: #1677ff;
   color: #1677ff;
 }
 
-.file-type-tag.selected {
+.fileTypeTag.selected {
   background: #e6f4ff;
   border-color: #1677ff;
   color: #1677ff;

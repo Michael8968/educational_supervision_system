@@ -1,28 +1,28 @@
-.tool-library-page {
+.toolLibraryPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100%;
   width: 100%;
 }
 
-.tool-library-page .page-header {
+.toolLibraryPage .pageHeader {
   display: flex;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.tool-library-page .back-btn {
+.toolLibraryPage .backBtn {
   color: #1890ff;
   cursor: pointer;
   margin-right: 16px;
   font-size: 14px;
 }
 
-.tool-library-page .back-btn:hover {
+.toolLibraryPage .backBtn:hover {
   color: #40a9ff;
 }
 
-.tool-library-page .page-title {
+.toolLibraryPage .pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
@@ -30,52 +30,52 @@
 }
 
 /* 列表区域 */
-.tool-library-page .tool-list-section {
+.toolLibraryPage .toolListSection {
   display: block;
 }
 
-.tool-library-page .list-header {
+.toolLibraryPage .listHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.tool-library-page .list-header h3 {
+.toolLibraryPage .listHeader h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.tool-library-page .list-actions {
+.toolLibraryPage .listActions {
   display: flex;
   gap: 12px;
   align-items: center;
 }
 
-.tool-library-page .list-actions .ant-input-search {
+.toolLibraryPage .listActions :global(.ant-input-search) {
   width: 200px;
 }
 
-.tool-library-page .list-actions .ant-input-search .ant-input {
+.toolLibraryPage .listActions :global(.ant-input-search .ant-input) {
   border-radius: 6px;
 }
 
-.tool-library-page .list-actions .ant-btn-primary {
+.toolLibraryPage .listActions :global(.ant-btn-primary) {
   background-color: #1677ff;
   border-radius: 6px;
 }
 
 /* 工具卡片列表 */
-.tool-library-page .tool-list {
+.toolLibraryPage .toolList {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 /* 工具卡片 */
-.tool-library-page .tool-card {
+.toolLibraryPage .toolCard {
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
@@ -84,12 +84,12 @@
   box-sizing: border-box;
 }
 
-.tool-library-page .tool-card:hover {
+.toolLibraryPage .toolCard:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* 卡片头部：名称+标签 | 状态 */
-.tool-library-page .tool-card-header {
+.toolLibraryPage .toolCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -97,27 +97,27 @@
   width: 100%;
 }
 
-.tool-library-page .tool-info {
+.toolLibraryPage .toolInfo {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.tool-library-page .tool-name {
+.toolLibraryPage .toolName {
   font-size: 16px;
   font-weight: 600;
   color: #333;
   margin-right: 4px;
 }
 
-.tool-library-page .tool-info .ant-tag {
+.toolLibraryPage .toolInfo :global(.ant-tag) {
   margin: 0;
   border-radius: 4px;
 }
 
 /* 状态标签样式 - 使用更具体的选择器避免冲突 */
-.tool-library-page .tool-status-tag {
+.toolLibraryPage .toolStatusTag {
   border-radius: 4px;
   padding: 2px 12px;
   font-size: 12px;
@@ -127,23 +127,23 @@
   position: static;
 }
 
-.tool-library-page .tool-status-tag.published {
+.toolLibraryPage .toolStatusTag.published {
   background-color: #52c41a;
   color: #fff;
 }
 
-.tool-library-page .tool-status-tag.editing {
+.toolLibraryPage .toolStatusTag.editing {
   background-color: #faad14;
   color: #fff;
 }
 
-.tool-library-page .tool-status-tag.draft {
+.toolLibraryPage .toolStatusTag.draft {
   background-color: #d9d9d9;
   color: #666;
 }
 
 /* 描述 */
-.tool-library-page .tool-desc {
+.toolLibraryPage .toolDesc {
   color: #666;
   font-size: 14px;
   margin: 0 0 12px 0;
@@ -153,7 +153,7 @@
 }
 
 /* 元信息 */
-.tool-library-page .tool-meta {
+.toolLibraryPage .toolMeta {
   font-size: 12px;
   color: #999;
   margin-bottom: 16px;
@@ -161,17 +161,17 @@
   width: 100%;
 }
 
-.tool-library-page .tool-meta span {
+.toolLibraryPage .toolMeta span {
   margin-right: 24px;
   white-space: nowrap;
 }
 
-.tool-library-page .tool-meta span:last-child {
+.toolLibraryPage .toolMeta span:last-child {
   margin-right: 0;
 }
 
 /* 操作按钮区域 */
-.tool-library-page .tool-actions {
+.toolLibraryPage .toolActions {
   display: flex;
   justify-content: flex-end;
   gap: 16px;
@@ -181,7 +181,7 @@
   width: 100%;
 }
 
-.tool-library-page .action-btn {
+.toolLibraryPage .actionBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -193,21 +193,21 @@
   transition: all 0.2s;
 }
 
-.tool-library-page .action-btn:hover {
+.toolLibraryPage .actionBtn:hover {
   color: #1677ff;
   background-color: #f0f5ff;
 }
 
-.tool-library-page .action-btn.danger {
+.toolLibraryPage .actionBtn.danger {
   color: #666;
 }
 
-.tool-library-page .action-btn.danger:hover {
+.toolLibraryPage .actionBtn.danger:hover {
   color: #ff4d4f;
   background-color: #fff2f0;
 }
 
-.tool-library-page .tool-actions .ant-btn-primary {
+.toolLibraryPage .toolActions :global(.ant-btn-primary) {
   background-color: #1677ff;
   border-color: #1677ff;
   border-radius: 4px;
@@ -216,44 +216,44 @@
   padding: 0 16px;
 }
 
-.tool-library-page .tool-actions .ant-btn-primary:hover {
+.toolLibraryPage .toolActions :global(.ant-btn-primary:hover) {
   background-color: #4096ff;
   border-color: #4096ff;
 }
 
 /* 查看工具信息弹窗样式 */
-.tool-view-modal .ant-modal-header {
+:global(.tool-view-modal .ant-modal-header) {
   display: none;
 }
 
-.tool-view-modal .ant-modal-body {
+:global(.tool-view-modal .ant-modal-body) {
   padding: 0;
 }
 
-.tool-view-modal .ant-modal-close {
+:global(.tool-view-modal .ant-modal-close) {
   top: 16px;
   right: 16px;
 }
 
-.tool-view-content {
+.toolViewContent {
   padding: 24px;
 }
 
-.tool-view-header {
+.toolViewHeader {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 16px;
 }
 
-.tool-view-title-row {
+.toolViewTitleRow {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.tool-view-title {
+.toolViewTitle {
   font-size: 18px;
   font-weight: 600;
   color: #333;
@@ -261,21 +261,21 @@
   line-height: 1.4;
 }
 
-.tool-view-tags {
+.toolViewTags {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.tool-view-status {
+.toolViewStatus {
   flex-shrink: 0;
 }
 
-.tool-view-status .tool-status-tag {
+.toolViewStatus .toolStatusTag {
   position: static;
 }
 
-.tool-view-status .tool-status-tag.published {
+.toolViewStatus .toolStatusTag.published {
   background-color: #52c41a;
   color: #fff;
   border: none;
@@ -283,7 +283,7 @@
   padding: 2px 12px;
 }
 
-.tool-view-status .tool-status-tag.editing {
+.toolViewStatus .toolStatusTag.editing {
   background-color: #faad14;
   color: #fff;
   border: none;
@@ -291,19 +291,19 @@
   padding: 2px 12px;
 }
 
-.tool-view-meta {
+.toolViewMeta {
   font-size: 13px;
   color: #999;
   margin-bottom: 20px;
   line-height: 1.8;
 }
 
-.tool-view-meta .meta-divider {
+.toolViewMeta .metaDivider {
   margin: 0 8px;
   color: #d9d9d9;
 }
 
-.tool-view-desc {
+.toolViewDesc {
   font-size: 14px;
   color: #666;
   line-height: 1.8;
@@ -312,7 +312,7 @@
   margin-bottom: 24px;
 }
 
-.tool-view-actions {
+.toolViewActions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -321,67 +321,67 @@
 }
 
 /* 编辑弹窗样式 */
-.tool-edit-modal .ant-modal-header {
+:global(.tool-edit-modal .ant-modal-header) {
   padding: 20px 24px 0;
   border-bottom: none;
 }
 
-.tool-edit-modal .ant-modal-title {
+:global(.tool-edit-modal .ant-modal-title) {
   font-size: 16px;
   font-weight: 600;
   color: #333;
 }
 
-.tool-edit-modal .ant-modal-body {
+:global(.tool-edit-modal .ant-modal-body) {
   padding: 0 24px 24px;
 }
 
-.tool-edit-modal .edit-subtitle {
+:global(.tool-edit-modal) .editSubtitle {
   color: #666;
   font-size: 14px;
   margin-bottom: 24px;
 }
 
-.tool-edit-modal .ant-form-item-label > label {
+:global(.tool-edit-modal .ant-form-item-label > label) {
   color: #333;
   font-weight: 500;
 }
 
-.tool-edit-modal .ant-input,
-.tool-edit-modal .ant-select-selector,
-.tool-edit-modal .ant-input-textarea textarea {
+:global(.tool-edit-modal .ant-input),
+:global(.tool-edit-modal .ant-select-selector),
+:global(.tool-edit-modal .ant-input-textarea textarea) {
   border-radius: 6px;
 }
 
-.tool-edit-modal .ant-btn {
+:global(.tool-edit-modal .ant-btn) {
   border-radius: 6px;
   min-width: 64px;
 }
 
-.tool-edit-modal .ant-btn-primary {
+:global(.tool-edit-modal .ant-btn-primary) {
   background-color: #333;
   border-color: #333;
 }
 
-.tool-edit-modal .ant-btn-primary:hover {
+:global(.tool-edit-modal .ant-btn-primary:hover) {
   background-color: #555;
   border-color: #555;
 }
 
 /* 空状态 */
-.tool-library-page .empty-list {
+.toolLibraryPage .emptyList {
   text-align: center;
   padding: 60px 0;
   color: #999;
 }
 
-.tool-library-page .empty-list .anticon {
+.toolLibraryPage .emptyList :global(.anticon) {
   font-size: 48px;
   color: #d9d9d9;
   margin-bottom: 16px;
 }
 
-.tool-library-page .empty-list p {
+.toolLibraryPage .emptyList p {
   font-size: 14px;
   margin: 0;
 }

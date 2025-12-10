@@ -1,11 +1,11 @@
-.project-page {
+.projectPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100%;
   width: 100%;
 }
 
-.page-header {
+.pageHeader {
   display: flex;
   align-items: center;
   margin-bottom: 24px;
@@ -13,13 +13,13 @@
   gap: 16px;
 }
 
-.back-btn {
+.backBtn {
   color: #1890ff;
   cursor: pointer;
   margin-right: 16px;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 500;
   color: #333;
@@ -27,28 +27,28 @@
   flex: 1;
 }
 
-.header-actions {
+.headerActions {
   display: flex;
   gap: 12px;
 }
 
-.stats-section {
+.statsSection {
   margin-bottom: 24px;
 }
 
-.stats-section h3 {
+.statsSection h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin-bottom: 16px;
 }
 
-.stats-cards {
+.statsCards {
   display: flex;
   gap: 16px;
 }
 
-.stat-card {
+.statCard {
   background: #fff;
   border-radius: 8px;
   padding: 16px 24px;
@@ -56,75 +56,75 @@
   flex: 1;
 }
 
-.stat-info {
+.statInfo {
   text-align: center;
 }
 
-.stat-label {
+.statLabel {
   font-size: 14px;
   color: #666;
   margin-bottom: 8px;
 }
 
-.stat-value {
+.statValue {
   font-size: 32px;
   font-weight: 600;
   color: #333;
 }
 
-.list-header {
+.listHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.list-header h3 {
+.listHeader h3 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.list-actions {
+.listActions {
   display: flex;
   gap: 12px;
 }
 
-.project-list {
+.projectList {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.project-card {
+.projectCard {
   background: #fff;
   border-radius: 8px;
   padding: 20px;
   border-left: 4px solid #1890ff;
 }
 
-.project-info h4 {
+.projectInfo h4 {
   font-size: 16px;
   font-weight: 500;
   color: #333;
   margin-bottom: 8px;
 }
 
-.project-info p {
+.projectInfo p {
   color: #666;
   font-size: 14px;
   margin-bottom: 12px;
 }
 
-.project-meta {
+.projectMeta {
   display: flex;
   gap: 24px;
   font-size: 12px;
   color: #999;
 }
 
-.empty-state {
+.emptyState {
   background: #fff;
   border-radius: 8px;
   padding: 60px 20px;

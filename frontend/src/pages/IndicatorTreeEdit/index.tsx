@@ -25,7 +25,7 @@ import {
   SupportingMaterial,
   IndicatorSystem,
 } from '../../services/indicatorService';
-import './index.css';
+import styles from './index.module.css';
 
 const { TextArea } = Input;
 
@@ -666,12 +666,12 @@ const IndicatorTreeEdit: React.FC = () => {
     const isLast = index === siblings.length - 1;
 
     return (
-      <div key={node.id} className="indicator-tree-node">
+      <div key={node.id} className={styles.indicatorTreeNode}>
         {/* 指标行 */}
-        <div className="indicator-row" style={{ paddingLeft: depth * 24 }}>
+        <div className={styles.indicatorRow} style={{ paddingLeft: depth * 24 }}>
           {/* 展开/收缩按钮 */}
           <span
-            className={`expand-icon ${hasChildren ? 'clickable' : 'hidden'}`}
+            className={`${styles.expandIcon} ${hasChildren ? styles.clickable : styles.hidden}`}
             onClick={() => hasChildren && toggleExpand(node.id)}
           >
             {hasChildren && (isExpanded ? '∨' : '>')}
@@ -679,20 +679,20 @@ const IndicatorTreeEdit: React.FC = () => {
 
           {/* 层级标签 */}
           <Tag
-            className="level-tag"
+            className={styles.levelTag}
             style={{ backgroundColor: getLevelColor(node.level), color: '#fff', border: 'none' }}
           >
             L{node.level}
           </Tag>
 
           {/* 编码标签 */}
-          <Tag className="code-tag">{node.code}</Tag>
+          <Tag className={styles.codeTag}>{node.code}</Tag>
 
           {/* 名称 */}
-          <span className="indicator-name">{node.name}</span>
+          <span className={styles.indicatorName}>{node.name}</span>
 
           {/* 操作按钮 */}
-          <div className="indicator-actions">
+          <div className={styles.indicatorActions}>
             <Button
               type="text"
               size="small"
@@ -758,37 +758,37 @@ const IndicatorTreeEdit: React.FC = () => {
 
         {/* 描述 */}
         {node.description && (
-          <div className="indicator-description" style={{ paddingLeft: depth * 24 + 76 }}>
+          <div className={styles.indicatorDescription} style={{ paddingLeft: depth * 24 + 76 }}>
             {node.description}
           </div>
         )}
 
         {/* 数据指标和佐证资料 - 仅末级指标显示 */}
         {node.isLeaf && (
-          <div className="indicator-details" style={{ paddingLeft: depth * 24 + 76 }}>
+          <div className={styles.indicatorDetails} style={{ paddingLeft: depth * 24 + 76 }}>
             {node.dataIndicators?.map(di => (
-              <div key={di.id} className="detail-item data-indicator-item">
-                <Tag className="detail-code">{di.code}</Tag>
+              <div key={di.id} className={styles.detailItem}>
+                <Tag className={styles.detailCode}>{di.code}</Tag>
                 <Tag color="blue">数据指标</Tag>
-                <span className="detail-name">{di.name}</span>
+                <span className={styles.detailName}>{di.name}</span>
                 {di.threshold && <Tag color="orange">{di.threshold}</Tag>}
               </div>
             ))}
             {node.dataIndicators && node.dataIndicators.length > 0 && node.dataIndicators[0].description && (
-              <div className="detail-description">
+              <div className={styles.detailDescription}>
                 {node.dataIndicators[0].description}
               </div>
             )}
             {node.supportingMaterials?.map(sm => (
-              <div key={sm.id} className="detail-item material-item">
-                <Tag className="detail-code">{sm.code}</Tag>
+              <div key={sm.id} className={styles.detailItem}>
+                <Tag className={styles.detailCode}>{sm.code}</Tag>
                 <Tag color="green">佐证资料</Tag>
-                <span className="detail-name">{sm.name}</span>
-                <span className="detail-file-type">({sm.fileTypes})</span>
+                <span className={styles.detailName}>{sm.name}</span>
+                <span className={styles.detailFileType}>({sm.fileTypes})</span>
               </div>
             ))}
             {node.supportingMaterials && node.supportingMaterials.length > 0 && node.supportingMaterials[0].description && (
-              <div className="detail-description">
+              <div className={styles.detailDescription}>
                 {node.supportingMaterials[0].description}
               </div>
             )}
@@ -797,7 +797,7 @@ const IndicatorTreeEdit: React.FC = () => {
 
         {/* 子节点 */}
         {isExpanded && hasChildren && (
-          <div className="indicator-children">
+          <div>
             {node.children!.map(child => renderIndicatorNode(child, node.children!, depth + 1))}
           </div>
         )}
@@ -807,53 +807,53 @@ const IndicatorTreeEdit: React.FC = () => {
 
   return (
     <Spin spinning={loading} size="large" tip="加载中..." style={{ width: '100%' }}>
-      <div className="indicator-tree-edit-page">
+      <div className={styles.indicatorTreeEditPage}>
         {/* 页面头部 */}
-        <div className="page-header">
-          <div className="header-left">
-            <span className="back-btn" onClick={() => navigate(-1)}>
+        <div className={styles.pageHeader}>
+          <div className={styles.headerLeft}>
+            <span className={styles.backBtn} onClick={() => navigate(-1)}>
               <ArrowLeftOutlined /> 返回
             </span>
-            <h1 className="page-title">编辑指标</h1>
+            <h1 className={styles.pageTitle}>编辑指标</h1>
           </div>
         </div>
 
         {/* 指标体系信息卡片 */}
         {system && (
-          <div className="system-info-card-v2">
-            <div className="card-header">
-              <div className="card-title-row">
-                <h2 className="system-title">{system.name}</h2>
+          <div className={styles.systemInfoCardV2}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.systemTitle}>{system.name}</h2>
                 <Tag color={system.type === '达标类' ? 'blue' : 'purple'}>{system.type}</Tag>
                 <Tag color="cyan">评估对象: {system.target}</Tag>
               </div>
-              <div className="card-stats">
-                <span className="stat-item">指标数: {countIndicators(treeData)}</span>
+              <div className={styles.cardStats}>
+                <span className={styles.statItem}>指标数: {countIndicators(treeData)}</span>
                 <Tag color={system.status === 'published' ? 'green' : 'orange'}>
                   {system.status === 'published' ? '已发布' : system.status === 'editing' ? '编辑中' : '草稿'}
                 </Tag>
               </div>
             </div>
 
-            <div className="card-tags">
+            <div className={styles.cardTags}>
               {system.tags.map((tag, idx) => (
                 <Tag key={idx}>{tag}</Tag>
               ))}
             </div>
 
-            <p className="card-description">{system.description}</p>
+            <p className={styles.cardDescription}>{system.description}</p>
 
             {system.attachments && system.attachments.length > 0 && (
-              <div className="card-attachments">
+              <div className={styles.cardAttachments}>
                 {system.attachments.map((att, idx) => (
-                  <a key={idx} className="attachment-link">
+                  <a key={idx} className={styles.attachmentLink}>
                     <PaperClipOutlined /> {att.name} ({att.size})
                   </a>
                 ))}
               </div>
             )}
 
-            <div className="card-meta">
+            <div className={styles.cardMeta}>
               <span>创建时间: {system.createdAt}</span>
               <span>创建人: {system.createdBy}</span>
               <span>更新时间: {system.updatedAt}</span>
@@ -863,9 +863,9 @@ const IndicatorTreeEdit: React.FC = () => {
         )}
 
         {/* 指标列表 */}
-        <div className="indicator-list-section">
-          <div className="section-header">
-            <div className="section-title">
+        <div className={styles.indicatorListSection}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionTitle}>
               <h3>指标列表</h3>
               <Button type="link" icon={<StarOutlined />} onClick={collapseAll}>
                 全部收缩
@@ -876,12 +876,12 @@ const IndicatorTreeEdit: React.FC = () => {
             </Button>
           </div>
 
-          <div className="indicator-tree-list">
+          <div className={styles.indicatorTreeList}>
             {treeData.length > 0 ? (
               treeData.map(node => renderIndicatorNode(node, treeData, 0))
             ) : (
-              <div className="empty-tree">
-                <FileTextOutlined className="empty-icon" />
+              <div className={styles.emptyTree}>
+                <FileTextOutlined className={styles.emptyIcon} />
                 <p>暂无指标，点击上方按钮添加</p>
               </div>
             )}
@@ -933,9 +933,9 @@ const IndicatorTreeEdit: React.FC = () => {
           onCancel={() => { setEditModalVisible(false); setEditingNode(null); }}
           footer={null}
           width={680}
-          className="edit-indicator-modal"
+          className={styles.editIndicatorModal}
         >
-          <div className="edit-modal-subtitle">修改指标信息</div>
+          <div className={styles.editModalSubtitle}>修改指标信息</div>
           <Form form={editForm} onFinish={handleUpdateIndicator} layout="vertical">
             <Form.Item
               label="指标名称"
@@ -958,7 +958,7 @@ const IndicatorTreeEdit: React.FC = () => {
             <Form.Item noStyle shouldUpdate={(prev, curr) => prev.isLeaf !== curr.isLeaf}>
               {({ getFieldValue }) => getFieldValue('isLeaf') && (
                 <>
-                  <Form.Item label="评价依据" className="evaluation-basis-item">
+                  <Form.Item label="评价依据" className={styles.evaluationBasisItem}>
                     <Checkbox.Group
                       value={evaluationBasis}
                       onChange={(values) => setEvaluationBasis(values as string[])}
@@ -969,20 +969,20 @@ const IndicatorTreeEdit: React.FC = () => {
                   </Form.Item>
 
                   {evaluationBasis.includes('dataIndicators') && (
-                    <div className="edit-section data-indicators-section">
-                      <div className="edit-section-header">
-                        <span className="section-title">数据指标</span>
+                    <div className={`${styles.editSection} ${styles.dataIndicatorsSection}`}>
+                      <div className={styles.editSectionHeader}>
+                        <span className={styles.sectionTitle}>数据指标</span>
                         <Button type="link" icon={<PlusOutlined />} onClick={handleAddEditDataIndicator}>
                           添加
                         </Button>
                       </div>
-                      <div className="edit-section-content">
+                      <div className={styles.editSectionContent}>
                         {editDataIndicators.map((di, index) => (
-                          <div key={di.id} className="indicator-card">
+                          <div key={di.id} className={styles.indicatorCard}>
                             {editingDataIndicatorId === di.id ? (
-                              <div className="indicator-card-edit">
-                                <div className="card-edit-row">
-                                  <Tag className="card-code">{editingNode?.code}-D{index + 1}</Tag>
+                              <div className={styles.indicatorCardEdit}>
+                                <div className={styles.cardEditRow}>
+                                  <Tag className={styles.cardCode}>{editingNode?.code}-D{index + 1}</Tag>
                                   <Select
                                     value={tempDataIndicator.targetType || '幼儿园'}
                                     onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, targetType: val })}
@@ -995,7 +995,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                       { value: '高中', label: '【高中】' },
                                     ]}
                                   />
-                                  <span className="separator">.</span>
+                                  <span className={styles.separator}>.</span>
                                   <Input
                                     value={tempDataIndicator.name}
                                     onChange={(e) => setTempDataIndicator({ ...tempDataIndicator, name: e.target.value })}
@@ -1003,8 +1003,8 @@ const IndicatorTreeEdit: React.FC = () => {
                                     style={{ flex: 1 }}
                                   />
                                 </div>
-                                <div className="card-edit-row">
-                                  <span className="row-label">达标阈值</span>
+                                <div className={styles.cardEditRow}>
+                                  <span className={styles.rowLabel}>达标阈值</span>
                                   <Select
                                     value={tempDataIndicator.thresholdType || 'single'}
                                     onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, thresholdType: val })}
@@ -1015,7 +1015,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                       { value: 'range', label: '区间' },
                                     ]}
                                   />
-                                  <span className="row-label" style={{ marginLeft: 16 }}>精确位数</span>
+                                  <span className={styles.rowLabel} style={{ marginLeft: 16 }}>精确位数</span>
                                   <Select
                                     value={tempDataIndicator.precision || 2}
                                     onChange={(val) => setTempDataIndicator({ ...tempDataIndicator, precision: val })}
@@ -1029,8 +1029,8 @@ const IndicatorTreeEdit: React.FC = () => {
                                     ]}
                                   />
                                 </div>
-                                <div className="card-edit-row">
-                                  <span className="threshold-label">【数据指标】</span>
+                                <div className={styles.cardEditRow}>
+                                  <span className={styles.thresholdLabel}>【数据指标】</span>
                                   <Select
                                     value={tempDataIndicator.threshold?.split(' ')[0] || '>='}
                                     onChange={(val) => {
@@ -1057,8 +1057,8 @@ const IndicatorTreeEdit: React.FC = () => {
                                     style={{ flex: 1 }}
                                   />
                                 </div>
-                                <div className="card-edit-row">
-                                  <span className="row-label">数据指标说明</span>
+                                <div className={styles.cardEditRow}>
+                                  <span className={styles.rowLabel}>数据指标说明</span>
                                 </div>
                                 <TextArea
                                   value={tempDataIndicator.description}
@@ -1066,7 +1066,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                   placeholder="请输入数据指标说明（非必填）"
                                   rows={2}
                                 />
-                                <div className="card-edit-actions">
+                                <div className={styles.cardEditActions}>
                                   <Button size="small" icon={<CloseOutlined />} onClick={handleCancelEditDataIndicator}>
                                     取消
                                   </Button>
@@ -1076,13 +1076,13 @@ const IndicatorTreeEdit: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="indicator-card-view">
-                                <div className="card-view-header">
-                                  <Tag className="card-code">{di.code}</Tag>
-                                  <span className="card-name">
+                              <div className={styles.indicatorCardView}>
+                                <div className={styles.cardViewHeader}>
+                                  <Tag className={styles.cardCode}>{di.code}</Tag>
+                                  <span className={styles.cardName}>
                                     {di.name} {di.threshold && <Tag color="orange">{di.threshold}</Tag>}
                                   </span>
-                                  <div className="card-actions">
+                                  <div className={styles.cardActions}>
                                     <Button
                                       type="text"
                                       size="small"
@@ -1094,7 +1094,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                     </Popconfirm>
                                   </div>
                                 </div>
-                                {di.description && <div className="card-description">{di.description}</div>}
+                                {di.description && <div className={styles.cardDescription}>{di.description}</div>}
                               </div>
                             )}
                           </div>
@@ -1104,20 +1104,20 @@ const IndicatorTreeEdit: React.FC = () => {
                   )}
 
                   {evaluationBasis.includes('materials') && (
-                    <div className="edit-section materials-section">
-                      <div className="edit-section-header">
-                        <span className="section-title">佐证资料</span>
+                    <div className={`${styles.editSection} ${styles.materialsSection}`}>
+                      <div className={styles.editSectionHeader}>
+                        <span className={styles.sectionTitle}>佐证资料</span>
                         <Button type="link" icon={<PlusOutlined />} onClick={handleAddEditMaterial}>
                           添加
                         </Button>
                       </div>
-                      <div className="edit-section-content">
+                      <div className={styles.editSectionContent}>
                         {editMaterials.map((sm, index) => (
-                          <div key={sm.id} className="indicator-card">
+                          <div key={sm.id} className={styles.indicatorCard}>
                             {editingMaterialId === sm.id ? (
-                              <div className="indicator-card-edit">
-                                <div className="card-edit-row">
-                                  <Tag className="card-code">{editingNode?.code}-M{index + 1}</Tag>
+                              <div className={styles.indicatorCardEdit}>
+                                <div className={styles.cardEditRow}>
+                                  <Tag className={styles.cardCode}>{editingNode?.code}-M{index + 1}</Tag>
                                   <Select
                                     value={tempMaterial.targetType || '幼儿园'}
                                     onChange={(val) => setTempMaterial({ ...tempMaterial, targetType: val })}
@@ -1130,14 +1130,14 @@ const IndicatorTreeEdit: React.FC = () => {
                                       { value: '高中', label: '【高中】' },
                                     ]}
                                   />
-                                  <span className="separator">.</span>
+                                  <span className={styles.separator}>.</span>
                                   <Input
                                     value={tempMaterial.name}
                                     onChange={(e) => setTempMaterial({ ...tempMaterial, name: e.target.value })}
                                     placeholder="佐证资料名称"
                                     style={{ flex: 1 }}
                                   />
-                                  <span className="row-label" style={{ marginLeft: 16 }}>大小(MB)</span>
+                                  <span className={styles.rowLabel} style={{ marginLeft: 16 }}>大小(MB)</span>
                                   <InputNumber
                                     value={parseInt(tempMaterial.maxSize || '10')}
                                     onChange={(val) => setTempMaterial({ ...tempMaterial, maxSize: `${val}MB` })}
@@ -1146,13 +1146,13 @@ const IndicatorTreeEdit: React.FC = () => {
                                     style={{ width: 70 }}
                                   />
                                 </div>
-                                <div className="card-edit-row">
-                                  <span className="row-label">文件格式:</span>
-                                  <div className="file-type-tags">
+                                <div className={styles.cardEditRow}>
+                                  <span className={styles.rowLabel}>文件格式:</span>
+                                  <div className={styles.fileTypeTags}>
                                     {fileTypeOptions.map(type => (
                                       <Tag
                                         key={type}
-                                        className={`file-type-tag ${tempMaterial.fileTypes?.includes(type) ? 'selected' : ''}`}
+                                        className={`${styles.fileTypeTag} ${tempMaterial.fileTypes?.includes(type) ? styles.selected : ''}`}
                                         onClick={() => handleToggleFileType(type)}
                                       >
                                         {type}
@@ -1160,8 +1160,8 @@ const IndicatorTreeEdit: React.FC = () => {
                                     ))}
                                   </div>
                                 </div>
-                                <div className="card-edit-row">
-                                  <span className="row-label">佐证资料说明</span>
+                                <div className={styles.cardEditRow}>
+                                  <span className={styles.rowLabel}>佐证资料说明</span>
                                 </div>
                                 <TextArea
                                   value={tempMaterial.description}
@@ -1169,7 +1169,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                   placeholder="请输入佐证资料说明（选填）"
                                   rows={2}
                                 />
-                                <div className="card-edit-actions">
+                                <div className={styles.cardEditActions}>
                                   <Button size="small" icon={<CloseOutlined />} onClick={handleCancelEditMaterial}>
                                     取消
                                   </Button>
@@ -1179,13 +1179,13 @@ const IndicatorTreeEdit: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="indicator-card-view">
-                                <div className="card-view-header">
-                                  <Tag className="card-code">{sm.code}</Tag>
-                                  <span className="card-name">{sm.name}</span>
+                              <div className={styles.indicatorCardView}>
+                                <div className={styles.cardViewHeader}>
+                                  <Tag className={styles.cardCode}>{sm.code}</Tag>
+                                  <span className={styles.cardName}>{sm.name}</span>
                                   <Tag>{sm.fileTypes}</Tag>
                                   <Tag>{sm.maxSize}</Tag>
-                                  <div className="card-actions">
+                                  <div className={styles.cardActions}>
                                     <Button
                                       type="text"
                                       size="small"
@@ -1197,7 +1197,7 @@ const IndicatorTreeEdit: React.FC = () => {
                                     </Popconfirm>
                                   </div>
                                 </div>
-                                {sm.description && <div className="card-description">{sm.description}</div>}
+                                {sm.description && <div className={styles.cardDescription}>{sm.description}</div>}
                               </div>
                             )}
                           </div>

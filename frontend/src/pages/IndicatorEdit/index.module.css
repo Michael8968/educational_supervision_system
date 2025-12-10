@@ -1,25 +1,24 @@
-.element-edit-page {
+.elementEditPage {
   padding: 24px;
   background: #f5f7fa;
   min-height: 100%;
   width: 100%;
 }
 
-/* 页面头部 */
-.page-header {
+.pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.page-header .header-left {
+.headerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.back-btn {
+.backBtn {
   color: #666;
   cursor: pointer;
   font-size: 14px;
@@ -28,99 +27,95 @@
   gap: 4px;
 }
 
-.back-btn:hover {
+.backBtn:hover {
   color: #1890ff;
 }
 
-.page-title {
+.pageTitle {
   font-size: 18px;
   font-weight: 600;
   color: #333;
   margin: 0;
 }
 
-/* 要素库信息卡片 */
-.library-info-card {
+.libraryInfoCard {
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 24px;
 }
 
-.library-info-header {
+.libraryInfoHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.library-info-left {
+.libraryInfoLeft {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.library-name {
+.libraryName {
   font-size: 16px;
   font-weight: 600;
   color: #333;
 }
 
-.status-tag {
+.statusTag {
   background: #f0f0f0;
   border: none;
   color: #666;
   font-size: 12px;
 }
 
-.element-count {
+.elementCount {
   color: #1890ff;
   font-size: 14px;
 }
 
-.library-description {
+.libraryDescription {
   color: #666;
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
 }
 
-/* 主内容区域 - 两栏布局 */
-.main-content {
+.mainContent {
   display: flex;
   gap: 24px;
 }
 
-/* 左侧要素列表 */
-.element-list-section {
+.elementListSection {
   flex: 1;
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
 }
 
-.element-list-section .section-header {
+.sectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.element-list-section .section-header h3 {
+.sectionHeader h3 {
   font-size: 15px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-/* 要素列表 */
-.element-list {
+.elementList {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.element-item {
+.elementItem {
   background: #fff;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
@@ -130,24 +125,24 @@
   position: relative;
 }
 
-.element-item:hover {
+.elementItem:hover {
   border-color: #d0d0d0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.element-item.selected {
+.selected {
   border-color: #1890ff;
   background: #f0f7ff;
 }
 
-.element-main {
+.elementMain {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.element-code {
+.elementCode {
   background: #f5f5f5;
   border: 1px solid #e8e8e8;
   color: #666;
@@ -157,36 +152,36 @@
   border-radius: 4px;
 }
 
-.element-name {
+.elementName {
   font-size: 14px;
   font-weight: 500;
   color: #333;
 }
 
-.element-type-tag {
+.elementTypeTag {
   font-size: 12px;
   border-radius: 4px;
   padding: 2px 8px;
 }
 
-.element-type-tag.base {
+.base {
   background: #e6f7ff;
   border: 1px solid #91d5ff;
   color: #1890ff;
 }
 
-.element-type-tag.derived {
+.derived {
   background: #f6ffed;
   border: 1px solid #b7eb8f;
   color: #52c41a;
 }
 
-.element-data-type {
+.elementDataType {
   color: #999;
   font-size: 13px;
 }
 
-.element-formula {
+.elementFormula {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -196,12 +191,12 @@
   font-size: 13px;
 }
 
-.element-formula .anticon {
+.elementFormula :global(.anticon) {
   color: #999;
   font-size: 12px;
 }
 
-.element-actions {
+.elementActions {
   position: absolute;
   right: 16px;
   top: 50%;
@@ -212,27 +207,26 @@
   transition: opacity 0.2s;
 }
 
-.element-item:hover .element-actions {
+.elementItem:hover .elementActions {
   opacity: 1;
 }
 
-.element-actions .action-icon {
+.actionIcon {
   color: #999;
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
 }
 
-.element-actions .action-icon:hover {
+.actionIcon:hover {
   color: #1890ff;
 }
 
-.element-actions .action-icon.danger:hover {
+.danger:hover {
   color: #ff4d4f;
 }
 
-/* 右侧要素属性面板 */
-.element-properties-section {
+.elementPropertiesSection {
   width: 280px;
   flex-shrink: 0;
   background: #fff;
@@ -240,37 +234,37 @@
   padding: 20px 24px;
 }
 
-.element-properties-section h3 {
+.elementPropertiesSection h3 {
   font-size: 15px;
   font-weight: 500;
   color: #333;
   margin: 0 0 20px 0;
 }
 
-.properties-content {
+.propertiesContent {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.property-item {
+.propertyItem {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.property-item label {
+.propertyItem label {
   font-size: 12px;
   color: #999;
 }
 
-.property-value {
+.propertyValue {
   font-size: 14px;
   color: #333;
   font-weight: 500;
 }
 
-.formula-display {
+.formulaDisplay {
   background: #f5f5f5;
   border-radius: 6px;
   padding: 10px 12px;
@@ -279,7 +273,7 @@
   font-family: 'SF Mono', Monaco, monospace;
 }
 
-.properties-actions {
+.propertiesActions {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -288,15 +282,14 @@
   border-top: 1px solid #f0f0f0;
 }
 
-/* 空状态 */
-.empty-state {
+.emptyState {
   padding: 60px 20px;
   text-align: center;
   color: #999;
   font-size: 14px;
 }
 
-.empty-properties {
+.emptyProperties {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -306,49 +299,47 @@
   gap: 12px;
 }
 
-.empty-properties .empty-icon {
+.emptyIcon {
   font-size: 48px;
   color: #d9d9d9;
 }
 
-.empty-properties span {
+.emptyProperties span {
   font-size: 14px;
 }
 
-/* 弹窗样式 */
-.element-modal .modal-subtitle {
+.modalSubtitle {
   color: #666;
   font-size: 14px;
   margin-bottom: 24px;
 }
 
-.form-row-inline {
+.formRowInline {
   display: flex;
   gap: 16px;
 }
 
-.form-item-half {
+.formItemHalf {
   flex: 1;
 }
 
-.form-hint {
+.formHint {
   font-size: 12px;
   color: #999;
   margin-top: -16px;
   margin-bottom: 16px;
 }
 
-/* 响应式调整 */
 @media (max-width: 1200px) {
-  .main-content {
+  .mainContent {
     flex-direction: column;
   }
 
-  .element-properties-section {
+  .elementPropertiesSection {
     width: 100%;
   }
 
-  .empty-properties {
+  .emptyProperties {
     padding: 40px 20px;
   }
 }

@@ -33,7 +33,7 @@ import * as toolService from '../../services/toolService';
 import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
 import type { Submission } from '../../services/submissionService';
-import './index.css';
+import styles from './index.module.css';
 
 // 扩展 FormField 类型以包含更多属性
 interface ExtendedFormField extends FormField {
@@ -276,7 +276,7 @@ const DataEntryForm: React.FC = () => {
             label={
               <span>
                 {field.label}
-                {field.unit && <span className="field-unit">({field.unit})</span>}
+                {field.unit && <span className={styles.fieldUnit}>({field.unit})</span>}
               </span>
             }
             rules={[
@@ -336,7 +336,7 @@ const DataEntryForm: React.FC = () => {
             style={{ width: field.width }}
           >
             <Checkbox.Group>
-              <div className={`checkbox-group ${field.optionLayout || 'vertical'}`}>
+              <div className={`${styles.checkboxGroup} ${styles[field.optionLayout || 'vertical']}`}>
                 {field.options?.map((opt) => (
                   <Checkbox key={opt.value} value={opt.value}>
                     {opt.label}
@@ -358,7 +358,7 @@ const DataEntryForm: React.FC = () => {
             style={{ width: field.width }}
           >
             <Radio.Group>
-              <div className={`radio-group ${field.optionLayout || 'vertical'}`}>
+              <div className={`${styles.radioGroup} ${styles[field.optionLayout || 'vertical']}`}>
                 {field.options?.map((opt) => (
                   <Radio key={opt.value} value={opt.value}>
                     {opt.label}
@@ -452,10 +452,10 @@ const DataEntryForm: React.FC = () => {
             key={field.id}
             title={field.label}
             size="small"
-            className="form-group-card"
+            className={styles.formGroupCard}
             style={{ width: field.width }}
           >
-            <div className="form-fields-container">
+            <div className={styles.formFieldsContainer}>
               {field.children?.map((childField) => renderFormField(childField))}
             </div>
           </Card>
@@ -468,7 +468,7 @@ const DataEntryForm: React.FC = () => {
               <Card
                 title={field.label}
                 size="small"
-                className="dynamic-list-card"
+                className={styles.dynamicListCard}
                 style={{ width: field.width }}
                 extra={
                   <Button type="link" onClick={() => add()}>
@@ -477,8 +477,8 @@ const DataEntryForm: React.FC = () => {
                 }
               >
                 {fields.map(({ key, name, ...restField }) => (
-                  <div key={key} className="dynamic-list-item">
-                    <div className="dynamic-list-fields">
+                  <div key={key} className={styles.dynamicListItem}>
+                    <div className={styles.dynamicListFields}>
                       {field.children?.map((childField) => (
                         <Form.Item
                           {...restField}
@@ -501,7 +501,7 @@ const DataEntryForm: React.FC = () => {
                   </div>
                 ))}
                 {fields.length === 0 && (
-                  <div className="empty-dynamic-list">
+                  <div className={styles.emptyDynamicList}>
                     点击上方"添加"按钮添加数据
                   </div>
                 )}
@@ -517,8 +517,8 @@ const DataEntryForm: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="data-entry-form-page">
-        <div className="loading-container">
+      <div className={styles.dataEntryFormPage}>
+        <div className={styles.loadingContainer}>
           <Spin size="large" tip="加载中..." />
         </div>
       </div>
@@ -526,16 +526,16 @@ const DataEntryForm: React.FC = () => {
   }
 
   return (
-    <div className="data-entry-form-page">
+    <div className={styles.dataEntryFormPage}>
       {/* 页面头部 */}
-      <div className="page-header">
-        <div className="header-left">
-          <span className="back-btn" onClick={() => navigate(-1)}>
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <span className={styles.backBtn} onClick={() => navigate(-1)}>
             <ArrowLeftOutlined /> 返回
           </span>
-          <h1 className="page-title">数据填报</h1>
+          <h1 className={styles.pageTitle}>数据填报</h1>
         </div>
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           <Button
             icon={<SaveOutlined />}
             onClick={handleSaveDraft}
@@ -558,16 +558,16 @@ const DataEntryForm: React.FC = () => {
 
       {/* 表单信息卡片 */}
       {toolInfo && (
-        <div className="form-info-card">
-          <div className="form-info-header">
-            <div className="form-info-left">
-              <span className="form-name">{toolInfo.name}</span>
+        <div className={styles.formInfoCard}>
+          <div className={styles.formInfoHeader}>
+            <div className={styles.formInfoLeft}>
+              <span className={styles.formName}>{toolInfo.name}</span>
               <Tag>{toolInfo.type}</Tag>
               {toolInfo.target && <Tag color="blue">{toolInfo.target}</Tag>}
             </div>
             {getStatusTag(submission?.status)}
           </div>
-          <p className="form-description">{toolInfo.description}</p>
+          <p className={styles.formDescription}>{toolInfo.description}</p>
         </div>
       )}
 
@@ -578,7 +578,7 @@ const DataEntryForm: React.FC = () => {
           description="您的填报已提交，正在等待审核。如需修改，请联系管理员退回后再编辑。"
           type="info"
           showIcon
-          className="status-alert"
+          className={styles.statusAlert}
         />
       )}
 
@@ -588,17 +588,17 @@ const DataEntryForm: React.FC = () => {
           description="您的填报已被退回，请根据反馈修改后重新提交。"
           type="warning"
           showIcon
-          className="status-alert"
+          className={styles.statusAlert}
         />
       )}
 
       {/* 表单内容 */}
-      <div className="form-content-card">
+      <div className={styles.formContentCard}>
         {formFields.length === 0 ? (
-          <div className="empty-form">
-            <FileOutlined className="empty-icon" />
+          <div className={styles.emptyForm}>
+            <FileOutlined className={styles.emptyIcon} />
             <p>此表单暂无字段配置</p>
-            <p className="empty-hint">请联系管理员配置表单字段</p>
+            <p className={styles.emptyHint}>请联系管理员配置表单字段</p>
           </div>
         ) : (
           <Form
@@ -607,7 +607,7 @@ const DataEntryForm: React.FC = () => {
             initialValues={formData}
             disabled={submission?.status === 'submitted'}
           >
-            <div className="form-fields-container">
+            <div className={styles.formFieldsContainer}>
               {formFields.map((field) => renderFormField(field))}
             </div>
           </Form>
@@ -615,15 +615,15 @@ const DataEntryForm: React.FC = () => {
       </div>
 
       {/* 底部操作栏 */}
-      <div className="form-footer">
-        <div className="footer-left">
+      <div className={styles.formFooter}>
+        <div className={styles.footerLeft}>
           {submission && (
-            <span className="last-saved">
+            <span className={styles.lastSaved}>
               上次保存: {submission.updatedAt || submission.createdAt}
             </span>
           )}
         </div>
-        <div className="footer-actions">
+        <div className={styles.footerActions}>
           <Button onClick={() => navigate(-1)}>取消</Button>
           <Button
             icon={<SaveOutlined />}

@@ -1,4 +1,4 @@
-.form-tool-edit-page {
+.formToolEditPage {
   min-height: 100%;
   background: #f5f7fa;
   display: flex;
@@ -6,7 +6,7 @@
 }
 
 /* 页面头部 */
-.form-tool-edit-page .page-header {
+.formToolEditPage .pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -15,13 +15,13 @@
   border-bottom: 1px solid #e8e8e8;
 }
 
-.form-tool-edit-page .header-left {
+.formToolEditPage .headerLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.form-tool-edit-page .back-btn {
+.formToolEditPage .backBtn {
   color: #1890ff;
   cursor: pointer;
   display: flex;
@@ -29,11 +29,11 @@
   gap: 4px;
 }
 
-.form-tool-edit-page .back-btn:hover {
+.formToolEditPage .backBtn:hover {
   color: #40a9ff;
 }
 
-.form-tool-edit-page .page-title {
+.formToolEditPage .pageTitle {
   font-size: 16px;
   font-weight: 500;
   color: #333;
@@ -41,7 +41,7 @@
 }
 
 /* 工具信息卡片 */
-.tool-info-card {
+.toolInfoCard {
   margin: 16px 24px;
   padding: 20px;
   background: #fff;
@@ -49,33 +49,33 @@
   border-left: 4px solid #1890ff;
 }
 
-.tool-info-header {
+.toolInfoHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.tool-info-left {
+.toolInfoLeft {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.tool-name {
+.toolName {
   font-size: 16px;
   font-weight: 600;
   color: #333;
 }
 
-.tool-description {
+.toolDescription {
   color: #666;
   font-size: 14px;
   line-height: 1.6;
   margin: 0 0 12px;
 }
 
-.tool-meta {
+.toolMeta {
   display: flex;
   gap: 24px;
   font-size: 12px;
@@ -83,7 +83,7 @@
 }
 
 /* 主内容区域 */
-.main-content {
+.mainContent {
   flex: 1;
   display: flex;
   gap: 16px;
@@ -92,7 +92,7 @@
 }
 
 /* 控件库面板 */
-.control-library {
+.controlLibrary {
   width: 240px;
   background: #fff;
   border-radius: 8px;
@@ -102,22 +102,22 @@
   overflow: hidden;
 }
 
-.panel-title {
+.panelTitle {
   font-size: 14px;
   font-weight: 500;
   color: #333;
   margin: 0 0 12px;
 }
 
-.control-library .ant-tabs {
+.controlLibrary :global(.ant-tabs) {
   margin-bottom: 12px;
 }
 
-.control-library .ant-tabs-nav {
+.controlLibrary :global(.ant-tabs-nav) {
   margin-bottom: 0;
 }
 
-.control-list {
+.controlList {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -125,7 +125,7 @@
   gap: 8px;
 }
 
-.control-item {
+.controlItem {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -136,37 +136,37 @@
   transition: all 0.2s;
 }
 
-.control-item:hover {
+.controlItem:hover {
   border-color: #1890ff;
   background: #f6ffed;
 }
 
-.control-icon {
+.controlIcon {
   font-size: 16px;
   color: #1890ff;
   padding-top: 2px;
 }
 
-.control-info {
+.controlInfo {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.control-name {
+.controlName {
   font-size: 14px;
   font-weight: 500;
   color: #333;
 }
 
-.control-desc {
+.controlDesc {
   font-size: 12px;
   color: #999;
 }
 
 /* 表单设计区 */
-.form-designer {
+.formDesigner {
   flex: 1;
   background: #fff;
   border-radius: 8px;
@@ -175,7 +175,7 @@
   overflow: hidden;
 }
 
-.designer-header {
+.designerHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -183,30 +183,30 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
-.designer-header h3 {
+.designerHeader h3 {
   font-size: 14px;
   font-weight: 500;
   color: #333;
   margin: 0;
 }
 
-.designer-actions {
+.designerActions {
   display: flex;
   gap: 8px;
 }
 
-.designer-actions .ant-btn {
+.designerActions :global(.ant-btn) {
   font-size: 13px;
 }
 
-.designer-canvas {
+.designerCanvas {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   background: #fafafa;
 }
 
-.form-header {
+.formHeader {
   background: #f0f7ff;
   border: 1px solid #d6e8fc;
   border-radius: 8px;
@@ -214,13 +214,13 @@
   margin-bottom: 20px;
 }
 
-.form-header-content {
+.formHeaderContent {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
 
-.form-title {
+.formTitle {
   font-size: 16px;
   font-weight: 600;
   color: #333;
@@ -230,29 +230,29 @@
   gap: 8px;
 }
 
-.edit-icon {
+.editIcon {
   color: #999;
   cursor: pointer;
 }
 
-.edit-icon:hover {
+.editIcon:hover {
   color: #1890ff;
 }
 
-.form-desc {
+.formDesc {
   color: #666;
   font-size: 13px;
   line-height: 1.6;
   margin: 0;
 }
 
-.form-fields {
+.formFields {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.empty-canvas {
+.emptyCanvas {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,7 +264,7 @@
   width: 100%;
 }
 
-.form-field-item {
+.formFieldItem {
   background: #fff;
   border: 2px solid #e8e8e8;
   border-radius: 8px;
@@ -274,82 +274,82 @@
   box-sizing: border-box;
 }
 
-.form-field-item:hover {
+.formFieldItem:hover {
   border-color: #1890ff;
 }
 
-.form-field-item.selected {
+.formFieldItem.selected {
   border-color: #1890ff;
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-.field-header {
+.fieldHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.field-label {
+.fieldLabel {
   font-size: 14px;
   font-weight: 500;
   color: #333;
 }
 
-.required-mark {
+.requiredMark {
   color: #ff4d4f;
   margin-left: 4px;
 }
 
-.field-actions {
+.fieldActions {
   display: flex;
   gap: 8px;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.form-field-item:hover .field-actions {
+.formFieldItem:hover .fieldActions {
   opacity: 1;
 }
 
-.field-actions .anticon {
+.fieldActions :global(.anticon) {
   color: #666;
   cursor: pointer;
   padding: 4px;
 }
 
-.field-actions .anticon:hover {
+.fieldActions :global(.anticon):hover {
   color: #1890ff;
 }
 
-.field-actions .anticon-delete:hover {
+.fieldActions :global(.anticon-delete):hover {
   color: #ff4d4f;
 }
 
-.field-content {
+.fieldContent {
   margin-bottom: 4px;
 }
 
-.field-content .ant-input,
-.field-content .ant-select {
+.fieldContent :global(.ant-input),
+.fieldContent :global(.ant-select) {
   pointer-events: none;
 }
 
-.field-help {
+.fieldHelp {
   font-size: 12px;
   color: #999;
 }
 
-.options-preview {
+.optionsPreview {
   display: flex;
   gap: 8px;
 }
 
-.options-preview.vertical {
+.optionsPreview.vertical {
   flex-direction: column;
 }
 
-.option-item {
+.optionItem {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -357,14 +357,14 @@
   font-size: 14px;
 }
 
-.divider-preview {
+.dividerPreview {
   height: 1px;
   background: #e8e8e8;
   margin: 8px 0;
 }
 
 /* 属性面板 */
-.property-panel {
+.propertyPanel {
   width: 280px;
   background: #fff;
   border-radius: 8px;
@@ -374,15 +374,15 @@
   overflow: hidden;
 }
 
-.property-panel .ant-tabs {
+.propertyPanel :global(.ant-tabs) {
   margin-bottom: 16px;
 }
 
-.property-panel .ant-tabs-nav {
+.propertyPanel :global(.ant-tabs-nav) {
   margin-bottom: 0;
 }
 
-.property-content {
+.propertyContent {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -390,74 +390,74 @@
   gap: 16px;
 }
 
-.property-item {
+.propertyItem {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.property-item.inline {
+.propertyItem.inline {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
 }
 
-.property-item label {
+.propertyItem label {
   font-size: 13px;
   font-weight: 500;
   color: #333;
 }
 
-.property-item .ant-input,
-.property-item .ant-select {
+.propertyItem :global(.ant-input),
+.propertyItem :global(.ant-select) {
   font-size: 13px;
 }
 
-.evaluation-config {
+.evaluationConfig {
   display: flex;
   gap: 8px;
 }
 
-.evaluation-config .ant-btn {
+.evaluationConfig :global(.ant-btn) {
   font-size: 13px;
 }
 
-.evaluation-hint {
+.evaluationHint {
   font-size: 12px;
   color: #1890ff;
   margin-top: 4px;
 }
 
-.options-list {
+.optionsList {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.option-row {
+.optionRow {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.option-row .ant-input {
+.optionRow :global(.ant-input) {
   flex: 1;
 }
 
-.delete-option {
+.deleteOption {
   color: #999;
   cursor: pointer;
 }
 
-.delete-option:hover {
+.deleteOption:hover {
   color: #ff4d4f;
 }
 
-.add-option-btn {
+.addOptionBtn {
   margin-top: 8px;
 }
 
-.empty-properties {
+.emptyProperties {
   flex: 1;
   display: flex;
   align-items: center;
@@ -467,30 +467,30 @@
 }
 
 /* 拖拽相关样式 */
-.control-item {
+.controlItem {
   cursor: grab;
   user-select: none;
 }
 
-.control-item:active {
+.controlItem:active {
   cursor: grabbing;
 }
 
-.control-item[draggable="true"]:hover {
+.controlItem[draggable="true"]:hover {
   border-color: #1890ff;
   background: #e6f7ff;
 }
 
 /* 拖拽时控件库项目样式 */
-.control-item:active,
-.control-item.dragging {
+.controlItem:active,
+.controlItem.dragging {
   opacity: 0.8;
   transform: scale(1.02);
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
 }
 
 /* 表单字段拖拽手柄 */
-.field-drag-handle {
+.fieldDragHandle {
   cursor: grab;
   color: #999;
   margin-right: 8px;
@@ -499,22 +499,22 @@
   align-items: center;
 }
 
-.field-drag-handle:hover {
+.fieldDragHandle:hover {
   color: #1890ff;
 }
 
-.field-drag-handle:active {
+.fieldDragHandle:active {
   cursor: grabbing;
 }
 
 /* 字段拖拽时样式 */
-.form-field-item.dragging {
+.formFieldItem.dragging {
   opacity: 0.5;
   border-style: dashed;
 }
 
 /* 拖拽放置指示器 */
-.drop-indicator {
+.dropIndicator {
   width: 100%;
   height: 4px;
   background: #1890ff;
@@ -533,24 +533,24 @@
 }
 
 /* 空画布拖拽悬停状态 */
-.empty-canvas.drag-over {
+.emptyCanvas.dragOver {
   border-color: #1890ff;
   background: #e6f7ff;
   border-width: 3px;
 }
 
 /* 表单字段容器拖拽状态 */
-.form-fields.dragging {
+.formFields.dragging {
   min-height: 200px;
 }
 
-.form-fields.drag-over {
+.formFields.dragOver {
   background: rgba(24, 144, 255, 0.05);
   border-radius: 8px;
 }
 
 /* 末尾放置区域 */
-.drop-zone-end {
+.dropZoneEnd {
   width: 100%;
   min-height: 60px;
   margin-top: 8px;
@@ -559,19 +559,19 @@
   transition: all 0.2s;
 }
 
-.drop-zone-end.active {
+.dropZoneEnd.active {
   border-color: #1890ff;
   background: #e6f7ff;
 }
 
 /* 字段header调整 */
-.field-header {
+.fieldHeader {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.field-label {
+.fieldLabel {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
@@ -579,6 +579,6 @@
 }
 
 /* 拖拽悬停时字段样式 */
-.form-field-item:not(.dragging) {
+.formFieldItem:not(.dragging) {
   transition: transform 0.2s, border-color 0.2s;
 }
