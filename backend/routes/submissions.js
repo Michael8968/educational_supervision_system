@@ -117,16 +117,131 @@ router.put('/projects/:id', (req, res) => {
 // 启动填报
 router.post('/projects/:id/start', (req, res) => {
   try {
+    // 检查项目当前状态
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+    if (project.status !== '配置中') {
+      return res.status(400).json({ code: 400, message: '只有配置中的项目可以启动填报' });
+    }
+
     const timestamp = now().split('T')[0];
-    const result = db.prepare(`
+    db.prepare(`
       UPDATE projects SET status = '填报中', updated_at = ? WHERE id = ?
     `).run(timestamp, req.params.id);
 
-    if (result.changes === 0) {
+    res.json({ code: 200, message: '填报已启动' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 中止项目
+router.post('/projects/:id/stop', (req, res) => {
+  try {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
       return res.status(404).json({ code: 404, message: '项目不存在' });
     }
+    if (project.status === '已完成' || project.status === '已中止') {
+      return res.status(400).json({ code: 400, message: '已完成或已中止的项目无法再次中止' });
+    }
 
-    res.json({ code: 200, message: '填报已启动' });
+    const timestamp = now().split('T')[0];
+    db.prepare(`
+      UPDATE projects SET status = '已中止', updated_at = ? WHERE id = ?
+    `).run(timestamp, req.params.id);
+
+    res.json({ code: 200, message: '项目已中止' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 进入评审
+router.post('/projects/:id/review', (req, res) => {
+  try {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+    if (project.status !== '填报中') {
+      return res.status(400).json({ code: 400, message: '只有填报中的项目可以进入评审' });
+    }
+
+    const timestamp = now().split('T')[0];
+    db.prepare(`
+      UPDATE projects SET status = '评审中', updated_at = ? WHERE id = ?
+    `).run(timestamp, req.params.id);
+
+    res.json({ code: 200, message: '项目已进入评审阶段' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 完成项目
+router.post('/projects/:id/complete', (req, res) => {
+  try {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+    if (project.status !== '评审中') {
+      return res.status(400).json({ code: 400, message: '只有评审中的项目可以完成' });
+    }
+
+    const timestamp = now().split('T')[0];
+    db.prepare(`
+      UPDATE projects SET status = '已完成', updated_at = ? WHERE id = ?
+    `).run(timestamp, req.params.id);
+
+    res.json({ code: 200, message: '项目已完成' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 重新启动项目（从已中止恢复到配置中）
+router.post('/projects/:id/restart', (req, res) => {
+  try {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+    if (project.status !== '已中止') {
+      return res.status(400).json({ code: 400, message: '只有已中止的项目可以重新启动' });
+    }
+
+    const timestamp = now().split('T')[0];
+    db.prepare(`
+      UPDATE projects SET status = '配置中', updated_at = ? WHERE id = ?
+    `).run(timestamp, req.params.id);
+
+    res.json({ code: 200, message: '项目已重新启动' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 删除项目
+router.delete('/projects/:id', (req, res) => {
+  try {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(req.params.id);
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+    if (project.status !== '配置中') {
+      return res.status(400).json({ code: 400, message: '只有配置中的项目可以删除' });
+    }
+
+    // 删除关联的工具关系
+    db.prepare('DELETE FROM project_tools WHERE project_id = ?').run(req.params.id);
+    // 删除项目
+    db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
+
+    res.json({ code: 200, message: '删除成功' });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
   }
@@ -371,6 +486,113 @@ router.get('/projects/:projectId/stats', (req, res) => {
     `).get(req.params.projectId);
 
     res.json({ code: 200, data: stats });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 获取项目的指标映射汇总
+router.get('/projects/:projectId/indicator-mapping-summary', (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // 1. 获取项目信息和关联的指标体系
+    const project = db.prepare(`
+      SELECT p.id, p.name, p.indicator_system_id as indicatorSystemId,
+             i.name as indicatorSystemName
+      FROM projects p
+      LEFT JOIN indicator_systems i ON p.indicator_system_id = i.id
+      WHERE p.id = ?
+    `).get(projectId);
+
+    if (!project) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
+
+    if (!project.indicatorSystemId) {
+      return res.json({ code: 200, data: { project, dataIndicators: [], mappings: [] } });
+    }
+
+    // 2. 获取该指标体系下的所有数据指标
+    const dataIndicators = db.prepare(`
+      SELECT di.id, di.code, di.name, di.threshold, di.description,
+             ind.id as indicatorId, ind.code as indicatorCode, ind.name as indicatorName
+      FROM data_indicators di
+      JOIN indicators ind ON di.indicator_id = ind.id
+      WHERE ind.system_id = ?
+      ORDER BY di.code
+    `).all(project.indicatorSystemId);
+
+    // 3. 获取项目关联的所有工具及其字段映射
+    const toolMappings = db.prepare(`
+      SELECT fm.field_id as fieldId, fm.mapping_type as mappingType, fm.target_id as targetId,
+             dt.id as toolId, dt.name as toolName, dt.schema as toolSchema
+      FROM project_tools pt
+      JOIN data_tools dt ON pt.tool_id = dt.id
+      LEFT JOIN field_mappings fm ON dt.id = fm.tool_id
+      WHERE pt.project_id = ? AND fm.mapping_type = 'data_indicator'
+    `).all(projectId);
+
+    // 4. 构建映射查找表
+    const mappingByTargetId = {};
+    toolMappings.forEach(m => {
+      if (m.targetId) {
+        // 从 schema 中获取字段信息
+        let fieldLabel = '';
+        if (m.toolSchema) {
+          try {
+            const schema = JSON.parse(m.toolSchema);
+            const findField = (fields, id) => {
+              for (const f of fields) {
+                if (f.id === m.fieldId) return f.label;
+                if (f.children) {
+                  const found = findField(f.children, id);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            fieldLabel = findField(schema, m.fieldId) || m.fieldId;
+          } catch (e) {
+            fieldLabel = m.fieldId;
+          }
+        }
+        mappingByTargetId[m.targetId] = {
+          toolId: m.toolId,
+          toolName: m.toolName,
+          fieldId: m.fieldId,
+          fieldLabel: fieldLabel,
+        };
+      }
+    });
+
+    // 5. 合并数据指标和映射信息
+    const result = dataIndicators.map(di => ({
+      ...di,
+      mapping: mappingByTargetId[di.id] || null,
+      isMapped: !!mappingByTargetId[di.id],
+    }));
+
+    // 6. 统计
+    const stats = {
+      total: result.length,
+      mapped: result.filter(r => r.isMapped).length,
+      unmapped: result.filter(r => !r.isMapped).length,
+    };
+
+    res.json({
+      code: 200,
+      data: {
+        project: {
+          id: project.id,
+          name: project.name,
+          indicatorSystemId: project.indicatorSystemId,
+          indicatorSystemName: project.indicatorSystemName,
+        },
+        dataIndicators: result,
+        stats,
+      },
+    });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
   }

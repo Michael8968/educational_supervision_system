@@ -1,6 +1,6 @@
 /**
  * 项目配置页面
- * 管理项目基本信息和关联的采集工具
+ * 管理项目基本信息、关联的采集工具和指标映射
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -17,6 +17,12 @@ import {
   Tooltip,
   Empty,
   Switch,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  Tabs,
+  Progress,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -24,25 +30,25 @@ import {
   DeleteOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  CheckCircleOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  LinkOutlined,
+  DisconnectOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
+import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import * as projectService from '../../services/projectService';
 import * as projectToolService from '../../services/projectToolService';
+import * as indicatorService from '../../services/indicatorService';
+import type { Project, DataIndicatorMapping, IndicatorMappingSummary } from '../../services/projectService';
 import type { ProjectTool, AvailableTool } from '../../services/projectToolService';
+import type { IndicatorSystem } from '../../services/indicatorService';
+import IndicatorTreeViewer from '../../components/IndicatorTreeViewer';
 import styles from './index.module.css';
-
-interface Project {
-  id: string;
-  name: string;
-  keywords?: string;
-  description?: string;
-  indicatorSystemId?: string;
-  startDate?: string;
-  endDate?: string;
-  status: string;
-  createdAt?: string;
-}
 
 const ProjectConfig: React.FC = () => {
   const navigate = useNavigate();
@@ -52,9 +58,17 @@ const ProjectConfig: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [tools, setTools] = useState<ProjectTool[]>([]);
   const [availableTools, setAvailableTools] = useState<AvailableTool[]>([]);
+  const [indicatorSystems, setIndicatorSystems] = useState<IndicatorSystem[]>([]);
+  const [mappingSummary, setMappingSummary] = useState<IndicatorMappingSummary | null>(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [treeViewerVisible, setTreeViewerVisible] = useState(false);
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [statusChanging, setStatusChanging] = useState(false);
+  const [activeTab, setActiveTab] = useState('tools');
+  const [mappingFilter, setMappingFilter] = useState<'all' | 'mapped' | 'unmapped'>('all');
+  const [form] = Form.useForm();
 
   // 加载项目信息
   const loadProject = useCallback(async () => {
@@ -90,18 +104,86 @@ const ProjectConfig: React.FC = () => {
     }
   }, [projectId]);
 
+  // 加载指标体系列表
+  const loadIndicatorSystems = useCallback(async () => {
+    try {
+      const data = await indicatorService.getIndicatorSystems();
+      setIndicatorSystems(data.filter(s => s.status === 'published'));
+    } catch (error) {
+      console.error('加载指标体系失败:', error);
+    }
+  }, []);
+
+  // 加载指标映射汇总
+  const loadMappingSummary = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await projectService.getIndicatorMappingSummary(projectId);
+      setMappingSummary(data);
+    } catch (error) {
+      console.error('加载指标映射失败:', error);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadProject(), loadTools()]).finally(() => {
+    Promise.all([loadProject(), loadTools(), loadIndicatorSystems()]).finally(() => {
       setLoading(false);
     });
-  }, [loadProject, loadTools]);
+  }, [loadProject, loadTools, loadIndicatorSystems]);
+
+  // 切换到映射 Tab 时加载映射数据
+  useEffect(() => {
+    if (activeTab === 'mapping' && !mappingSummary) {
+      loadMappingSummary();
+    }
+  }, [activeTab, mappingSummary, loadMappingSummary]);
 
   // 打开添加工具弹窗
   const handleOpenAddModal = async () => {
     await loadAvailableTools();
     setSelectedToolIds([]);
     setAddModalVisible(true);
+  };
+
+  // 打开编辑弹窗
+  const handleOpenEditModal = () => {
+    if (!project) return;
+    form.setFieldsValue({
+      name: project.name,
+      keywords: Array.isArray(project.keywords) ? project.keywords.join(', ') : project.keywords,
+      description: project.description,
+      indicatorSystemId: project.indicatorSystemId,
+      startDate: project.startDate ? dayjs(project.startDate) : null,
+      endDate: project.endDate ? dayjs(project.endDate) : null,
+    });
+    setEditModalVisible(true);
+  };
+
+  // 保存项目编辑
+  const handleSaveProject = async (values: any) => {
+    if (!projectId) return;
+    setSaving(true);
+    try {
+      const data = {
+        name: values.name,
+        keywords: values.keywords ? values.keywords.split(/[,，;；|\s]+/).filter(Boolean) : [],
+        description: values.description || '',
+        indicatorSystemId: values.indicatorSystemId,
+        startDate: values.startDate?.format('YYYY-MM-DD'),
+        endDate: values.endDate?.format('YYYY-MM-DD'),
+        status: project?.status,
+      };
+      await projectService.updateProject(projectId, data);
+      message.success('保存成功');
+      setEditModalVisible(false);
+      setMappingSummary(null); // 重置映射数据以便重新加载
+      await loadProject();
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // 添加工具
@@ -113,6 +195,7 @@ const ProjectConfig: React.FC = () => {
       await projectToolService.batchAddProjectTools(projectId, selectedToolIds);
       message.success('添加成功');
       setAddModalVisible(false);
+      setMappingSummary(null); // 重置映射数据
       await loadTools();
     } catch (error: any) {
       message.error(error.message || '添加失败');
@@ -135,6 +218,7 @@ const ProjectConfig: React.FC = () => {
         try {
           await projectToolService.removeProjectTool(projectId, tool.toolId);
           message.success('移除成功');
+          setMappingSummary(null);
           await loadTools();
         } catch (error: any) {
           message.error(error.message || '移除失败');
@@ -158,6 +242,41 @@ const ProjectConfig: React.FC = () => {
     }
   };
 
+  // 状态流转操作
+  const handleStatusChange = async (action: 'start' | 'stop' | 'review' | 'complete' | 'restart') => {
+    if (!projectId) return;
+
+    const actionMap = {
+      start: { fn: projectService.startProject, msg: '启动填报', confirm: '确定要启动填报吗？启动后将开放数据填报。' },
+      stop: { fn: projectService.stopProject, msg: '中止项目', confirm: '确定要中止项目吗？中止后项目将暂停。' },
+      review: { fn: projectService.reviewProject, msg: '结束填报', confirm: '确定要结束填报吗？结束后将进入评审阶段。' },
+      complete: { fn: projectService.completeProject, msg: '完成项目', confirm: '确定要完成项目吗？完成后项目将归档。' },
+      restart: { fn: projectService.restartProject, msg: '重新启动', confirm: '确定要重新启动项目吗？' },
+    };
+
+    const config = actionMap[action];
+
+    Modal.confirm({
+      title: config.msg,
+      icon: <ExclamationCircleOutlined />,
+      content: config.confirm,
+      okText: '确定',
+      cancelText: '取消',
+      onOk: async () => {
+        setStatusChanging(true);
+        try {
+          await config.fn(projectId);
+          message.success(`${config.msg}成功`);
+          await loadProject();
+        } catch (error: any) {
+          message.error(error.message || `${config.msg}失败`);
+        } finally {
+          setStatusChanging(false);
+        }
+      },
+    });
+  };
+
   // 获取状态标签
   const getStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
@@ -169,6 +288,106 @@ const ProjectConfig: React.FC = () => {
     };
     const config = statusMap[status] || { color: 'default', text: status };
     return <Tag color={config.color}>{config.text}</Tag>;
+  };
+
+  // 渲染状态操作按钮
+  const renderStatusActions = () => {
+    if (!project) return null;
+
+    const status = project.status;
+    const buttons: React.ReactNode[] = [];
+
+    switch (status) {
+      case '配置中':
+        buttons.push(
+          <Button
+            key="start"
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={() => handleStatusChange('start')}
+            loading={statusChanging}
+          >
+            启动填报
+          </Button>
+        );
+        buttons.push(
+          <Button
+            key="stop"
+            danger
+            icon={<PauseCircleOutlined />}
+            onClick={() => handleStatusChange('stop')}
+            loading={statusChanging}
+          >
+            中止项目
+          </Button>
+        );
+        break;
+      case '填报中':
+        buttons.push(
+          <Button
+            key="review"
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            onClick={() => handleStatusChange('review')}
+            loading={statusChanging}
+          >
+            结束填报
+          </Button>
+        );
+        buttons.push(
+          <Button
+            key="stop"
+            danger
+            icon={<PauseCircleOutlined />}
+            onClick={() => handleStatusChange('stop')}
+            loading={statusChanging}
+          >
+            中止项目
+          </Button>
+        );
+        break;
+      case '评审中':
+        buttons.push(
+          <Button
+            key="complete"
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            onClick={() => handleStatusChange('complete')}
+            loading={statusChanging}
+          >
+            完成项目
+          </Button>
+        );
+        buttons.push(
+          <Button
+            key="stop"
+            danger
+            icon={<PauseCircleOutlined />}
+            onClick={() => handleStatusChange('stop')}
+            loading={statusChanging}
+          >
+            中止项目
+          </Button>
+        );
+        break;
+      case '已中止':
+        buttons.push(
+          <Button
+            key="restart"
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => handleStatusChange('restart')}
+            loading={statusChanging}
+          >
+            重新启动
+          </Button>
+        );
+        break;
+      case '已完成':
+        break;
+    }
+
+    return buttons;
   };
 
   // 工具表格列
@@ -212,6 +431,7 @@ const ProjectConfig: React.FC = () => {
           checked={record.isRequired === 1}
           size="small"
           onChange={() => handleToggleRequired(record)}
+          disabled={project?.status !== '配置中'}
         />
       ),
     },
@@ -239,14 +459,16 @@ const ProjectConfig: React.FC = () => {
               onClick={() => navigate(`/home/balanced/tools/${record.toolId}/edit`)}
             />
           </Tooltip>
-          <Tooltip title="移除">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleRemoveTool(record)}
-            />
-          </Tooltip>
+          {project?.status === '配置中' && (
+            <Tooltip title="移除">
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleRemoveTool(record)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -280,6 +502,65 @@ const ProjectConfig: React.FC = () => {
     },
   ];
 
+  // 指标映射表格列
+  const mappingColumns: ColumnsType<DataIndicatorMapping> = [
+    {
+      title: '数据指标',
+      key: 'indicator',
+      render: (_, record) => (
+        <div>
+          <div className={styles.indicatorCode}>{record.code}</div>
+          <div className={styles.indicatorName}>{record.name}</div>
+        </div>
+      ),
+    },
+    {
+      title: '所属指标',
+      key: 'parent',
+      render: (_, record) => (
+        <span>{record.indicatorCode} {record.indicatorName}</span>
+      ),
+    },
+    {
+      title: '阈值',
+      dataIndex: 'threshold',
+      key: 'threshold',
+      width: 120,
+      render: (threshold) => threshold ? <Tag color="orange">{threshold}</Tag> : '-',
+    },
+    {
+      title: '关联工具',
+      key: 'tool',
+      width: 150,
+      render: (_, record) => record.mapping ? record.mapping.toolName : '-',
+    },
+    {
+      title: '关联字段',
+      key: 'field',
+      width: 150,
+      render: (_, record) => record.mapping ? record.mapping.fieldLabel : '-',
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 100,
+      render: (_, record) => (
+        record.isMapped ? (
+          <Tag icon={<LinkOutlined />} color="success">已映射</Tag>
+        ) : (
+          <Tag icon={<DisconnectOutlined />} color="warning">未映射</Tag>
+        )
+      ),
+    },
+  ];
+
+  // 过滤映射数据
+  const filteredMappings = mappingSummary?.dataIndicators.filter(item => {
+    if (mappingFilter === 'mapped') return item.isMapped;
+    if (mappingFilter === 'unmapped') return !item.isMapped;
+    return true;
+  }) || [];
+
   if (loading) {
     return (
       <div className={styles.projectConfigPage}>
@@ -309,16 +590,47 @@ const ProjectConfig: React.FC = () => {
           </span>
           <h1 className={styles.pageTitle}>项目配置</h1>
         </div>
+        <div className={styles.headerRight}>
+          <Space>
+            {renderStatusActions()}
+          </Space>
+        </div>
       </div>
 
       {/* 项目信息卡片 */}
-      <Card className={styles.projectCard}>
+      <Card
+        className={styles.projectCard}
+        extra={
+          project.status === '配置中' && (
+            <Button icon={<EditOutlined />} onClick={handleOpenEditModal}>
+              编辑
+            </Button>
+          )
+        }
+      >
         <Descriptions column={3}>
           <Descriptions.Item label="项目名称" span={2}>
             {project.name}
           </Descriptions.Item>
           <Descriptions.Item label="状态">
             {getStatusTag(project.status)}
+          </Descriptions.Item>
+          <Descriptions.Item label="指标体系" span={3}>
+            {project.indicatorSystemId ? (
+              <Space>
+                <span>{project.indicatorSystemName || project.indicatorSystemId}</span>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => setTreeViewerVisible(true)}
+                >
+                  查看指标
+                </Button>
+              </Space>
+            ) : (
+              <span style={{ color: '#999' }}>未关联指标体系</span>
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="项目描述" span={3}>
             {project.description || '-'}
@@ -335,31 +647,110 @@ const ProjectConfig: React.FC = () => {
         </Descriptions>
       </Card>
 
-      {/* 采集工具配置 */}
-      <Card
-        title="采集工具"
-        className={styles.toolsCard}
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleOpenAddModal}
-          >
-            添加工具
-          </Button>
-        }
-      >
-        {tools.length === 0 ? (
-          <Empty description="暂无关联的采集工具" />
-        ) : (
-          <Table
-            rowKey="id"
-            columns={toolColumns}
-            dataSource={tools}
-            pagination={false}
-            className={styles.toolsTable}
-          />
-        )}
+      {/* 采集工具和指标映射 Tabs */}
+      <Card className={styles.toolsCard}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'tools',
+              label: `采集工具 (${tools.length})`,
+              children: (
+                <>
+                  {project.status === '配置中' && (
+                    <div className={styles.tabActions}>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleOpenAddModal}
+                      >
+                        添加工具
+                      </Button>
+                    </div>
+                  )}
+                  {tools.length === 0 ? (
+                    <Empty description="暂无关联的采集工具" />
+                  ) : (
+                    <Table
+                      rowKey="id"
+                      columns={toolColumns}
+                      dataSource={tools}
+                      pagination={false}
+                      className={styles.toolsTable}
+                    />
+                  )}
+                </>
+              ),
+            },
+            {
+              key: 'mapping',
+              label: (
+                <span>
+                  指标映射
+                  {mappingSummary && (
+                    <Tag className={styles.tabTag} color={mappingSummary.stats.unmapped > 0 ? 'warning' : 'success'}>
+                      {mappingSummary.stats.mapped}/{mappingSummary.stats.total}
+                    </Tag>
+                  )}
+                </span>
+              ),
+              children: (
+                <>
+                  {!project.indicatorSystemId ? (
+                    <Empty description="请先关联指标体系" />
+                  ) : !mappingSummary ? (
+                    <div className={styles.loadingContainer}>
+                      <Spin tip="加载映射数据..." />
+                    </div>
+                  ) : (
+                    <>
+                      {/* 映射统计 */}
+                      <div className={styles.mappingStats}>
+                        <div className={styles.statsItem}>
+                          <span>映射完成度</span>
+                          <Progress
+                            percent={Math.round((mappingSummary.stats.mapped / mappingSummary.stats.total) * 100) || 0}
+                            status={mappingSummary.stats.unmapped > 0 ? 'active' : 'success'}
+                            style={{ width: 200 }}
+                          />
+                        </div>
+                        <div className={styles.filterGroup}>
+                          <Select
+                            value={mappingFilter}
+                            onChange={setMappingFilter}
+                            style={{ width: 120 }}
+                          >
+                            <Select.Option value="all">全部 ({mappingSummary.stats.total})</Select.Option>
+                            <Select.Option value="mapped">已映射 ({mappingSummary.stats.mapped})</Select.Option>
+                            <Select.Option value="unmapped">未映射 ({mappingSummary.stats.unmapped})</Select.Option>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* 映射表格 */}
+                      {filteredMappings.length === 0 ? (
+                        <Empty description="暂无数据指标" />
+                      ) : (
+                        <Table
+                          rowKey="id"
+                          columns={mappingColumns}
+                          dataSource={filteredMappings}
+                          pagination={false}
+                          className={styles.mappingTable}
+                        />
+                      )}
+
+                      <div className={styles.mappingTip}>
+                        提示：要关联数据指标，请在「采集工具」的表单设计器中，为字段配置「评价依据」
+                      </div>
+                    </>
+                  )}
+                </>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* 添加工具弹窗 */}
@@ -389,6 +780,68 @@ const ProjectConfig: React.FC = () => {
           />
         )}
       </Modal>
+
+      {/* 编辑项目弹窗 */}
+      <Modal
+        title="编辑项目信息"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        footer={null}
+        width={560}
+      >
+        <Form form={form} onFinish={handleSaveProject} layout="vertical">
+          <Form.Item
+            label="项目名称"
+            name="name"
+            rules={[{ required: true, message: '请输入项目名称' }]}
+          >
+            <Input placeholder="请输入项目名称" />
+          </Form.Item>
+          <Form.Item label="关键字" name="keywords">
+            <Input placeholder="用逗号、分号、|或空格分割" />
+          </Form.Item>
+          <Form.Item label="项目描述" name="description">
+            <Input.TextArea placeholder="请输入项目描述" rows={3} />
+          </Form.Item>
+          <Form.Item
+            label="指标体系"
+            name="indicatorSystemId"
+            rules={[{ required: true, message: '请选择评估指标体系' }]}
+          >
+            <Select placeholder="选择评估指标体系">
+              {indicatorSystems.map(sys => (
+                <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Form.Item label="开始时间" name="startDate" style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
+            </Form.Item>
+            <Form.Item label="结束时间" name="endDate" style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
+            </Form.Item>
+          </div>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Button style={{ marginRight: 8 }} onClick={() => setEditModalVisible(false)}>
+              取消
+            </Button>
+            <Button type="primary" htmlType="submit" loading={saving}>
+              保存
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 指标树查看器 */}
+      {project.indicatorSystemId && (
+        <IndicatorTreeViewer
+          visible={treeViewerVisible}
+          onClose={() => setTreeViewerVisible(false)}
+          systemId={project.indicatorSystemId}
+          systemName={project.indicatorSystemName}
+        />
+      )}
     </div>
   );
 };

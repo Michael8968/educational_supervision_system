@@ -1,52 +1,145 @@
-import React, { useState } from 'react';
-import { Button, Input, Select, Modal, Form, DatePicker, Upload, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Select, Modal, Form, DatePicker, message, Spin, Tag, Popconfirm } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
-  UploadOutlined,
   DatabaseOutlined,
   AppstoreOutlined,
   ToolOutlined,
   FormOutlined,
+  SettingOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { projects, projectStats, indicatorSystems } from '../../mock/data';
+import * as projectService from '../../services/projectService';
+import * as indicatorService from '../../services/indicatorService';
+import type { Project } from '../../services/projectService';
+import type { IndicatorSystem } from '../../services/indicatorService';
 import styles from './index.module.css';
 
 const { Search } = Input;
 
-const Project: React.FC = () => {
+const ProjectPage: React.FC = () => {
   const navigate = useNavigate();
-  const [projectList, setProjectList] = useState(projects);
+  const [loading, setLoading] = useState(true);
+  const [projectList, setProjectList] = useState<Project[]>([]);
+  const [filteredList, setFilteredList] = useState<Project[]>([]);
+  const [indicatorSystems, setIndicatorSystems] = useState<IndicatorSystem[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [form] = Form.useForm();
+
+  // 加载项目列表
+  const loadProjects = useCallback(async () => {
+    try {
+      const data = await projectService.getProjects();
+      setProjectList(data);
+      setFilteredList(data);
+    } catch (error) {
+      console.error('加载项目列表失败:', error);
+      message.error('加载项目列表失败');
+    }
+  }, []);
+
+  // 加载指标体系列表
+  const loadIndicatorSystems = useCallback(async () => {
+    try {
+      const data = await indicatorService.getIndicatorSystems();
+      setIndicatorSystems(data.filter(s => s.status === 'published'));
+    } catch (error) {
+      console.error('加载指标体系失败:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadProjects(), loadIndicatorSystems()]).finally(() => {
+      setLoading(false);
+    });
+  }, [loadProjects, loadIndicatorSystems]);
+
+  // 计算统计数据
+  const projectStats = {
+    configuring: projectList.filter(p => p.status === '配置中').length,
+    filling: projectList.filter(p => p.status === '填报中').length,
+    reviewing: projectList.filter(p => p.status === '评审中').length,
+    stopped: projectList.filter(p => p.status === '已中止').length,
+    completed: projectList.filter(p => p.status === '已完成').length,
+  };
 
   const handleSearch = (value: string) => {
     if (value) {
-      setProjectList(projects.filter(proj =>
-        proj.name.includes(value) || proj.description.includes(value)
+      setFilteredList(projectList.filter(proj =>
+        proj.name.includes(value) || (proj.description && proj.description.includes(value))
       ));
     } else {
-      setProjectList(projects);
+      setFilteredList(projectList);
     }
   };
 
-  const handleCreate = (values: any) => {
-    const newProject = {
-      id: String(projectList.length + 1),
-      name: values.name,
-      keywords: values.keywords ? values.keywords.split(/[,，\s]+/) : [],
-      description: values.description || '',
-      indicatorSystem: values.indicatorSystem,
-      startDate: values.dates?.[0]?.format('YYYY-MM-DD') || '',
-      endDate: values.dates?.[1]?.format('YYYY-MM-DD') || '',
-      status: '配置中' as const,
-    };
-    setProjectList([newProject, ...projectList]);
-    setCreateModalVisible(false);
-    form.resetFields();
-    message.success('创建成功');
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
   };
+
+  const handleCreate = async (values: any) => {
+    setSaving(true);
+    try {
+      const data = {
+        name: values.name,
+        keywords: values.keywords ? values.keywords.split(/[,，;；|\s]+/).filter(Boolean) : [],
+        description: values.description || '',
+        indicatorSystemId: values.indicatorSystemId,
+        startDate: values.startDate?.format('YYYY-MM-DD'),
+        endDate: values.endDate?.format('YYYY-MM-DD'),
+      };
+      await projectService.createProject(data);
+      message.success('创建成功');
+      setCreateModalVisible(false);
+      form.resetFields();
+      await loadProjects();
+    } catch (error: any) {
+      message.error(error.message || '创建失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (project: Project) => {
+    try {
+      await projectService.deleteProject(project.id);
+      message.success('删除成功');
+      await loadProjects();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  };
+
+  const getStatusTag = (status: string) => {
+    const statusMap: Record<string, { color: string; text: string }> = {
+      '配置中': { color: 'default', text: '配置中' },
+      '填报中': { color: 'processing', text: '填报中' },
+      '评审中': { color: 'warning', text: '评审中' },
+      '已中止': { color: 'error', text: '已中止' },
+      '已完成': { color: 'success', text: '已完成' },
+    };
+    const config = statusMap[status] || { color: 'default', text: status };
+    return <Tag color={config.color}>{config.text}</Tag>;
+  };
+
+  // 生成年份选项
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  if (loading) {
+    return (
+      <div className={styles.projectPage}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" tip="加载中..." />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.projectPage}>
@@ -110,10 +203,10 @@ const Project: React.FC = () => {
       <div className={styles.listHeader}>
         <h3>项目列表</h3>
         <div className={styles.listActions}>
-          <Select defaultValue="2025" style={{ width: 100 }}>
-            <Select.Option value="2025">2025</Select.Option>
-            <Select.Option value="2024">2024</Select.Option>
-            <Select.Option value="2023">2023</Select.Option>
+          <Select value={selectedYear} style={{ width: 100 }} onChange={handleYearChange}>
+            {yearOptions.map(year => (
+              <Select.Option key={year} value={String(year)}>{year}</Select.Option>
+            ))}
           </Select>
           <Search
             placeholder="搜索项目"
@@ -128,21 +221,44 @@ const Project: React.FC = () => {
       </div>
 
       <div className={styles.projectList}>
-        {projectList.length === 0 ? (
+        {filteredList.length === 0 ? (
           <div className={styles.emptyState}>
             <p>暂无项目数据</p>
           </div>
         ) : (
-          projectList.map(project => (
+          filteredList.map(project => (
             <div key={project.id} className={styles.projectCard}>
               <div className={styles.projectInfo}>
-                <h4>{project.name}</h4>
-                <p>{project.description}</p>
-                <div className={styles.projectMeta}>
-                  <span>指标体系: {project.indicatorSystem}</span>
-                  <span>时间: {project.startDate} - {project.endDate}</span>
-                  <span>状态: {project.status}</span>
+                <div className={styles.projectHeader}>
+                  <h4>{project.name}</h4>
+                  {getStatusTag(project.status)}
                 </div>
+                <p>{project.description || '暂无描述'}</p>
+                <div className={styles.projectMeta}>
+                  <span>时间: {project.startDate || '-'} ~ {project.endDate || '-'}</span>
+                </div>
+              </div>
+              <div className={styles.projectActions}>
+                <Button
+                  type="primary"
+                  icon={<SettingOutlined />}
+                  onClick={() => navigate(`/home/balanced/project/${project.id}/config`)}
+                >
+                  配置
+                </Button>
+                {project.status === '配置中' && (
+                  <Popconfirm
+                    title="确认删除"
+                    description={`确定要删除项目 "${project.name}" 吗？`}
+                    onConfirm={() => handleDelete(project)}
+                    okText="删除"
+                    cancelText="取消"
+                  >
+                    <Button danger icon={<DeleteOutlined />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                )}
               </div>
             </div>
           ))
@@ -173,12 +289,12 @@ const Project: React.FC = () => {
           </Form.Item>
           <Form.Item
             label="指标体系"
-            name="indicatorSystem"
+            name="indicatorSystemId"
             rules={[{ required: true, message: '请选择评估指标体系' }]}
           >
             <Select placeholder="选择评估指标体系">
-              {indicatorSystems.filter(s => s.status === 'published').map(sys => (
-                <Select.Option key={sys.id} value={sys.name}>{sys.name}</Select.Option>
+              {indicatorSystems.map(sys => (
+                <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -190,20 +306,11 @@ const Project: React.FC = () => {
               <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
             </Form.Item>
           </div>
-          <Form.Item label="项目附件" name="attachments">
-            <Upload.Dragger>
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="ant-upload-text">点击上传附件</p>
-              <p className="ant-upload-hint">支持多个文件上传</p>
-            </Upload.Dragger>
-          </Form.Item>
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Button style={{ marginRight: 8 }} onClick={() => setCreateModalVisible(false)}>
               取消
             </Button>
-            <Button type="primary" htmlType="submit">
+            <Button type="primary" htmlType="submit" loading={saving}>
               确定
             </Button>
           </Form.Item>
@@ -213,4 +320,4 @@ const Project: React.FC = () => {
   );
 };
 
-export default Project;
+export default ProjectPage;
