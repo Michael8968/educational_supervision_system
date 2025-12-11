@@ -8,10 +8,13 @@ const { router: indicatorRoutes, setDb: setIndicatorDb } = require('./routes/ind
 const { router: toolRoutes, setDb: setToolDb } = require('./routes/tools');
 const { router: submissionRoutes, setDb: setSubmissionDb } = require('./routes/submissions');
 const { router: projectToolRoutes, setDb: setProjectToolDb } = require('./routes/projectTools');
+const { router: districtRoutes, setDb: setDistrictDb } = require('./routes/districts');
+const { router: schoolRoutes, setDb: setSchoolDb } = require('./routes/schools');
+const { router: statisticsRoutes, setDb: setStatisticsDb } = require('./routes/statistics');
 const uploadsRouteFactory = require('./routes/uploads');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // 中间件
 app.use(cors());
@@ -19,7 +22,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // 数据库初始化
 let db = null;
-const DB_PATH = path.join(__dirname, 'database', 'education.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'database', 'education.db');
 
 function initDatabase() {
   // 检查数据库是否存在
@@ -51,6 +54,9 @@ function initDatabase() {
   setToolDb(db);
   setSubmissionDb(db);
   setProjectToolDb(db);
+  setDistrictDb(db);
+  setSchoolDb(db);
+  setStatisticsDb(db);
 
   return db;
 }
@@ -68,6 +74,9 @@ app.use('/api', indicatorRoutes);
 app.use('/api', toolRoutes);
 app.use('/api', submissionRoutes);
 app.use('/api', projectToolRoutes);
+app.use('/api', districtRoutes);
+app.use('/api', schoolRoutes);
+app.use('/api', statisticsRoutes);
 // 文件上传路由需要在数据库初始化后注册
 if (db) {
   app.use('/api', uploadsRouteFactory(db));
@@ -204,6 +213,8 @@ app.listen(PORT, () => {
   console.log('  GET  /api/element-libraries');
   console.log('  GET  /api/projects');
   console.log('  GET  /api/submissions');
+  console.log('  GET  /api/districts');
+  console.log('  GET  /api/schools');
 });
 
 // 优雅关闭

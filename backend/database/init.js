@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // 数据库文件路径
-const DB_PATH = path.join(__dirname, 'education.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'education.db');
 
 // 创建或打开数据库
 function createDatabase() {
@@ -324,6 +324,89 @@ function seedData(db) {
     insertFieldMapping.run(fm.id, fm.toolId, fm.fieldId, fm.mappingType, fm.targetId, timestamp, timestamp);
   });
   console.log('Inserted field mappings.');
+
+  // 11. 插入区县数据（沈阳市13个区县）
+  const insertDistrict = db.prepare(`
+    INSERT OR REPLACE INTO districts
+    (id, code, name, type, parent_code, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const districts = [
+    { id: 'd-001', code: '210102', name: '和平区', type: '市辖区', parentCode: '210100', sortOrder: 1 },
+    { id: 'd-002', code: '210103', name: '沈河区', type: '市辖区', parentCode: '210100', sortOrder: 2 },
+    { id: 'd-003', code: '210104', name: '大东区', type: '市辖区', parentCode: '210100', sortOrder: 3 },
+    { id: 'd-004', code: '210105', name: '皇姑区', type: '市辖区', parentCode: '210100', sortOrder: 4 },
+    { id: 'd-005', code: '210106', name: '铁西区', type: '市辖区', parentCode: '210100', sortOrder: 5 },
+    { id: 'd-006', code: '210111', name: '苏家屯区', type: '市辖区', parentCode: '210100', sortOrder: 6 },
+    { id: 'd-007', code: '210112', name: '浑南区', type: '市辖区', parentCode: '210100', sortOrder: 7 },
+    { id: 'd-008', code: '210113', name: '沈北新区', type: '市辖区', parentCode: '210100', sortOrder: 8 },
+    { id: 'd-009', code: '210114', name: '于洪区', type: '市辖区', parentCode: '210100', sortOrder: 9 },
+    { id: 'd-010', code: '210115', name: '辽中区', type: '市辖区', parentCode: '210100', sortOrder: 10 },
+    { id: 'd-011', code: '210123', name: '康平县', type: '县', parentCode: '210100', sortOrder: 11 },
+    { id: 'd-012', code: '210124', name: '法库县', type: '县', parentCode: '210100', sortOrder: 12 },
+    { id: 'd-013', code: '210181', name: '新民市', type: '县级市', parentCode: '210100', sortOrder: 13 },
+  ];
+
+  districts.forEach(d => {
+    insertDistrict.run(d.id, d.code, d.name, d.type, d.parentCode, d.sortOrder, timestamp, timestamp);
+  });
+  console.log('Inserted districts.');
+
+  // 12. 插入示例学校数据
+  const insertSchool = db.prepare(`
+    INSERT OR REPLACE INTO schools
+    (id, code, name, district_id, school_type, school_category, urban_rural, address, principal, contact_phone, student_count, teacher_count, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const schools = [
+    // 和平区学校
+    { id: 's-001', code: '2101020001', name: '沈阳市和平区南京街第一小学', districtId: 'd-001', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '和平区南京南街100号', principal: '张明', contactPhone: '024-23456001', studentCount: 1200, teacherCount: 85 },
+    { id: 's-002', code: '2101020002', name: '沈阳市和平区望湖路小学', districtId: 'd-001', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '和平区望湖路50号', principal: '李红', contactPhone: '024-23456002', studentCount: 980, teacherCount: 72 },
+    { id: 's-003', code: '2101020003', name: '沈阳市第一二六中学', districtId: 'd-001', schoolType: '初中', schoolCategory: '公办', urbanRural: '城区', address: '和平区北四马路10号', principal: '王强', contactPhone: '024-23456003', studentCount: 1500, teacherCount: 120 },
+
+    // 沈河区学校
+    { id: 's-004', code: '2101030001', name: '沈阳市沈河区文艺路第二小学', districtId: 'd-002', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '沈河区文艺路88号', principal: '刘芳', contactPhone: '024-24567001', studentCount: 1100, teacherCount: 78 },
+    { id: 's-005', code: '2101030002', name: '沈阳市第七中学', districtId: 'd-002', schoolType: '初中', schoolCategory: '公办', urbanRural: '城区', address: '沈河区奉天街200号', principal: '陈伟', contactPhone: '024-24567002', studentCount: 1800, teacherCount: 145 },
+
+    // 铁西区学校
+    { id: 's-006', code: '2101060001', name: '沈阳市铁西区勋望小学', districtId: 'd-005', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '铁西区兴华北街100号', principal: '赵丽', contactPhone: '024-25678001', studentCount: 1350, teacherCount: 95 },
+    { id: 's-007', code: '2101060002', name: '沈阳市铁西区启工二小', districtId: 'd-005', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '铁西区启工街80号', principal: '孙杰', contactPhone: '024-25678002', studentCount: 1050, teacherCount: 75 },
+    { id: 's-008', code: '2101060003', name: '沈阳市第三十一中学', districtId: 'd-005', schoolType: '初中', schoolCategory: '公办', urbanRural: '城区', address: '铁西区景星南街50号', principal: '周明', contactPhone: '024-25678003', studentCount: 1600, teacherCount: 130 },
+
+    // 辽中区学校（城乡结合）
+    { id: 's-009', code: '2101150001', name: '沈阳市辽中区第一初级中学', districtId: 'd-010', schoolType: '初中', schoolCategory: '公办', urbanRural: '城区', address: '辽中区蒲东街道', principal: '吴刚', contactPhone: '024-87882001', studentCount: 1200, teacherCount: 95 },
+    { id: 's-010', code: '2101150002', name: '沈阳市辽中区城郊九年一贯制学校', districtId: 'd-010', schoolType: '九年一贯制', schoolCategory: '公办', urbanRural: '镇区', address: '辽中区城郊镇', principal: '郑华', contactPhone: '024-87882002', studentCount: 800, teacherCount: 60 },
+    { id: 's-011', code: '2101150003', name: '沈阳市辽中区茨榆坨中心小学', districtId: 'd-010', schoolType: '小学', schoolCategory: '公办', urbanRural: '乡村', address: '辽中区茨榆坨镇', principal: '马超', contactPhone: '024-87882003', studentCount: 450, teacherCount: 35 },
+
+    // 法库县学校
+    { id: 's-012', code: '2101240001', name: '法库县第一初级中学', districtId: 'd-012', schoolType: '初中', schoolCategory: '公办', urbanRural: '城区', address: '法库县法库镇', principal: '韩磊', contactPhone: '024-87122001', studentCount: 1100, teacherCount: 88 },
+    { id: 's-013', code: '2101240002', name: '法库县实验小学', districtId: 'd-012', schoolType: '小学', schoolCategory: '公办', urbanRural: '城区', address: '法库县法库镇中心路', principal: '杨帆', contactPhone: '024-87122002', studentCount: 950, teacherCount: 68 },
+    { id: 's-014', code: '2101240003', name: '法库县秀水河子中心小学', districtId: 'd-012', schoolType: '小学', schoolCategory: '公办', urbanRural: '乡村', address: '法库县秀水河子镇', principal: '田野', contactPhone: '024-87122003', studentCount: 380, teacherCount: 28 },
+  ];
+
+  schools.forEach(s => {
+    insertSchool.run(s.id, s.code, s.name, s.districtId, s.schoolType, s.schoolCategory, s.urbanRural, s.address, s.principal, s.contactPhone, s.studentCount, s.teacherCount, 'active', timestamp, timestamp);
+  });
+  console.log('Inserted schools.');
+
+  // 13. 插入评估年度
+  const insertEvalYear = db.prepare(`
+    INSERT OR REPLACE INTO evaluation_years
+    (id, year, name, start_date, end_date, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const evalYears = [
+    { id: 'ey-2024', year: 2024, name: '2023-2024学年', startDate: '2023-09-01', endDate: '2024-08-31', status: 'archived' },
+    { id: 'ey-2025', year: 2025, name: '2024-2025学年', startDate: '2024-09-01', endDate: '2025-08-31', status: 'active' },
+  ];
+
+  evalYears.forEach(ey => {
+    insertEvalYear.run(ey.id, ey.year, ey.name, ey.startDate, ey.endDate, ey.status, timestamp);
+  });
+  console.log('Inserted evaluation years.');
 
   console.log('\nSeed data inserted successfully!');
 }

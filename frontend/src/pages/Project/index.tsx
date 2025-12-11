@@ -9,6 +9,8 @@ import {
   FormOutlined,
   SettingOutlined,
   DeleteOutlined,
+  BarChartOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import * as projectService from '../../services/projectService';
@@ -246,6 +248,22 @@ const ProjectPage: React.FC = () => {
                 >
                   配置
                 </Button>
+                {['填报中', '评审中', '已完成'].includes(project.status) && (
+                  <>
+                    <Button
+                      icon={<BarChartOutlined />}
+                      onClick={() => navigate(`/home/balanced/project/${project.id}/cv-analysis`)}
+                    >
+                      差异系数
+                    </Button>
+                    <Button
+                      icon={<CheckCircleOutlined />}
+                      onClick={() => navigate(`/home/balanced/project/${project.id}/compliance`)}
+                    >
+                      达标率
+                    </Button>
+                  </>
+                )}
                 {project.status === '配置中' && (
                   <Popconfirm
                     title="确认删除"
