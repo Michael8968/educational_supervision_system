@@ -39,3 +39,5 @@ backend/database/*.db-wal
 *.pid
 *.seed
 *.tgz
+.vercel
+.env*.local

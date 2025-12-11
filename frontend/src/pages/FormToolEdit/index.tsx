@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Tag, Tabs, Input, Select, Switch, message, Tooltip } from 'antd';
+import { Button, Tag, Tabs, Input, Select, Switch, message, Tooltip, InputNumber } from 'antd';
 import {
   ArrowLeftOutlined,
   UploadOutlined,
@@ -24,6 +24,7 @@ import {
   HolderOutlined,
   LinkOutlined,
   DisconnectOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { dataTools, DataTool } from '../../mock/data';
@@ -74,6 +75,22 @@ interface FieldMappingInfo {
   };
 }
 
+// 动态列表子字段类型（支持的类型）
+type DynamicListFieldType = 'text' | 'textarea' | 'number' | 'select' | 'date' | 'time';
+
+// 动态列表子字段定义
+interface DynamicListChildField {
+  id: string;
+  label: string;
+  type: DynamicListFieldType;
+  required: boolean;
+  // 评价依据关联
+  evaluationMapping?: 'none' | 'data_indicator' | 'element';
+  mapping?: FieldMappingInfo | null;
+  // 选择类型特有属性
+  options?: { label: string; value: string }[];
+}
+
 // 表单字段定义
 interface FormField {
   id: string;
@@ -93,6 +110,10 @@ interface FormField {
   unit?: string;
   // 分组容器特有属性
   children?: FormField[];
+  // 动态列表特有属性
+  minItems?: number;
+  maxItems?: number;
+  dynamicListFields?: DynamicListChildField[];
   // 映射信息
   mapping?: FieldMappingInfo | null;
 }
@@ -144,8 +165,30 @@ const createDefaultField = (type: ControlType): FormField => {
     baseField.unit = '';
   }
 
-  if (type === 'group' || type === 'dynamicList') {
+  if (type === 'group') {
     baseField.children = [];
+  }
+
+  if (type === 'dynamicList') {
+    baseField.width = '100%';
+    baseField.minItems = 1;
+    baseField.maxItems = 10;
+    baseField.dynamicListFields = [
+      {
+        id: `dlf_${Date.now()}_1`,
+        label: '字段1',
+        type: 'text',
+        required: false,
+        evaluationMapping: 'none',
+      },
+      {
+        id: `dlf_${Date.now()}_2`,
+        label: '字段2',
+        type: 'text',
+        required: false,
+        evaluationMapping: 'none',
+      },
+    ];
   }
 
   return baseField;
@@ -172,6 +215,8 @@ const FormToolEdit: React.FC = () => {
   const [mappingType, setMappingType] = useState<'data_indicator' | 'element'>('data_indicator');
   const [showIndicatorSelector, setShowIndicatorSelector] = useState(false);
   const [showElementSelector, setShowElementSelector] = useState(false);
+  // 动态列表子字段关联状态
+  const [editingDynamicFieldId, setEditingDynamicFieldId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -426,6 +471,44 @@ const FormToolEdit: React.FC = () => {
     handleUpdateField(selectedField.id, { options: newOptions });
   };
 
+  // 动态列表子字段操作
+  // 添加动态列表字段
+  const handleAddDynamicField = () => {
+    if (!selectedField || selectedField.type !== 'dynamicList') return;
+    const currentFields = selectedField.dynamicListFields || [];
+    const newField: DynamicListChildField = {
+      id: `dlf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      label: `字段${currentFields.length + 1}`,
+      type: 'text',
+      required: false,
+      evaluationMapping: 'none',
+    };
+    handleUpdateField(selectedField.id, {
+      dynamicListFields: [...currentFields, newField],
+    });
+  };
+
+  // 更新动态列表字段
+  const handleUpdateDynamicField = (fieldId: string, updates: Partial<DynamicListChildField>) => {
+    if (!selectedField || selectedField.type !== 'dynamicList') return;
+    const updatedFields = selectedField.dynamicListFields?.map((f) =>
+      f.id === fieldId ? { ...f, ...updates } : f
+    );
+    handleUpdateField(selectedField.id, { dynamicListFields: updatedFields });
+  };
+
+  // 删除动态列表字段
+  const handleDeleteDynamicField = (fieldId: string) => {
+    if (!selectedField || selectedField.type !== 'dynamicList') return;
+    const currentFields = selectedField.dynamicListFields || [];
+    if (currentFields.length <= 1) {
+      message.warning('动态列表至少需要保留一个字段');
+      return;
+    }
+    const updatedFields = currentFields.filter((f) => f.id !== fieldId);
+    handleUpdateField(selectedField.id, { dynamicListFields: updatedFields });
+  };
+
   // 获取状态标签
   const getStatusTag = (status: string) => {
     switch (status) {
@@ -471,6 +554,43 @@ const FormToolEdit: React.FC = () => {
         return <Switch disabled />;
       case 'divider':
         return <div className={styles.dividerPreview} />;
+      case 'dynamicList':
+        return (
+          <div className={styles.dynamicListPreview}>
+            <div className={styles.dynamicListHeader}>
+              <UnorderedListOutlined />
+              <span className={styles.dynamicListTitle}>{field.label}</span>
+              <Tag color="blue">可重复</Tag>
+              <span className={styles.dynamicListRange}>({field.minItems || 1}-{field.maxItems || 10}条)</span>
+              <div className={styles.dynamicListActions}>
+                <CopyOutlined />
+                <DeleteOutlined />
+              </div>
+            </div>
+            <div className={styles.dynamicListContent}>
+              <div className={styles.dynamicListFieldsLabel}>字段模板：</div>
+              <div className={styles.dynamicListFieldsRow}>
+                {field.dynamicListFields?.map((childField) => (
+                  <div key={childField.id} className={styles.dynamicListFieldItem}>
+                    <div className={styles.childFieldLabel}>{childField.label}</div>
+                    <div className={styles.childFieldType}>
+                      {childField.type === 'text' && '单行文本'}
+                      {childField.type === 'textarea' && '多行文本'}
+                      {childField.type === 'number' && '数字'}
+                      {childField.type === 'select' && '下拉选择'}
+                      {childField.type === 'date' && '日期'}
+                      {childField.type === 'time' && '时间'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={styles.dynamicListHint}>
+              <span className={styles.hintIcon}>💡</span>
+              填写表单时可以重复添加多组数据
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -645,6 +765,7 @@ const FormToolEdit: React.FC = () => {
                 items={[
                   { key: 'basic', label: '基础属性' },
                   ...(selectedField.options ? [{ key: 'options', label: '选项配置' }] : []),
+                  ...(selectedField.type === 'dynamicList' ? [{ key: 'advanced', label: '高级设置' }] : []),
                 ]}
                 size="small"
               />
@@ -660,25 +781,25 @@ const FormToolEdit: React.FC = () => {
                   </div>
 
                   {!['divider', 'group', 'dynamicList'].includes(selectedField.type) && (
-                    <>
-                      <div className={styles.propertyItem}>
-                        <label>占位提示</label>
-                        <Input
-                          value={selectedField.placeholder}
-                          placeholder="请输入占位提示"
-                          onChange={e => handleUpdateField(selectedField.id, { placeholder: e.target.value })}
-                        />
-                      </div>
+                    <div className={styles.propertyItem}>
+                      <label>占位提示</label>
+                      <Input
+                        value={selectedField.placeholder}
+                        placeholder="请输入占位提示"
+                        onChange={e => handleUpdateField(selectedField.id, { placeholder: e.target.value })}
+                      />
+                    </div>
+                  )}
 
-                      <div className={styles.propertyItem}>
-                        <label>帮助文本</label>
-                        <Input
-                          value={selectedField.helpText}
-                          placeholder="请输入帮助文本"
-                          onChange={e => handleUpdateField(selectedField.id, { helpText: e.target.value })}
-                        />
-                      </div>
-                    </>
+                  {!['divider', 'group'].includes(selectedField.type) && (
+                    <div className={styles.propertyItem}>
+                      <label>帮助文本</label>
+                      <Input
+                        value={selectedField.helpText}
+                        placeholder="请输入帮助文本"
+                        onChange={e => handleUpdateField(selectedField.id, { helpText: e.target.value })}
+                      />
+                    </div>
                   )}
 
                   <div className={styles.propertyItem}>
@@ -695,7 +816,7 @@ const FormToolEdit: React.FC = () => {
                     </Select>
                   </div>
 
-                  {!['divider'].includes(selectedField.type) && (
+                  {!['divider', 'dynamicList'].includes(selectedField.type) && (
                     <div className={`${styles.propertyItem} ${styles.inline}`}>
                       <label>必填</label>
                       <Switch
@@ -749,60 +870,62 @@ const FormToolEdit: React.FC = () => {
                     </>
                   )}
 
-                  <div className={styles.propertyItem}>
-                    <label>评价依据</label>
-                    <div className={styles.evaluationConfig}>
-                      <Select
-                        value={mappingType}
-                        onChange={(value) => setMappingType(value as 'data_indicator' | 'element')}
-                        style={{ flex: 1 }}
-                      >
-                        <Select.Option value="data_indicator">数据指标</Select.Option>
-                        <Select.Option value="element">要素</Select.Option>
-                      </Select>
-                      <Button
-                        type="primary"
-                        icon={<LinkOutlined />}
-                        onClick={() => {
-                          if (mappingType === 'data_indicator') {
-                            setShowIndicatorSelector(true);
-                          } else {
-                            setShowElementSelector(true);
-                          }
-                        }}
-                      >
-                        关联
-                      </Button>
-                      {selectedField.mapping && (
-                        <Tooltip title="取消关联">
-                          <Button
-                            danger
-                            icon={<DisconnectOutlined />}
-                            onClick={() => handleUpdateField(selectedField.id, { mapping: null })}
-                          />
-                        </Tooltip>
-                      )}
-                    </div>
-                    {selectedField.mapping ? (
-                      <div className={styles.mappingInfo}>
-                        <Tag color={selectedField.mapping.mappingType === 'data_indicator' ? 'blue' : 'green'}>
-                          {selectedField.mapping.mappingType === 'data_indicator' ? '数据指标' : '要素'}
-                        </Tag>
-                        <span className={styles.mappingName}>
-                          {selectedField.mapping.targetInfo?.code} - {selectedField.mapping.targetInfo?.name}
-                        </span>
-                        {selectedField.mapping.targetInfo?.threshold && (
-                          <Tag color="orange" style={{ marginLeft: 8 }}>
-                            阈值: {selectedField.mapping.targetInfo.threshold}
-                          </Tag>
+                  {!['divider', 'dynamicList'].includes(selectedField.type) && (
+                    <div className={styles.propertyItem}>
+                      <label>评价依据</label>
+                      <div className={styles.evaluationConfig}>
+                        <Select
+                          value={mappingType}
+                          onChange={(value) => setMappingType(value as 'data_indicator' | 'element')}
+                          style={{ flex: 1 }}
+                        >
+                          <Select.Option value="data_indicator">数据指标</Select.Option>
+                          <Select.Option value="element">要素</Select.Option>
+                        </Select>
+                        <Button
+                          type="primary"
+                          icon={<LinkOutlined />}
+                          onClick={() => {
+                            if (mappingType === 'data_indicator') {
+                              setShowIndicatorSelector(true);
+                            } else {
+                              setShowElementSelector(true);
+                            }
+                          }}
+                        >
+                          关联
+                        </Button>
+                        {selectedField.mapping && (
+                          <Tooltip title="取消关联">
+                            <Button
+                              danger
+                              icon={<DisconnectOutlined />}
+                              onClick={() => handleUpdateField(selectedField.id, { mapping: null })}
+                            />
+                          </Tooltip>
                         )}
                       </div>
-                    ) : (
-                      <div className={styles.evaluationHint}>
-                        可关联数据指标或要素，用于数据校验和计算
-                      </div>
-                    )}
-                  </div>
+                      {selectedField.mapping ? (
+                        <div className={styles.mappingInfo}>
+                          <Tag color={selectedField.mapping.mappingType === 'data_indicator' ? 'blue' : 'green'}>
+                            {selectedField.mapping.mappingType === 'data_indicator' ? '数据指标' : '要素'}
+                          </Tag>
+                          <span className={styles.mappingName}>
+                            {selectedField.mapping.targetInfo?.code} - {selectedField.mapping.targetInfo?.name}
+                          </span>
+                          {selectedField.mapping.targetInfo?.threshold && (
+                            <Tag color="orange" style={{ marginLeft: 8 }}>
+                              阈值: {selectedField.mapping.targetInfo.threshold}
+                            </Tag>
+                          )}
+                        </div>
+                      ) : (
+                        <div className={styles.evaluationHint}>
+                          可关联数据指标或要素，用于数据校验和计算
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -850,6 +973,151 @@ const FormToolEdit: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* 动态列表高级设置 */}
+              {propertyTab === 'advanced' && selectedField.type === 'dynamicList' && (
+                <div className={styles.propertyContent}>
+                  {/* 数量限制 */}
+                  <div className={styles.propertyItem}>
+                    <label>数量限制</label>
+                    <div className={styles.itemCountConfig}>
+                      <div className={styles.countItem}>
+                        <span>最少条目</span>
+                        <InputNumber
+                          min={0}
+                          max={selectedField.maxItems || 10}
+                          value={selectedField.minItems}
+                          onChange={(value) => handleUpdateField(selectedField.id, { minItems: value || 0 })}
+                          style={{ width: 80 }}
+                        />
+                      </div>
+                      <div className={styles.countItem}>
+                        <span>最多条目</span>
+                        <InputNumber
+                          min={selectedField.minItems || 1}
+                          max={100}
+                          value={selectedField.maxItems}
+                          onChange={(value) => handleUpdateField(selectedField.id, { maxItems: value || 10 })}
+                          style={{ width: 80 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 字段列表 */}
+                  <div className={styles.propertyItem}>
+                    <label>字段列表</label>
+                    <div className={styles.dynamicFieldList}>
+                      {selectedField.dynamicListFields?.map((childField, index) => (
+                        <div key={childField.id} className={styles.dynamicFieldCard}>
+                          <div className={styles.dynamicFieldHeader}>
+                            <span className={styles.dynamicFieldIndex}>字段 {index + 1}</span>
+                            <DeleteOutlined
+                              className={styles.dynamicFieldDelete}
+                              onClick={() => handleDeleteDynamicField(childField.id)}
+                            />
+                          </div>
+                          <div className={styles.dynamicFieldBody}>
+                            <div className={styles.dynamicFieldRow}>
+                              <label>标签</label>
+                              <Input
+                                value={childField.label}
+                                onChange={(e) => handleUpdateDynamicField(childField.id, { label: e.target.value })}
+                              />
+                            </div>
+                            <div className={styles.dynamicFieldRow}>
+                              <label>类型</label>
+                              <Select
+                                value={childField.type}
+                                onChange={(value) => handleUpdateDynamicField(childField.id, { type: value as DynamicListFieldType })}
+                                style={{ width: '100%' }}
+                              >
+                                <Select.Option value="text">单行文本</Select.Option>
+                                <Select.Option value="textarea">多行文本</Select.Option>
+                                <Select.Option value="number">数字</Select.Option>
+                                <Select.Option value="select">下拉选择</Select.Option>
+                                <Select.Option value="date">日期</Select.Option>
+                                <Select.Option value="time">时间</Select.Option>
+                              </Select>
+                            </div>
+                            <div className={`${styles.dynamicFieldRow} ${styles.inline}`}>
+                              <label>必填</label>
+                              <Switch
+                                checked={childField.required}
+                                onChange={(checked) => handleUpdateDynamicField(childField.id, { required: checked })}
+                              />
+                            </div>
+                            <div className={styles.dynamicFieldRow}>
+                              <label>评价依据</label>
+                              <div className={styles.evaluationConfig}>
+                                <Select
+                                  value={childField.evaluationMapping || 'none'}
+                                  onChange={(value) => {
+                                    handleUpdateDynamicField(childField.id, {
+                                      evaluationMapping: value as 'none' | 'data_indicator' | 'element',
+                                      mapping: value === 'none' ? null : childField.mapping
+                                    });
+                                  }}
+                                  style={{ flex: 1 }}
+                                >
+                                  <Select.Option value="none">不关联</Select.Option>
+                                  <Select.Option value="data_indicator">数据指标</Select.Option>
+                                  <Select.Option value="element">要素</Select.Option>
+                                </Select>
+                                {childField.evaluationMapping && childField.evaluationMapping !== 'none' && (
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<LinkOutlined />}
+                                    onClick={() => {
+                                      setEditingDynamicFieldId(childField.id);
+                                      if (childField.evaluationMapping === 'data_indicator') {
+                                        setShowIndicatorSelector(true);
+                                      } else {
+                                        setShowElementSelector(true);
+                                      }
+                                    }}
+                                  >
+                                    关联
+                                  </Button>
+                                )}
+                                {childField.mapping && (
+                                  <Tooltip title="取消关联">
+                                    <Button
+                                      danger
+                                      size="small"
+                                      icon={<DisconnectOutlined />}
+                                      onClick={() => handleUpdateDynamicField(childField.id, { mapping: null })}
+                                    />
+                                  </Tooltip>
+                                )}
+                              </div>
+                              {childField.mapping && (
+                                <div className={styles.mappingInfo}>
+                                  <Tag color={childField.mapping.mappingType === 'data_indicator' ? 'blue' : 'green'}>
+                                    {childField.mapping.mappingType === 'data_indicator' ? '数据指标' : '要素'}
+                                  </Tag>
+                                  <span className={styles.mappingName}>
+                                    {childField.mapping.targetInfo?.code} - {childField.mapping.targetInfo?.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        block
+                        icon={<PlusOutlined />}
+                        onClick={handleAddDynamicField}
+                        className={styles.addDynamicFieldBtn}
+                      >
+                        添加字段
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className={styles.emptyProperties}>
@@ -862,25 +1130,33 @@ const FormToolEdit: React.FC = () => {
       {/* 数据指标选择器 */}
       <DataIndicatorSelector
         visible={showIndicatorSelector}
-        onCancel={() => setShowIndicatorSelector(false)}
+        onCancel={() => {
+          setShowIndicatorSelector(false);
+          setEditingDynamicFieldId(null);
+        }}
         onSelect={(indicator) => {
-          if (selectedField) {
-            handleUpdateField(selectedField.id, {
-              mapping: {
-                mappingType: 'data_indicator',
-                targetId: indicator.id,
-                targetInfo: {
-                  code: indicator.code,
-                  name: indicator.name,
-                  threshold: indicator.threshold,
-                  description: indicator.description,
-                  indicatorName: indicator.indicatorName,
-                  indicatorCode: indicator.indicatorCode,
-                },
-              },
-            });
+          const mappingInfo: FieldMappingInfo = {
+            mappingType: 'data_indicator',
+            targetId: indicator.id,
+            targetInfo: {
+              code: indicator.code,
+              name: indicator.name,
+              threshold: indicator.threshold,
+              description: indicator.description,
+              indicatorName: indicator.indicatorName,
+              indicatorCode: indicator.indicatorCode,
+            },
+          };
+
+          if (editingDynamicFieldId) {
+            // 动态列表子字段的关联
+            handleUpdateDynamicField(editingDynamicFieldId, { mapping: mappingInfo });
+          } else if (selectedField) {
+            // 普通字段的关联
+            handleUpdateField(selectedField.id, { mapping: mappingInfo });
           }
           setShowIndicatorSelector(false);
+          setEditingDynamicFieldId(null);
         }}
         selectedId={selectedField?.mapping?.mappingType === 'data_indicator' ? selectedField.mapping.targetId : undefined}
       />
@@ -888,24 +1164,32 @@ const FormToolEdit: React.FC = () => {
       {/* 要素选择器 */}
       <ElementSelector
         visible={showElementSelector}
-        onCancel={() => setShowElementSelector(false)}
+        onCancel={() => {
+          setShowElementSelector(false);
+          setEditingDynamicFieldId(null);
+        }}
         onSelect={(element) => {
-          if (selectedField) {
-            handleUpdateField(selectedField.id, {
-              mapping: {
-                mappingType: 'element',
-                targetId: element.id,
-                targetInfo: {
-                  code: element.code,
-                  name: element.name,
-                  elementType: element.elementType,
-                  dataType: element.dataType,
-                  formula: element.formula,
-                },
-              },
-            });
+          const mappingInfo: FieldMappingInfo = {
+            mappingType: 'element',
+            targetId: element.id,
+            targetInfo: {
+              code: element.code,
+              name: element.name,
+              elementType: element.elementType,
+              dataType: element.dataType,
+              formula: element.formula,
+            },
+          };
+
+          if (editingDynamicFieldId) {
+            // 动态列表子字段的关联
+            handleUpdateDynamicField(editingDynamicFieldId, { mapping: mappingInfo });
+          } else if (selectedField) {
+            // 普通字段的关联
+            handleUpdateField(selectedField.id, { mapping: mappingInfo });
           }
           setShowElementSelector(false);
+          setEditingDynamicFieldId(null);
         }}
         selectedId={selectedField?.mapping?.mappingType === 'element' ? selectedField.mapping.targetId : undefined}
       />

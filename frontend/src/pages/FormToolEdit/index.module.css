@@ -598,3 +598,177 @@
 .formFieldItem:not(.dragging) {
   transition: transform 0.2s, border-color 0.2s;
 }
+
+/* 动态列表预览样式 */
+.dynamicListPreview {
+  border: 1px dashed #1890ff;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f0f7ff;
+}
+
+.dynamicListHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #1890ff;
+}
+
+.dynamicListTitle {
+  font-weight: 500;
+  color: #333;
+}
+
+.dynamicListRange {
+  font-size: 12px;
+  color: #999;
+}
+
+.dynamicListActions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  color: #999;
+}
+
+.dynamicListActions :global(.anticon):hover {
+  color: #1890ff;
+}
+
+.dynamicListActions :global(.anticon-delete):hover {
+  color: #ff4d4f;
+}
+
+.dynamicListContent {
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.dynamicListFieldsLabel {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.dynamicListFieldsRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dynamicListFieldItem {
+  flex: 1;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
+.childFieldLabel {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.childFieldType {
+  font-size: 12px;
+  color: #999;
+}
+
+.dynamicListHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #faad14;
+}
+
+.hintIcon {
+  font-size: 14px;
+}
+
+/* 动态列表属性面板样式 */
+.itemCountConfig {
+  display: flex;
+  gap: 16px;
+}
+
+.countItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.countItem span {
+  font-size: 12px;
+  color: #666;
+}
+
+.dynamicFieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dynamicFieldCard {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dynamicFieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.dynamicFieldIndex {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.dynamicFieldDelete {
+  color: #999;
+  cursor: pointer;
+}
+
+.dynamicFieldDelete:hover {
+  color: #ff4d4f;
+}
+
+.dynamicFieldBody {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dynamicFieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dynamicFieldRow.inline {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dynamicFieldRow label {
+  font-size: 12px;
+  color: #666;
+}
+
+.addDynamicFieldBtn {
+  margin-top: 4px;
+}
