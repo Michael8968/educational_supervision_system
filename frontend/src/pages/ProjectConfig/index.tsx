@@ -688,7 +688,7 @@ const ProjectConfig: React.FC = () => {
               label: (
                 <span>
                   指标映射
-                  {mappingSummary && (
+                  {mappingSummary?.stats && (
                     <Tag className={styles.tabTag} color={mappingSummary.stats.unmapped > 0 ? 'warning' : 'success'}>
                       {mappingSummary.stats.mapped}/{mappingSummary.stats.total}
                     </Tag>
@@ -699,7 +699,7 @@ const ProjectConfig: React.FC = () => {
                 <>
                   {!project.indicatorSystemId ? (
                     <Empty description="请先关联指标体系" />
-                  ) : !mappingSummary ? (
+                  ) : !mappingSummary || !mappingSummary.stats ? (
                     <div className={styles.loadingContainer}>
                       <Spin tip="加载映射数据..." />
                     </div>
@@ -710,7 +710,7 @@ const ProjectConfig: React.FC = () => {
                         <div className={styles.statsItem}>
                           <span>映射完成度</span>
                           <Progress
-                            percent={Math.round((mappingSummary.stats.mapped / mappingSummary.stats.total) * 100) || 0}
+                            percent={mappingSummary.stats.total > 0 ? Math.round((mappingSummary.stats.mapped / mappingSummary.stats.total) * 100) : 0}
                             status={mappingSummary.stats.unmapped > 0 ? 'active' : 'success'}
                             style={{ width: 200 }}
                           />

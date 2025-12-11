@@ -510,7 +510,14 @@ router.get('/projects/:projectId/indicator-mapping-summary', (req, res) => {
     }
 
     if (!project.indicatorSystemId) {
-      return res.json({ code: 200, data: { project, dataIndicators: [], mappings: [] } });
+      return res.json({
+        code: 200,
+        data: {
+          project,
+          dataIndicators: [],
+          stats: { total: 0, mapped: 0, unmapped: 0 },
+        },
+      });
     }
 
     // 2. 获取该指标体系下的所有数据指标
