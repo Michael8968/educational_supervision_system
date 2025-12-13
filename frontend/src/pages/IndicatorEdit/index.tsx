@@ -91,8 +91,12 @@ const mockElementLibrary: ElementLibrary = {
 
     // ========== 表2: 资源配置 - 学校级采集 ==========
     { id: 'R2_01', code: 'R2_01', name: '学校在校生数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'student_count', fieldLabel: '二、资源配置 > 学生人数（在校人数）' },
-    { id: 'R2_02', code: 'R2_02', name: '学校年级数', elementType: '基础要素', dataType: '数字', toolId: '8' },
-    { id: 'R2_03', code: 'R2_03', name: '学校班级数', elementType: '基础要素', dataType: '数字', toolId: '8' },
+    // 原始数组数据
+    { id: 'R2_A01', code: 'R2_A01', name: '各年级在校人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'grade_student_list', fieldLabel: '四、教育质量 > 各年级在校人数' },
+    { id: 'R2_A02', code: 'R2_A02', name: '班级人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'class_student_list', fieldLabel: '三、政府保障 > 班级人数' },
+    // 由数组派生的计数
+    { id: 'R2_02', code: 'R2_02', name: '学校年级数', elementType: '派生要素', dataType: '数字', formula: 'COUNT(R2_A01)' },
+    { id: 'R2_03', code: 'R2_03', name: '学校班级数', elementType: '派生要素', dataType: '数字', formula: 'COUNT(R2_A02)' },
     { id: 'R2_04', code: 'R2_04', name: '高于规定学历教师数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'master_degree_teacher_count', fieldLabel: '二、资源配置 > 硕士研究生毕业学历教师人数' },
     { id: 'R2_05', code: 'R2_05', name: '县级及以上骨干教师数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'county_backbone_teacher_count', fieldLabel: '二、资源配置 > 县级及以上骨干教师人数' },
     { id: 'R2_06', code: 'R2_06', name: '体育艺术专任教师数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'pe_teacher_count', fieldLabel: '二、资源配置 > 体育专任教师人数' },
@@ -592,6 +596,12 @@ const IndicatorEdit: React.FC = () => {
                     />
                   )}
                 </div>
+                {element.fieldLabel && (
+                  <div className={styles.elementFieldLink}>
+                    <FormOutlined />
+                    <span>{element.fieldLabel}</span>
+                  </div>
+                )}
                 {element.formula && (
                   <div className={styles.elementFormula}>
                     <FileTextOutlined />
