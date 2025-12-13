@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Tag, Modal, Form, Input, Select, message } from 'antd';
+import { Button, Tag, Modal, Form, Input, Select, message, Radio } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -129,8 +129,12 @@ const mockElementLibrary: ElementLibrary = {
     { id: 'G4_09', code: 'G4_09', name: '超过45人的小学班级数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'class_student_list', fieldLabel: '三、政府保障 > 班级人数' },
     { id: 'G4_10', code: 'G4_10', name: '超过50人的初中班级数', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'class_student_list', fieldLabel: '三、政府保障 > 班级人数' },
     // 4.6 小规模学校公用经费
-    { id: 'G4_11', code: 'G4_11', name: '不足100人学校学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'G4_12', code: 'G4_12', name: '不足100人学校公用经费（元）', elementType: '基础要素', dataType: '数字', toolId: '9' },
+    // 原始数组数据（学校级）
+    { id: 'G4_A01', code: 'G4_A01', name: '各学校在校生数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'student_count', fieldLabel: '二、资源配置 > 学生人数（在校人数）' },
+    { id: 'G4_A02', code: 'G4_A02', name: '各学校公用经费数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'public_funding', fieldLabel: '三、政府保障 > 学校公用经费' },
+    // 条件求和派生
+    { id: 'G4_11', code: 'G4_11', name: '不足100人学校学生数', elementType: '派生要素', dataType: '数字', formula: 'SUMIF(G4_A01, "<100")' },
+    { id: 'G4_12', code: 'G4_12', name: '不足100人学校公用经费（元）', elementType: '派生要素', dataType: '数字', formula: 'SUMIF(G4_A02, G4_A01, "<100")' },
     // 4.7 特殊教育
     { id: 'G4_13', code: 'G4_13', name: '特殊教育学校公用经费（万元）', elementType: '基础要素', dataType: '数字', toolId: '9' },
     { id: 'G4_14', code: 'G4_14', name: '特殊教育学生数（人）', elementType: '基础要素', dataType: '数字', toolId: '9' },
@@ -139,8 +143,11 @@ const mockElementLibrary: ElementLibrary = {
     { id: 'G4_15', code: 'G4_15', name: '义务教育教师年平均工资收入（元）', elementType: '基础要素', dataType: '数字', toolId: '9', fieldId: 'teacher_avg_salary', fieldLabel: '二、政府保障程度 > 上年度义务教育学校教师年平均工资收入水平' },
     { id: 'G4_16', code: 'G4_16', name: '当地公务员年平均工资收入（元）', elementType: '基础要素', dataType: '数字', toolId: '9', fieldId: 'civil_servant_avg_salary', fieldLabel: '二、政府保障程度 > 上年度公务员年平均工资收入水平' },
     // 4.9 教师培训
-    { id: 'G4_17', code: 'G4_17', name: '完成360学时培训的教师数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'G4_18', code: 'G4_18', name: '全县教师总数', elementType: '基础要素', dataType: '数字', toolId: '9' },
+    // 原始数组数据（学校级）
+    { id: 'G4_A03', code: 'G4_A03', name: '各学校完成培训教师数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'trained_teacher_count', fieldLabel: '二、资源配置 > 近5年培训满360学时专任教师人数' },
+    // 汇总派生
+    { id: 'G4_17', code: 'G4_17', name: '完成360学时培训的教师数', elementType: '派生要素', dataType: '数字', formula: 'SUM(G4_A03)' },
+    { id: 'G4_18', code: 'G4_18', name: '全县教师总数', elementType: '派生要素', dataType: '数字', formula: 'L1_22 + L1_24' },
     { id: 'G4_D02', code: 'G4_D02', name: '教师培训完成率（%）', elementType: '派生要素', dataType: '数字', formula: '(G4_17 / G4_18) * 100' },
     // 4.11 教师交流轮岗
     { id: 'G4_19', code: 'G4_19', name: '符合交流轮岗条件教师总数', elementType: '基础要素', dataType: '数字', toolId: '9', fieldId: 'exchange_eligible_teacher_count', fieldLabel: '二、政府保障程度 > 符合交流轮岗条件教师总数' },
@@ -149,8 +156,12 @@ const mockElementLibrary: ElementLibrary = {
     { id: 'G4_D03', code: 'G4_D03', name: '交流轮岗教师比例（%）', elementType: '派生要素', dataType: '数字', formula: '(G4_20 / G4_19) * 100' },
     { id: 'G4_D04', code: 'G4_D04', name: '骨干教师占交流轮岗教师比例（%）', elementType: '派生要素', dataType: '数字', formula: '(G4_21 / G4_20) * 100' },
     // 4.12 教师资格证
-    { id: 'G4_22', code: 'G4_22', name: '在岗专任教师总数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'G4_23', code: 'G4_23', name: '持有教师资格证的专任教师数', elementType: '基础要素', dataType: '数字', toolId: '9' },
+    // 原始数组数据（学校级）
+    { id: 'G4_A04', code: 'G4_A04', name: '各学校专任教师总人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'full_time_teacher_count', fieldLabel: '二、资源配置 > 专任教师总人数' },
+    { id: 'G4_A05', code: 'G4_A05', name: '各学校持有教师资格证的专任教师人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'certified_teacher_count', fieldLabel: '二、资源配置 > 持有教师资格证的专任教师人数' },
+    // 汇总派生
+    { id: 'G4_22', code: 'G4_22', name: '在岗专任教师总数', elementType: '派生要素', dataType: '数字', formula: 'SUM(G4_A04)' },
+    { id: 'G4_23', code: 'G4_23', name: '持有教师资格证的专任教师数', elementType: '派生要素', dataType: '数字', formula: 'SUM(G4_A05)' },
     { id: 'G4_D05', code: 'G4_D05', name: '教师资格证持证上岗率（%）', elementType: '派生要素', dataType: '数字', formula: '(G4_23 / G4_22) * 100' },
     // 4.13 就近划片入学
     { id: 'G4_24', code: 'G4_24', name: '城镇区公办小学就近划片入学比例（%）', elementType: '基础要素', dataType: '数字', toolId: '9', fieldId: 'primary_nearby_enrollment_rate', fieldLabel: '二、政府保障程度 > 小学就近划片入学比例' },
@@ -169,11 +180,18 @@ const mockElementLibrary: ElementLibrary = {
 
     // ========== 表5: 教育质量 ==========
     // 5.1 初中三年巩固率
-    { id: 'Q5_01', code: 'Q5_01', name: '初中毕业班学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'Q5_02', code: 'Q5_02', name: '三年前该年级入学学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'Q5_03', code: 'Q5_03', name: '毕业年级三年转入学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'Q5_04', code: 'Q5_04', name: '死亡学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
-    { id: 'Q5_05', code: 'Q5_05', name: '转出学生数', elementType: '基础要素', dataType: '数字', toolId: '9' },
+    // 原始数组数据（学校级）
+    { id: 'Q5_A01', code: 'Q5_A01', name: '各学校毕业学生人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'graduate_count', fieldLabel: '四、巩固率 > 毕业学生人数' },
+    { id: 'Q5_A02', code: 'Q5_A02', name: '各学校毕业年级三年前初一时在校学生人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'grade7_student_count_3years_ago', fieldLabel: '四、巩固率 > 毕业年级三年前初一时在校学生人数' },
+    { id: 'Q5_A03', code: 'Q5_A03', name: '各学校毕业年级三年转入学生人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'transfer_in_count_3years', fieldLabel: '四、巩固率 > 毕业年级三年转入学生人数' },
+    { id: 'Q5_A04', code: 'Q5_A04', name: '各学校毕业年级三年死亡学生人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'deceased_count_3years', fieldLabel: '四、巩固率 > 毕业年级三年死亡学生人数' },
+    { id: 'Q5_A05', code: 'Q5_A05', name: '各学校毕业年级三年转出学生人数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'transfer_out_count_3years', fieldLabel: '四、巩固率 > 毕业年级三年转出学生人数' },
+    // 汇总派生
+    { id: 'Q5_01', code: 'Q5_01', name: '初中毕业班学生数', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A01)' },
+    { id: 'Q5_02', code: 'Q5_02', name: '三年前该年级入学学生数', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A02)' },
+    { id: 'Q5_03', code: 'Q5_03', name: '毕业年级三年转入学生数', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A03)' },
+    { id: 'Q5_04', code: 'Q5_04', name: '死亡学生数', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A04)' },
+    { id: 'Q5_05', code: 'Q5_05', name: '转出学生数', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A05)' },
     { id: 'Q5_D01', code: 'Q5_D01', name: '初中三年巩固率（%）', elementType: '派生要素', dataType: '数字', formula: '(Q5_01 / (Q5_02 + Q5_03 - Q5_04 - Q5_05)) * 100' },
     // 5.2 残疾儿童入学率
     { id: 'Q5_06', code: 'Q5_06', name: '全县残疾儿童少年总数', elementType: '基础要素', dataType: '数字', toolId: '9', fieldId: 'disabled_children_population', fieldLabel: '三、教育质量 > 适龄残疾儿童少年人口总数' },
@@ -182,8 +200,12 @@ const mockElementLibrary: ElementLibrary = {
     { id: 'Q5_D02', code: 'Q5_D02', name: '残疾儿童少年入学率（%）', elementType: '派生要素', dataType: '数字', formula: '(Q5_07 / Q5_06) * 100' },
     { id: 'Q5_D03', code: 'Q5_D03', name: '特教学校就读占比（%）', elementType: '派生要素', dataType: '数字', formula: '(Q5_08 / Q5_07) * 100' },
     // 5.4 教师培训经费
-    { id: 'Q5_09', code: 'Q5_09', name: '学校年度公用经费预算总额（元）', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'special_education_funding', fieldLabel: '三、政府保障 > 上年度特殊教育学生生均公用经费拨付总金额' },
-    { id: 'Q5_10', code: 'Q5_10', name: '教师培训经费安排（元）', elementType: '基础要素', dataType: '数字', toolId: '8' },
+    // 原始数组数据（学校级）
+    { id: 'Q5_A06', code: 'Q5_A06', name: '各学校公用经费总数数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'public_funding_total', fieldLabel: '三、政府保障 > 校公用经费总数' },
+    { id: 'Q5_A07', code: 'Q5_A07', name: '各学校教师培训经费数组', elementType: '基础要素', dataType: '数组', toolId: '8', fieldId: 'teacher_training_funding', fieldLabel: '三、政府保障 > 上年度教师培训经费决算总额' },
+    // 汇总派生
+    { id: 'Q5_09', code: 'Q5_09', name: '学校年度公用经费总额（万元）', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A06)' },
+    { id: 'Q5_10', code: 'Q5_10', name: '教师培训经费安排（万元）', elementType: '派生要素', dataType: '数字', formula: 'SUM(Q5_A07)' },
     { id: 'Q5_D04', code: 'Q5_D04', name: '教师培训经费占比（%）', elementType: '派生要素', dataType: '数字', formula: '(Q5_10 / Q5_09) * 100' },
     // 5.9 质量监测
     { id: 'Q5_11', code: 'Q5_11', name: '语文学业水平等级', elementType: '基础要素', dataType: '文本', toolId: '9', fieldId: 'chinese_achievement_level', fieldLabel: '三、教育质量 > 国家义务教育质量监测语文学业水平' },
@@ -275,6 +297,9 @@ const IndicatorEdit: React.FC = () => {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
+  // 筛选状态: 'all' | 'unlinked' | 'linked'
+  const [filterType, setFilterType] = useState<'all' | 'unlinked' | 'linked'>('all');
+
   const [addForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
@@ -298,6 +323,28 @@ const IndicatorEdit: React.FC = () => {
     const schema = formSchemas[editFormToolId];
     return schema ? flattenFormFields(schema) : [];
   }, [editFormToolId]);
+
+  // 根据筛选条件过滤要素列表
+  const filteredElements = useMemo(() => {
+    if (!library) return [];
+    return library.elements.filter(element => {
+      if (filterType === 'all') return true;
+      // 未关联：基础要素且有toolId但没有fieldId
+      const isUnlinked = element.elementType === '基础要素' && element.toolId && !element.fieldId;
+      if (filterType === 'unlinked') return isUnlinked;
+      // 已关联：基础要素且有fieldId，或者派生要素
+      if (filterType === 'linked') return !isUnlinked;
+      return true;
+    });
+  }, [library, filterType]);
+
+  // 统计未关联要素数量
+  const unlinkedCount = useMemo(() => {
+    if (!library) return 0;
+    return library.elements.filter(el =>
+      el.elementType === '基础要素' && el.toolId && !el.fieldId
+    ).length;
+  }, [library]);
 
   useEffect(() => {
     // 加载要素库数据
@@ -559,7 +606,22 @@ const IndicatorEdit: React.FC = () => {
         {/* 左侧要素列表 */}
         <div className={styles.elementListSection}>
           <div className={styles.sectionHeader}>
-            <h3>要素列表</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <h3 style={{ margin: 0 }}>要素列表</h3>
+              <Radio.Group
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                size="small"
+                optionType="button"
+                buttonStyle="solid"
+              >
+                <Radio.Button value="all">全部</Radio.Button>
+                <Radio.Button value="unlinked">
+                  未关联 {unlinkedCount > 0 && <span style={{ color: '#faad14' }}>({unlinkedCount})</span>}
+                </Radio.Button>
+                <Radio.Button value="linked">已关联</Radio.Button>
+              </Radio.Group>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button icon={<ThunderboltOutlined />} onClick={handleAutoLink}>
                 自动关联
@@ -571,7 +633,7 @@ const IndicatorEdit: React.FC = () => {
           </div>
 
           <div className={styles.elementList}>
-            {library.elements.map(element => {
+            {filteredElements.map(element => {
               // 判断是否为未关联的基础要素
               const isUnlinked = element.elementType === '基础要素' && element.toolId && !element.fieldId;
               return (
@@ -628,9 +690,15 @@ const IndicatorEdit: React.FC = () => {
             );
             })}
 
-            {library.elements.length === 0 && (
+            {filteredElements.length === 0 && (
               <div className={styles.emptyState}>
-                暂无要素，请点击"添加要素"开始创建
+                {library.elements.length === 0
+                  ? '暂无要素，请点击"添加要素"开始创建'
+                  : filterType === 'unlinked'
+                    ? '没有未关联的要素'
+                    : filterType === 'linked'
+                      ? '没有已关联的要素'
+                      : '暂无要素'}
               </div>
             )}
           </div>
