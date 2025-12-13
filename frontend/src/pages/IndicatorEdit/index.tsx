@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Tag, Modal, Form, Input, Select, message } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -7,9 +7,20 @@ import {
   DeleteOutlined,
   FileTextOutlined,
   SaveOutlined,
+  LinkOutlined,
+  FormOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import styles from './index.module.css';
+import { dataTools, DataTool, formSchemas } from '../../mock/data';
+
+// 扁平化的表单字段项（用于选择器）
+interface FlattenedField {
+  id: string;
+  label: string;
+  type: string;
+  path: string; // 完整路径，如 "分组名 > 字段名"
+}
 
 // 要素类型
 type ElementType = '基础要素' | '派生要素';
@@ -25,6 +36,9 @@ interface Element {
   elementType: ElementType;
   dataType: DataType;
   formula?: string; // 派生要素的计算公式
+  toolId?: string; // 关联的数据采集工具ID
+  fieldId?: string; // 关联的表单控件ID
+  fieldLabel?: string; // 关联的表单控件标签（用于显示）
 }
 
 // 要素库接口
@@ -45,15 +59,54 @@ const mockElementLibrary: ElementLibrary = {
   status: '未发布',
   elementCount: 8,
   elements: [
-    { id: '1', code: 'F001', name: '年度教育经费预算', elementType: '基础要素', dataType: '数字' },
-    { id: '2', code: 'F002', name: '实际支出总额', elementType: '基础要素', dataType: '数字' },
+    { id: '1', code: 'F001', name: '年度教育经费预算', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'is_rural_small_school', fieldLabel: '是否50人及以上但不足100人的乡村小规模学校和教学点' },
+    { id: '2', code: 'F002', name: '实际支出总额', elementType: '基础要素', dataType: '数字', toolId: '8', fieldId: 'is_high_density_city_school', fieldLabel: '是否人口密度过高的大城市中心城区学校' },
     { id: '3', code: 'F003', name: '预算执行率', elementType: '派生要素', dataType: '数字', formula: '(F002 / F001) * 100' },
-    { id: '4', code: 'F004', name: '人员经费支出', elementType: '基础要素', dataType: '数字' },
-    { id: '5', code: 'F005', name: '公用经费支出', elementType: '基础要素', dataType: '数字' },
+    { id: '4', code: 'F004', name: '人员经费支出', elementType: '基础要素', dataType: '数字', toolId: '2' },
+    { id: '5', code: 'F005', name: '公用经费支出', elementType: '基础要素', dataType: '数字', toolId: '2' },
     { id: '6', code: 'F006', name: '项目经费支出', elementType: '基础要素', dataType: '数字' },
     { id: '7', code: 'F007', name: '人员经费占比', elementType: '派生要素', dataType: '数字', formula: '(F004 / F002) * 100' },
     { id: '8', code: 'F008', name: '生均公用经费', elementType: '派生要素', dataType: '数字', formula: 'F005 / E003' },
   ],
+};
+
+// 递归扁平化表单字段
+const flattenFormFields = (fields: any[], parentPath: string = ''): FlattenedField[] => {
+  const result: FlattenedField[] = [];
+
+  fields.forEach(field => {
+    const currentPath = parentPath ? `${parentPath} > ${field.label}` : field.label;
+
+    // 跳过分组和分割线，只添加实际输入控件
+    if (field.type !== 'group' && field.type !== 'divider') {
+      result.push({
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        path: currentPath,
+      });
+    }
+
+    // 处理分组的子字段
+    if (field.type === 'group' && field.children) {
+      result.push(...flattenFormFields(field.children, field.label));
+    }
+
+    // 处理动态列表的子字段
+    if (field.type === 'dynamicList') {
+      const listFields = field.dynamicListFields || field.fields || [];
+      listFields.forEach((childField: any) => {
+        result.push({
+          id: `${field.id}.${childField.id}`,
+          label: childField.label,
+          type: childField.type,
+          path: `${currentPath} > ${childField.label}`,
+        });
+      });
+    }
+  });
+
+  return result;
 };
 
 const IndicatorEdit: React.FC = () => {
@@ -73,6 +126,23 @@ const IndicatorEdit: React.FC = () => {
   const [addFormElementType, setAddFormElementType] = useState<ElementType>('基础要素');
   const [editFormElementType, setEditFormElementType] = useState<ElementType>('基础要素');
 
+  // 监听选中的工具变化（用于级联选择控件）
+  const [addFormToolId, setAddFormToolId] = useState<string | undefined>();
+  const [editFormToolId, setEditFormToolId] = useState<string | undefined>();
+
+  // 根据选中的工具获取可用的字段列表
+  const addFormFields = useMemo(() => {
+    if (!addFormToolId) return [];
+    const schema = formSchemas[addFormToolId];
+    return schema ? flattenFormFields(schema) : [];
+  }, [addFormToolId]);
+
+  const editFormFields = useMemo(() => {
+    if (!editFormToolId) return [];
+    const schema = formSchemas[editFormToolId];
+    return schema ? flattenFormFields(schema) : [];
+  }, [editFormToolId]);
+
   useEffect(() => {
     // 加载要素库数据
     if (id) {
@@ -87,11 +157,19 @@ const IndicatorEdit: React.FC = () => {
   const handleAddElement = () => {
     addForm.resetFields();
     setAddFormElementType('基础要素');
+    setAddFormToolId(undefined);
     setAddModalVisible(true);
   };
 
   const handleSaveAdd = (values: any) => {
     if (!library) return;
+
+    // 获取选中字段的标签
+    let fieldLabel: string | undefined;
+    if (values.fieldId && addFormToolId) {
+      const field = addFormFields.find(f => f.id === values.fieldId);
+      fieldLabel = field?.path;
+    }
 
     const newElement: Element = {
       id: `${Date.now()}`,
@@ -100,6 +178,9 @@ const IndicatorEdit: React.FC = () => {
       elementType: values.elementType,
       dataType: values.dataType,
       formula: values.elementType === '派生要素' ? values.formula : undefined,
+      toolId: values.elementType === '基础要素' ? values.toolId : undefined,
+      fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
+      fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
     };
 
     const updatedLibrary = {
@@ -110,24 +191,35 @@ const IndicatorEdit: React.FC = () => {
 
     setLibrary(updatedLibrary);
     setAddModalVisible(false);
+    setAddFormToolId(undefined);
     message.success('添加成功');
   };
 
   const handleEditElement = (element: Element) => {
     setSelectedElement(element);
     setEditFormElementType(element.elementType);
+    setEditFormToolId(element.toolId);
     editForm.setFieldsValue({
       code: element.code,
       name: element.name,
       elementType: element.elementType,
       dataType: element.dataType,
       formula: element.formula,
+      toolId: element.toolId,
+      fieldId: element.fieldId,
     });
     setEditModalVisible(true);
   };
 
   const handleSaveEdit = (values: any) => {
     if (!library || !selectedElement) return;
+
+    // 获取选中字段的标签
+    let fieldLabel: string | undefined;
+    if (values.fieldId && editFormToolId) {
+      const field = editFormFields.find(f => f.id === values.fieldId);
+      fieldLabel = field?.path;
+    }
 
     const updatedElements = library.elements.map(el => {
       if (el.id === selectedElement.id) {
@@ -138,6 +230,9 @@ const IndicatorEdit: React.FC = () => {
           elementType: values.elementType,
           dataType: values.dataType,
           formula: values.elementType === '派生要素' ? values.formula : undefined,
+          toolId: values.elementType === '基础要素' ? values.toolId : undefined,
+          fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
+          fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
         };
       }
       return el;
@@ -147,6 +242,7 @@ const IndicatorEdit: React.FC = () => {
     setLibrary({ ...library, elements: updatedElements });
     setSelectedElement(updatedElement || null);
     setEditModalVisible(false);
+    setEditFormToolId(undefined);
     message.success('保存成功');
   };
 
@@ -303,6 +399,34 @@ const IndicatorEdit: React.FC = () => {
                   <div className={styles.formulaDisplay}>{selectedElement.formula}</div>
                 </div>
               )}
+              <div className={styles.propertyItem}>
+                <label>关联采集工具</label>
+                {selectedElement.toolId ? (
+                  <div className={styles.toolLinkDisplay}>
+                    <LinkOutlined className={styles.toolLinkIcon} />
+                    <span className={styles.toolLinkName}>
+                      {dataTools.find(t => t.id === selectedElement.toolId)?.name || '未知工具'}
+                    </span>
+                  </div>
+                ) : (
+                  <span className={styles.noToolLink}>未关联</span>
+                )}
+              </div>
+              {selectedElement.toolId && (
+                <div className={styles.propertyItem}>
+                  <label>关联表单控件</label>
+                  {selectedElement.fieldId ? (
+                    <div className={styles.fieldLinkDisplay}>
+                      <FormOutlined className={styles.fieldLinkIcon} />
+                      <span className={styles.fieldLinkName}>
+                        {selectedElement.fieldLabel || selectedElement.fieldId}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className={styles.noToolLink}>未关联控件</span>
+                  )}
+                </div>
+              )}
 
               <div className={styles.propertiesActions}>
                 <Button
@@ -410,6 +534,49 @@ const IndicatorEdit: React.FC = () => {
             </>
           )}
 
+          {addFormElementType === '基础要素' && (
+            <>
+              <Form.Item
+                label="关联采集工具"
+                name="toolId"
+              >
+                <Select
+                  placeholder="请选择数据采集工具"
+                  allowClear
+                  onChange={(value) => {
+                    setAddFormToolId(value);
+                    addForm.setFieldValue('fieldId', undefined);
+                  }}
+                >
+                  {dataTools.map(tool => (
+                    <Select.Option key={tool.id} value={tool.id}>
+                      {tool.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <div className={styles.formHint}>选择用于采集此要素数据的工具</div>
+
+              {addFormToolId && addFormFields.length > 0 && (
+                <>
+                  <Form.Item
+                    label="关联表单控件"
+                    name="fieldId"
+                  >
+                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="children">
+                      {addFormFields.map(field => (
+                        <Select.Option key={field.id} value={field.id}>
+                          {field.path}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <div className={styles.formHint}>选择工具表单中要关联的具体控件</div>
+                </>
+              )}
+            </>
+          )}
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 24 }}>
             <Button style={{ marginRight: 8 }} onClick={() => setAddModalVisible(false)}>
               取消
@@ -495,6 +662,49 @@ const IndicatorEdit: React.FC = () => {
                 <Input placeholder="如：E003 / E004（使用要素编码进行计算）" />
               </Form.Item>
               <div className={styles.formHint}>使用要素编码和运算符（+ - * /）编写公式，支持括号</div>
+            </>
+          )}
+
+          {editFormElementType === '基础要素' && (
+            <>
+              <Form.Item
+                label="关联采集工具"
+                name="toolId"
+              >
+                <Select
+                  placeholder="请选择数据采集工具"
+                  allowClear
+                  onChange={(value) => {
+                    setEditFormToolId(value);
+                    editForm.setFieldValue('fieldId', undefined);
+                  }}
+                >
+                  {dataTools.map(tool => (
+                    <Select.Option key={tool.id} value={tool.id}>
+                      {tool.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <div className={styles.formHint}>选择用于采集此要素数据的工具</div>
+
+              {editFormToolId && editFormFields.length > 0 && (
+                <>
+                  <Form.Item
+                    label="关联表单控件"
+                    name="fieldId"
+                  >
+                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="children">
+                      {editFormFields.map(field => (
+                        <Select.Option key={field.id} value={field.id}>
+                          {field.path}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <div className={styles.formHint}>选择工具表单中要关联的具体控件</div>
+                </>
+              )}
             </>
           )}
 

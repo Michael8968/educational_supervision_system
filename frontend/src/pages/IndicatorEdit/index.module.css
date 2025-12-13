@@ -273,6 +273,57 @@
   font-family: 'SF Mono', Monaco, monospace;
 }
 
+.toolLinkDisplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f0f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 6px;
+}
+
+.toolLinkIcon {
+  color: #1890ff;
+  font-size: 14px;
+}
+
+.toolLinkName {
+  font-size: 14px;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.noToolLink {
+  color: #999;
+  font-size: 14px;
+}
+
+.fieldLinkDisplay {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+}
+
+.fieldLinkIcon {
+  color: #52c41a;
+  font-size: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.fieldLinkName {
+  font-size: 13px;
+  color: #52c41a;
+  font-weight: 500;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
 .propertiesActions {
   display: flex;
   flex-direction: column;
