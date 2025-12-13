@@ -86,6 +86,9 @@
 .mainContent {
   display: flex;
   gap: 24px;
+  align-items: stretch;
+  height: calc(100vh - 200px);
+  min-height: 400px;
 }
 
 .elementListSection {
@@ -93,6 +96,8 @@
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .sectionHeader {
@@ -100,6 +105,12 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  position: sticky;
+  top: -20px;
+  background: #fff;
+  padding: 20px 0 12px 0;
+  margin: -20px 0 16px 0;
+  z-index: 5;
 }
 
 .sectionHeader h3 {
@@ -181,6 +192,28 @@
   font-size: 13px;
 }
 
+.linkedIcon {
+  color: #52c41a;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+.unlinkedIcon {
+  color: #faad14;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+/* 未关联的要素项样式 */
+.unlinkedElement {
+  border-left: 3px solid #faad14 !important;
+  background: linear-gradient(90deg, #fffbe6 0%, #fff 20%) !important;
+}
+
+.unlinkedElement:hover {
+  border-left-color: #fa8c16 !important;
+}
+
 .elementFormula {
   display: flex;
   align-items: center;
@@ -232,6 +265,7 @@
   background: #fff;
   border-radius: 8px;
   padding: 20px 24px;
+  overflow-y: auto;
 }
 
 .elementPropertiesSection h3 {
@@ -384,6 +418,11 @@
 @media (max-width: 1200px) {
   .mainContent {
     flex-direction: column;
+    height: auto;
+  }
+
+  .elementListSection {
+    max-height: 60vh;
   }
 
   .elementPropertiesSection {
