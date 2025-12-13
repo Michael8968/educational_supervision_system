@@ -1178,3 +1178,52 @@
   color: #999;
   margin-bottom: 8px;
 }
+
+/* 评价依据样式 */
+.mappingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mappingTagItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
+.mappingTagItem :global(.ant-tag) {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.mappingTagName {
+  flex: 1;
+  font-size: 13px;
+  color: #333;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.mappingTagDelete {
+  color: #999;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.mappingTagDelete:hover {
+  color: #ff4d4f;
+}
+
+.evaluationAddRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}

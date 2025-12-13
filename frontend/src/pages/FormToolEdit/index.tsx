@@ -90,6 +90,8 @@ interface DynamicListChildField {
   // 评价依据关联
   evaluationMapping?: 'none' | 'data_indicator' | 'element';
   mapping?: FieldMappingInfo | null;
+  evaluationName?: string;  // 评价依据名称
+  mappings?: FieldMappingInfo[];  // 多个映射关联
   // 选择类型特有属性
   options?: { label: string; value: string }[];
 }
@@ -121,7 +123,10 @@ interface FormField {
   dynamicListFields?: DynamicListChildField[];
   fields?: DynamicListChildField[];  // 兼容 schema 格式
   headers?: string[];  // 动态列表表头
-  // 映射信息
+  // 评价依据
+  evaluationName?: string;  // 评价依据名称，默认为标签名
+  mappings?: FieldMappingInfo[];  // 多个映射关联
+  // 映射信息（兼容旧格式）
   mapping?: FieldMappingInfo | null;
 }
 
@@ -1547,57 +1552,75 @@ const FormToolEdit: React.FC = () => {
                   {!['divider', 'dynamicList'].includes(selectedField.type) && (
                     <div className={styles.propertyItem}>
                       <label>评价依据</label>
-                      <div className={styles.evaluationConfig}>
+                      {/* 显示已添加的映射标签 */}
+                      {selectedField.mappings && selectedField.mappings.length > 0 && (
+                        <div className={styles.mappingsList}>
+                          {selectedField.mappings.map((m, idx) => (
+                            <div key={idx} className={styles.mappingTagItem}>
+                              <Tag color={m.mappingType === 'data_indicator' ? 'blue' : 'green'}>
+                                {m.mappingType === 'data_indicator' ? '数据' : '佐证'}
+                              </Tag>
+                              <span className={styles.mappingTagName}>
+                                {tool.name} - {m.targetInfo?.name}
+                              </span>
+                              <DeleteOutlined
+                                className={styles.mappingTagDelete}
+                                onClick={() => {
+                                  const newMappings = selectedField.mappings?.filter((_, i) => i !== idx);
+                                  handleUpdateField(selectedField.id, { mappings: newMappings });
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* 添加表单始终显示 */}
+                      <div className={styles.evaluationAddRow}>
                         <Select
                           value={mappingType}
                           onChange={(value) => setMappingType(value as 'data_indicator' | 'element')}
-                          style={{ flex: 1 }}
+                          style={{ width: 80 }}
+                          size="small"
                         >
-                          <Select.Option value="data_indicator">数据指标</Select.Option>
-                          <Select.Option value="element">要素</Select.Option>
+                          <Select.Option value="data_indicator">数据</Select.Option>
+                          <Select.Option value="element">佐证</Select.Option>
                         </Select>
+                        <Input
+                          value={selectedField.evaluationName ?? selectedField.label}
+                          placeholder="请输入评价依据名称"
+                          onChange={e => handleUpdateField(selectedField.id, { evaluationName: e.target.value })}
+                          size="small"
+                          style={{ flex: 1 }}
+                        />
                         <Button
-                          type="primary"
-                          icon={<LinkOutlined />}
+                          size="small"
                           onClick={() => {
-                            if (mappingType === 'data_indicator') {
-                              setShowIndicatorSelector(true);
-                            } else {
-                              setShowElementSelector(true);
+                            const evaluationName = selectedField.evaluationName || selectedField.label;
+                            if (!evaluationName.trim()) {
+                              message.warning('请输入评价依据名称');
+                              return;
                             }
+                            const newMapping: FieldMappingInfo = {
+                              mappingType: mappingType,
+                              targetId: '',
+                              targetInfo: {
+                                code: `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                                name: evaluationName,
+                              },
+                            };
+                            const currentMappings = selectedField.mappings || [];
+                            handleUpdateField(selectedField.id, {
+                              mappings: [...currentMappings, newMapping],
+                              evaluationName: '', // 清空输入框
+                            });
                           }}
                         >
-                          关联
+                          添加
                         </Button>
-                        {selectedField.mapping && (
-                          <Tooltip title="取消关联">
-                            <Button
-                              danger
-                              icon={<DisconnectOutlined />}
-                              onClick={() => handleUpdateField(selectedField.id, { mapping: null })}
-                            />
-                          </Tooltip>
-                        )}
                       </div>
-                      {selectedField.mapping ? (
-                        <div className={styles.mappingInfo}>
-                          <Tag color={selectedField.mapping.mappingType === 'data_indicator' ? 'blue' : 'green'}>
-                            {selectedField.mapping.mappingType === 'data_indicator' ? '数据指标' : '要素'}
-                          </Tag>
-                          <span className={styles.mappingName}>
-                            {selectedField.mapping.targetInfo?.code} - {selectedField.mapping.targetInfo?.name}
-                          </span>
-                          {selectedField.mapping.targetInfo?.threshold && (
-                            <Tag color="orange" style={{ marginLeft: 8 }}>
-                              阈值: {selectedField.mapping.targetInfo.threshold}
-                            </Tag>
-                          )}
-                        </div>
-                      ) : (
-                        <div className={styles.evaluationHint}>
-                          可关联数据指标或要素，用于数据校验和计算
-                        </div>
-                      )}
+                      <div className={styles.evaluationHint}>
+                        完整名称格式: {tool.name} - (评价依据名称)
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1723,59 +1746,78 @@ const FormToolEdit: React.FC = () => {
                             </div>
                             <div className={styles.dynamicFieldRow}>
                               <label>评价依据</label>
-                              <div className={styles.evaluationConfig}>
-                                <Select
-                                  value={childField.evaluationMapping || 'none'}
-                                  onChange={(value) => {
-                                    handleUpdateDynamicField(childField.id, {
-                                      evaluationMapping: value as 'none' | 'data_indicator' | 'element',
-                                      mapping: value === 'none' ? null : childField.mapping
-                                    });
-                                  }}
-                                  style={{ flex: 1 }}
-                                >
-                                  <Select.Option value="none">不关联</Select.Option>
-                                  <Select.Option value="data_indicator">数据指标</Select.Option>
-                                  <Select.Option value="element">要素</Select.Option>
-                                </Select>
-                                {childField.evaluationMapping && childField.evaluationMapping !== 'none' && (
-                                  <Button
-                                    type="primary"
-                                    size="small"
-                                    icon={<LinkOutlined />}
-                                    onClick={() => {
-                                      setEditingDynamicFieldId(childField.id);
-                                      if (childField.evaluationMapping === 'data_indicator') {
-                                        setShowIndicatorSelector(true);
-                                      } else {
-                                        setShowElementSelector(true);
-                                      }
-                                    }}
-                                  >
-                                    关联
-                                  </Button>
-                                )}
-                                {childField.mapping && (
-                                  <Tooltip title="取消关联">
-                                    <Button
-                                      danger
-                                      size="small"
-                                      icon={<DisconnectOutlined />}
-                                      onClick={() => handleUpdateDynamicField(childField.id, { mapping: null })}
-                                    />
-                                  </Tooltip>
-                                )}
-                              </div>
-                              {childField.mapping && (
-                                <div className={styles.mappingInfo}>
-                                  <Tag color={childField.mapping.mappingType === 'data_indicator' ? 'blue' : 'green'}>
-                                    {childField.mapping.mappingType === 'data_indicator' ? '数据指标' : '要素'}
-                                  </Tag>
-                                  <span className={styles.mappingName}>
-                                    {childField.mapping.targetInfo?.code} - {childField.mapping.targetInfo?.name}
-                                  </span>
+                              {/* 显示已添加的映射标签 */}
+                              {childField.mappings && childField.mappings.length > 0 && (
+                                <div className={styles.mappingsList}>
+                                  {childField.mappings.map((m, idx) => (
+                                    <div key={idx} className={styles.mappingTagItem}>
+                                      <Tag color={m.mappingType === 'data_indicator' ? 'blue' : 'green'}>
+                                        {m.mappingType === 'data_indicator' ? '数据' : '佐证'}
+                                      </Tag>
+                                      <span className={styles.mappingTagName}>
+                                        {tool.name} - {m.targetInfo?.name}
+                                      </span>
+                                      <DeleteOutlined
+                                        className={styles.mappingTagDelete}
+                                        onClick={() => {
+                                          const newMappings = childField.mappings?.filter((_, i) => i !== idx);
+                                          handleUpdateDynamicField(childField.id, { mappings: newMappings });
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
                                 </div>
                               )}
+                              {/* 添加表单始终显示 */}
+                              <div className={styles.evaluationAddRow}>
+                                <Select
+                                  value={childField.evaluationMapping === 'element' ? 'element' : 'data_indicator'}
+                                  onChange={(value) => {
+                                    handleUpdateDynamicField(childField.id, {
+                                      evaluationMapping: value as FieldMappingInfo['mappingType'],
+                                    });
+                                  }}
+                                  style={{ width: 80 }}
+                                  size="small"
+                                >
+                                  <Select.Option value="data_indicator">数据</Select.Option>
+                                  <Select.Option value="element">佐证</Select.Option>
+                                </Select>
+                                <Input
+                                  value={childField.evaluationName ?? childField.label}
+                                  placeholder="请输入评价依据名称"
+                                  onChange={e => handleUpdateDynamicField(childField.id, { evaluationName: e.target.value })}
+                                  size="small"
+                                  style={{ flex: 1 }}
+                                />
+                                <Button
+                                  size="small"
+                                  onClick={() => {
+                                    const evaluationName = childField.evaluationName ?? childField.label;
+                                    if (!evaluationName.trim()) {
+                                      message.warning('请输入评价依据名称');
+                                      return;
+                                    }
+                                    const normalizedMappingType: FieldMappingInfo['mappingType'] =
+                                      childField.evaluationMapping === 'element' ? 'element' : 'data_indicator';
+                                    const newMapping: FieldMappingInfo = {
+                                      mappingType: normalizedMappingType,
+                                      targetId: '',
+                                      targetInfo: {
+                                        code: `eval_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                                        name: evaluationName,
+                                      },
+                                    };
+                                    const currentMappings = childField.mappings || [];
+                                    handleUpdateDynamicField(childField.id, {
+                                      mappings: [...currentMappings, newMapping],
+                                      evaluationName: '',
+                                    });
+                                  }}
+                                >
+                                  添加
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1826,13 +1868,14 @@ const FormToolEdit: React.FC = () => {
             // 动态列表子字段的关联
             handleUpdateDynamicField(editingDynamicFieldId, { mapping: mappingInfo });
           } else if (selectedField) {
-            // 普通字段的关联
-            handleUpdateField(selectedField.id, { mapping: mappingInfo });
+            // 普通字段的关联 - 添加到 mappings 数组
+            const currentMappings = selectedField.mappings || [];
+            handleUpdateField(selectedField.id, { mappings: [...currentMappings, mappingInfo] });
           }
           setShowIndicatorSelector(false);
           setEditingDynamicFieldId(null);
         }}
-        selectedId={selectedField?.mapping?.mappingType === 'data_indicator' ? selectedField.mapping.targetId : undefined}
+        selectedId={undefined}
       />
 
       {/* 要素选择器 */}
@@ -1859,13 +1902,14 @@ const FormToolEdit: React.FC = () => {
             // 动态列表子字段的关联
             handleUpdateDynamicField(editingDynamicFieldId, { mapping: mappingInfo });
           } else if (selectedField) {
-            // 普通字段的关联
-            handleUpdateField(selectedField.id, { mapping: mappingInfo });
+            // 普通字段的关联 - 添加到 mappings 数组
+            const currentMappings = selectedField.mappings || [];
+            handleUpdateField(selectedField.id, { mappings: [...currentMappings, mappingInfo] });
           }
           setShowElementSelector(false);
           setEditingDynamicFieldId(null);
         }}
-        selectedId={selectedField?.mapping?.mappingType === 'element' ? selectedField.mapping.targetId : undefined}
+        selectedId={undefined}
       />
 
       {/* 隐藏的文件输入 */}
