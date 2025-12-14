@@ -13,8 +13,11 @@ openspec/
 │   ├── element-library.md
 │   ├── tool-library.md
 │   ├── indicator-library.md
-│   └── project-management.md
+│   ├── project-management.md
+│   └── compliance-rules.md
 ├── changes/            # Proposed changes (organized by feature)
+│   ├── 2024-12-element-association/
+│   └── 2024-12-compliance-rules/
 └── AGENTS.md           # This file
 ```
 
@@ -66,6 +69,7 @@ When proposing spec changes, use:
 | Tool Library | tool-library.md | Data collection tools |
 | Indicator Library | indicator-library.md | Evaluation indicator systems |
 | Project Management | project-management.md | Assessment projects |
+| Compliance Rules | compliance-rules.md | Threshold comparison, validation, aggregation |
 
 ## Technology Context
 
@@ -104,3 +108,30 @@ Development uses mock data when `USE_MOCK = true`:
 - `indicatorTrees` - hierarchical indicator structures
 - `dataIndicatorElements` - element associations
 - Located in `/frontend/src/mock/data.ts`
+
+### Compliance Rules Engine (Planned)
+
+The system will support automated compliance checking:
+
+1. **Threshold Rules**: Compare values against pass/fail criteria
+   - Different thresholds for primary (小学) vs middle (初中) schools
+   - Support for fixed values and dynamic element references
+
+2. **Conditional Logic**: Apply rules based on institution type
+   - Institution types: county, primary, middle, nine_year, teaching_point
+   - AND/OR condition combinations
+
+3. **Data Validation**: Validate entries before submission
+   - Required fields, numeric ranges, decimal precision
+   - Cross-field consistency checks
+
+4. **Aggregation**: Calculate county-level statistics
+   - SUM, AVG, COUNT, STDDEV functions
+   - Coefficient of variation (差异系数) calculation
+
+Reference thresholds (per national standards):
+| Indicator | Primary | Middle |
+|-----------|---------|--------|
+| 生均教学用房面积 | ≥4.5㎡ | ≥5.8㎡ |
+| 生均体育场馆面积 | ≥7.5㎡ | ≥10.2㎡ |
+| 生均教学仪器设备值 | ≥2000元 | ≥2500元 |

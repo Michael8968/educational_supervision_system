@@ -345,3 +345,111 @@ CREATE TABLE IF NOT EXISTS data_indicator_elements (
 CREATE INDEX IF NOT EXISTS idx_di_elements_indicator ON data_indicator_elements(data_indicator_id);
 CREATE INDEX IF NOT EXISTS idx_di_elements_element ON data_indicator_elements(element_id);
 CREATE INDEX IF NOT EXISTS idx_di_elements_type ON data_indicator_elements(mapping_type);
+
+-- ============================================================================
+-- 达标判定规则引擎相关表
+-- ============================================================================
+
+-- 达标规则定义表
+CREATE TABLE IF NOT EXISTS compliance_rules (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,                -- 规则代码 (如 RULE_001)
+  name TEXT NOT NULL,                       -- 规则名称
+  rule_type TEXT NOT NULL CHECK (rule_type IN ('threshold', 'conditional', 'validation', 'aggregation')),
+  indicator_id TEXT,                        -- 关联的数据指标ID (可选)
+  element_id TEXT,                          -- 关联的要素ID (可选)
+  enabled INTEGER DEFAULT 1,                -- 是否启用: 1=启用, 0=禁用
+  priority INTEGER DEFAULT 0,               -- 优先级 (数字越大优先级越高)
+  description TEXT,                         -- 规则描述
+  created_by TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  FOREIGN KEY (indicator_id) REFERENCES data_indicators(id) ON DELETE SET NULL,
+  FOREIGN KEY (element_id) REFERENCES elements(id) ON DELETE SET NULL
+);
+
+-- 规则条件表 (定义规则何时适用)
+CREATE TABLE IF NOT EXISTS rule_conditions (
+  id TEXT PRIMARY KEY,
+  rule_id TEXT NOT NULL,                    -- 所属规则ID
+  field TEXT NOT NULL,                      -- 条件字段 (如 institution_type, school_type)
+  operator TEXT NOT NULL,                   -- 操作符: equals, not_equals, in, not_in, greater_than, less_than, between, etc.
+  value TEXT NOT NULL,                      -- 条件值 (JSON格式，支持数组)
+  logical_operator TEXT DEFAULT 'AND',      -- 逻辑运算符: AND, OR
+  sort_order INTEGER DEFAULT 0,             -- 排序顺序
+  FOREIGN KEY (rule_id) REFERENCES compliance_rules(id) ON DELETE CASCADE
+);
+
+-- 规则动作表 (定义规则的执行动作)
+CREATE TABLE IF NOT EXISTS rule_actions (
+  id TEXT PRIMARY KEY,
+  rule_id TEXT NOT NULL,                    -- 所属规则ID
+  action_type TEXT NOT NULL CHECK (action_type IN ('compare', 'validate', 'calculate', 'aggregate')),
+  config TEXT NOT NULL,                     -- 动作配置 (JSON格式)
+  result_field TEXT,                        -- 结果存储字段
+  pass_message TEXT,                        -- 通过时的消息
+  fail_message TEXT,                        -- 失败时的消息
+  sort_order INTEGER DEFAULT 0,             -- 排序顺序
+  FOREIGN KEY (rule_id) REFERENCES compliance_rules(id) ON DELETE CASCADE
+);
+
+-- 达标判定结果表
+CREATE TABLE IF NOT EXISTS compliance_results (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,                 -- 评估项目ID
+  rule_id TEXT NOT NULL,                    -- 规则ID
+  entity_type TEXT NOT NULL,                -- 实体类型: school, district, county
+  entity_id TEXT NOT NULL,                  -- 实体ID (学校ID或区县ID)
+  indicator_id TEXT,                        -- 数据指标ID (可选)
+  actual_value TEXT,                        -- 实际值
+  threshold_value TEXT,                     -- 阈值
+  is_compliant INTEGER,                     -- 是否达标: 1=达标, 0=未达标
+  message TEXT,                             -- 结果消息
+  details TEXT,                             -- 详细信息 (JSON格式)
+  calculated_at TEXT,                       -- 计算时间
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (rule_id) REFERENCES compliance_rules(id) ON DELETE CASCADE
+);
+
+-- 数据校验规则配置表 (用于表单字段校验)
+CREATE TABLE IF NOT EXISTS validation_configs (
+  id TEXT PRIMARY KEY,
+  target_type TEXT NOT NULL,                -- 目标类型: field, element, indicator
+  target_id TEXT NOT NULL,                  -- 目标ID
+  validation_type TEXT NOT NULL,            -- 校验类型: required, range, precision, regex, enum, unique
+  config TEXT NOT NULL,                     -- 校验配置 (JSON格式)
+  error_message TEXT,                       -- 错误消息模板
+  enabled INTEGER DEFAULT 1,                -- 是否启用
+  created_at TEXT,
+  updated_at TEXT
+);
+
+-- 阈值标准表 (存储各指标的阈值标准)
+CREATE TABLE IF NOT EXISTS threshold_standards (
+  id TEXT PRIMARY KEY,
+  indicator_id TEXT NOT NULL,               -- 数据指标ID
+  institution_type TEXT NOT NULL,           -- 机构类型: primary, middle, nine_year, complete
+  threshold_operator TEXT NOT NULL,         -- 比较运算符: >=, >, <=, <, ==, between
+  threshold_value TEXT NOT NULL,            -- 阈值 (数值或JSON格式的区间)
+  unit TEXT,                                -- 单位 (如 ㎡, 元, %)
+  source TEXT,                              -- 标准来源 (如 "国家标准")
+  effective_date TEXT,                      -- 生效日期
+  expiry_date TEXT,                         -- 失效日期
+  created_at TEXT,
+  updated_at TEXT,
+  FOREIGN KEY (indicator_id) REFERENCES data_indicators(id) ON DELETE CASCADE,
+  UNIQUE (indicator_id, institution_type)
+);
+
+-- 达标规则引擎相关索引
+CREATE INDEX IF NOT EXISTS idx_rules_type ON compliance_rules(rule_type);
+CREATE INDEX IF NOT EXISTS idx_rules_indicator ON compliance_rules(indicator_id);
+CREATE INDEX IF NOT EXISTS idx_rules_enabled ON compliance_rules(enabled);
+CREATE INDEX IF NOT EXISTS idx_conditions_rule ON rule_conditions(rule_id);
+CREATE INDEX IF NOT EXISTS idx_actions_rule ON rule_actions(rule_id);
+CREATE INDEX IF NOT EXISTS idx_results_project ON compliance_results(project_id);
+CREATE INDEX IF NOT EXISTS idx_results_entity ON compliance_results(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_results_rule ON compliance_results(rule_id);
+CREATE INDEX IF NOT EXISTS idx_validation_target ON validation_configs(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_threshold_indicator ON threshold_standards(indicator_id);
+CREATE INDEX IF NOT EXISTS idx_threshold_institution ON threshold_standards(institution_type);

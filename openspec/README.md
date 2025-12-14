@@ -11,9 +11,11 @@ openspec/
 │   ├── element-library.md    # 要素库规范
 │   ├── tool-library.md       # 采集工具库规范
 │   ├── indicator-library.md  # 指标体系库规范
-│   └── project-management.md # 评估项目管理规范
+│   ├── project-management.md # 评估项目管理规范
+│   └── compliance-rules.md   # 达标判定规则引擎规范
 ├── changes/                  # 变更记录（按功能组织）
-│   └── 2024-12-element-association/  # 数据指标-要素关联
+│   ├── 2024-12-element-association/  # 数据指标-要素关联
+│   └── 2024-12-compliance-rules/     # 达标判定规则引擎
 ├── AGENTS.md                 # AI 助手指南
 └── README.md                 # 本文件
 ```
@@ -27,6 +29,7 @@ openspec/
 | tool-library.md | 采集工具库 | 表格、问卷、访谈等工具管理 |
 | indicator-library.md | 指标体系库 | 达标类和评分类指标体系 |
 | project-management.md | 项目管理 | 评估项目生命周期管理 |
+| compliance-rules.md | 达标判定 | 阈值比较、条件逻辑、数据校验 |
 
 ## 使用方式
 

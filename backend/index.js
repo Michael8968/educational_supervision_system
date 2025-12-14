@@ -14,6 +14,7 @@ const { router: projectToolRoutes, setDb: setProjectToolDb } = require('./routes
 const { router: districtRoutes, setDb: setDistrictDb } = require('./routes/districts');
 const { router: schoolRoutes, setDb: setSchoolDb } = require('./routes/schools');
 const { router: statisticsRoutes, setDb: setStatisticsDb } = require('./routes/statistics');
+const { router: complianceRoutes, setDb: setComplianceDb } = require('./routes/compliance');
 const uploadsRouteFactory = require('./routes/uploads');
 
 const app = express();
@@ -60,6 +61,7 @@ function initDatabase() {
   setDistrictDb(db);
   setSchoolDb(db);
   setStatisticsDb(db);
+  setComplianceDb(db);
 
   return db;
 }
@@ -80,6 +82,7 @@ app.use('/api', projectToolRoutes);
 app.use('/api', districtRoutes);
 app.use('/api', schoolRoutes);
 app.use('/api', statisticsRoutes);
+app.use('/api', complianceRoutes);
 // 文件上传路由需要在数据库初始化后注册
 if (db) {
   app.use('/api', uploadsRouteFactory(db));

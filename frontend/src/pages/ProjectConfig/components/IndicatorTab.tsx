@@ -1,6 +1,6 @@
 /**
  * 指标体系 Tab 组件
- * 显示项目关联的指标体系和映射统计
+ * 显示项目关联的指标体系
  * 支持编辑数据指标与评估要素的关联
  */
 
@@ -18,7 +18,6 @@ import {
   Col,
   Tooltip,
   message,
-  Badge,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -34,9 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import * as indicatorService from '../../../services/indicatorService';
-import * as projectService from '../../../services/projectService';
 import type { Indicator, DataIndicator, SupportingMaterial, DataIndicatorWithElements } from '../../../services/indicatorService';
-import type { IndicatorMappingSummary } from '../../../services/projectService';
 import ElementAssociationDrawer from './ElementAssociationDrawer';
 import styles from '../index.module.css';
 
@@ -52,6 +49,13 @@ interface IndicatorTabProps {
   indicatorSystemName?: string;
 }
 
+// 要素关联统计
+interface ElementAssociationStats {
+  total: number;      // 数据指标总数
+  associated: number; // 已关联要素的数据指标数
+  unassociated: number; // 未关联要素的数据指标数
+}
+
 const IndicatorTab: React.FC<IndicatorTabProps> = ({
   projectId,
   indicatorSystemId,
@@ -59,7 +63,6 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
-  const [mappingSummary, setMappingSummary] = useState<IndicatorMappingSummary | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   // 要素关联编辑状态
@@ -68,75 +71,33 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   const [selectedDataIndicator, setSelectedDataIndicator] = useState<DataIndicator | null>(null);
   const [selectedIndicatorName, setSelectedIndicatorName] = useState<string>('');
 
-  // 加载指标体系树和映射统计
+  // 要素关联统计
+  const [stats, setStats] = useState<ElementAssociationStats>({ total: 0, associated: 0, unassociated: 0 });
+
+  // 加载指标体系树和要素关联
   const loadData = useCallback(async () => {
     if (!indicatorSystemId) return;
 
     setLoading(true);
     try {
       let treeData: Indicator[];
-      let summaryData: IndicatorMappingSummary | null = null;
       let elementsData: DataIndicatorWithElements[];
 
       if (USE_MOCK) {
         // 使用 Mock 数据
         treeData = indicatorTrees[indicatorSystemId] || [];
         elementsData = dataIndicatorElements[indicatorSystemId] || [];
-
-        // 构建 Mock 映射统计
-        const allDataIndicators: Array<{ id: string; isMapped: boolean; mapping: any }> = [];
-        const collectDataIndicators = (indicators: Indicator[]) => {
-          indicators.forEach(ind => {
-            if (ind.dataIndicators) {
-              ind.dataIndicators.forEach(di => {
-                const diWithElements = elementsData.find(e => e.id === di.id);
-                allDataIndicators.push({
-                  id: di.id,
-                  isMapped: (diWithElements?.elements?.length || 0) > 0,
-                  mapping: diWithElements?.elements?.[0] ? {
-                    toolId: '6',
-                    toolName: '优质均衡采集表-学校',
-                    fieldId: 'mock_field',
-                    fieldLabel: diWithElements.elements[0].elementName,
-                  } : null,
-                });
-              });
-            }
-            if (ind.children) {
-              collectDataIndicators(ind.children);
-            }
-          });
-        };
-        collectDataIndicators(treeData);
-
-        summaryData = {
-          project: {
-            id: projectId,
-            name: '2024年沈阳市义务教育优质均衡发展督导评估',
-            indicatorSystemId: indicatorSystemId,
-            indicatorSystemName: '义务教育优质均衡发展评估指标体系（2024版）',
-          },
-          dataIndicators: allDataIndicators as any,
-          stats: {
-            total: allDataIndicators.length,
-            mapped: allDataIndicators.filter(d => d.isMapped).length,
-            unmapped: allDataIndicators.filter(d => !d.isMapped).length,
-          },
-        };
       } else {
         // 使用 API 数据
-        const [apiTreeData, apiSummaryData, apiElementsData] = await Promise.all([
+        const [apiTreeData, apiElementsData] = await Promise.all([
           indicatorService.getIndicatorTree(indicatorSystemId),
-          projectService.getIndicatorMappingSummary(projectId),
           indicatorService.getSystemDataIndicatorElements(indicatorSystemId),
         ]);
         treeData = apiTreeData;
-        summaryData = apiSummaryData;
         elementsData = apiElementsData;
       }
 
       setIndicators(treeData);
-      setMappingSummary(summaryData);
 
       // 构建要素关联映射
       const assocMap = new Map<string, DataIndicatorWithElements>();
@@ -144,6 +105,34 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         assocMap.set(di.id, di);
       });
       setElementAssociations(assocMap);
+
+      // 统计数据指标和要素关联
+      let totalDataIndicators = 0;
+      let associatedCount = 0;
+
+      const countDataIndicators = (indicatorList: Indicator[]) => {
+        indicatorList.forEach(ind => {
+          if (ind.dataIndicators) {
+            ind.dataIndicators.forEach(di => {
+              totalDataIndicators++;
+              const diWithElements = assocMap.get(di.id);
+              if (diWithElements?.elements && diWithElements.elements.length > 0) {
+                associatedCount++;
+              }
+            });
+          }
+          if (ind.children) {
+            countDataIndicators(ind.children);
+          }
+        });
+      };
+      countDataIndicators(treeData);
+
+      setStats({
+        total: totalDataIndicators,
+        associated: associatedCount,
+        unassociated: totalDataIndicators - associatedCount,
+      });
 
       // 默认展开第一级
       const firstLevelKeys = treeData.map(item => item.id);
@@ -154,7 +143,7 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [indicatorSystemId, projectId]);
+  }, [indicatorSystemId]);
 
   // 打开要素关联编辑抽屉
   const handleEditElementAssociation = (di: DataIndicator, indicatorName: string) => {
@@ -169,29 +158,24 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
     return assoc?.elements?.length || 0;
   };
 
+  // 获取数据指标关联的要素信息列表（包含要素名和要素库名）
+  const getElementInfos = (dataIndicatorId: string): Array<{ name: string; library: string }> => {
+    const assoc = elementAssociations.get(dataIndicatorId);
+    return assoc?.elements?.map(e => ({
+      name: e.elementName,
+      library: e.libraryName || '未知要素库',
+    })) || [];
+  };
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // 检查数据指标是否已映射
-  const isDataIndicatorMapped = (dataIndicatorId: string): boolean => {
-    if (!mappingSummary) return false;
-    const indicator = mappingSummary.dataIndicators.find(d => d.id === dataIndicatorId);
-    return indicator?.isMapped || false;
-  };
-
-  // 获取数据指标的映射信息
-  const getDataIndicatorMapping = (dataIndicatorId: string) => {
-    if (!mappingSummary) return null;
-    const indicator = mappingSummary.dataIndicators.find(d => d.id === dataIndicatorId);
-    return indicator?.mapping || null;
-  };
-
   // 渲染数据指标节点
   const renderDataIndicatorNode = (di: DataIndicator, indicatorId: string, indicatorName: string) => {
-    const isMapped = isDataIndicatorMapped(di.id);
-    const mapping = getDataIndicatorMapping(di.id);
     const elementCount = getElementCount(di.id);
+    const elementInfos = getElementInfos(di.id);
+    const hasElements = elementCount > 0;
 
     return (
       <div className={styles.dataIndicatorNode}>
@@ -202,31 +186,39 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
             阈值: {di.threshold}
           </Tag>
         )}
-        {isMapped ? (
-          <Tooltip title={mapping ? `已关联: ${mapping.toolName} - ${mapping.fieldLabel}` : '已映射'}>
-            <Tag color="success" icon={<CheckCircleOutlined />}>
-              已映射
-            </Tag>
-          </Tooltip>
-        ) : (
-          <Tooltip title="未关联采集工具字段">
-            <Tag color="warning" icon={<ExclamationCircleOutlined />}>
-              未映射
-            </Tag>
-          </Tooltip>
-        )}
         {/* 要素关联状态 */}
-        <Tooltip title={elementCount > 0 ? `已关联 ${elementCount} 个评估要素` : '点击编辑关联评估要素'}>
+        <Tooltip
+          title={
+            hasElements
+              ? (
+                <div>
+                  <div>已关联 {elementCount} 个评估要素：</div>
+                  <ul style={{ margin: '4px 0 0 0', paddingLeft: 16, listStyle: 'none' }}>
+                    {elementInfos.map((info, idx) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>
+                        <span>{info.name}</span>
+                        <span style={{ color: '#8c8c8c', fontSize: 12, marginLeft: 8 }}>
+                          [{info.library}]
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+              : '点击关联评估要素'
+          }
+        >
           <Tag
-            color={elementCount > 0 ? 'cyan' : 'default'}
-            icon={<DatabaseOutlined />}
+            color={hasElements ? 'success' : 'warning'}
+            icon={hasElements ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
             style={{ cursor: 'pointer' }}
             onClick={(e) => {
               e.stopPropagation();
               handleEditElementAssociation(di, indicatorName);
             }}
           >
-            要素 {elementCount}
+            <DatabaseOutlined style={{ marginRight: 4 }} />
+            {hasElements ? `已关联 ${elementCount} 个要素` : '未关联要素'}
           </Tag>
         </Tooltip>
         {/* 编辑按钮 */}
@@ -381,39 +373,39 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         </Button>
       </div>
 
-      {/* 映射统计卡片 */}
-      {mappingSummary && (
+      {/* 要素关联统计卡片 */}
+      {stats.total > 0 && (
         <Card className={styles.mappingStatsCard} size="small">
           <Row gutter={24}>
             <Col span={6}>
               <Statistic
                 title="数据指标总数"
-                value={mappingSummary.stats.total}
+                value={stats.total}
                 suffix="项"
               />
             </Col>
             <Col span={6}>
               <Statistic
-                title="已映射"
-                value={mappingSummary.stats.mapped}
+                title="已关联要素"
+                value={stats.associated}
                 suffix="项"
                 valueStyle={{ color: '#52c41a' }}
               />
             </Col>
             <Col span={6}>
               <Statistic
-                title="未映射"
-                value={mappingSummary.stats.unmapped}
+                title="未关联要素"
+                value={stats.unassociated}
                 suffix="项"
-                valueStyle={{ color: mappingSummary.stats.unmapped > 0 ? '#faad14' : '#52c41a' }}
+                valueStyle={{ color: stats.unassociated > 0 ? '#faad14' : '#52c41a' }}
               />
             </Col>
             <Col span={6}>
               <div className={styles.mappingProgress}>
-                <span className={styles.progressLabel}>映射完成度</span>
+                <span className={styles.progressLabel}>要素关联完成度</span>
                 <Progress
-                  percent={Math.round((mappingSummary.stats.mapped / mappingSummary.stats.total) * 100)}
-                  status={mappingSummary.stats.unmapped > 0 ? 'active' : 'success'}
+                  percent={stats.total > 0 ? Math.round((stats.associated / stats.total) * 100) : 0}
+                  status={stats.unassociated > 0 ? 'active' : 'success'}
                   size="small"
                 />
               </div>
