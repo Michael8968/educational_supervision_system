@@ -321,3 +321,27 @@ CREATE INDEX IF NOT EXISTS idx_school_indicator_school ON school_indicator_data(
 CREATE INDEX IF NOT EXISTS idx_school_indicator_indicator ON school_indicator_data(data_indicator_id);
 CREATE INDEX IF NOT EXISTS idx_district_stats_project ON district_statistics(project_id);
 CREATE INDEX IF NOT EXISTS idx_district_stats_district ON district_statistics(district_id);
+
+-- ============================================================================
+-- 数据指标与评估要素关联表
+-- ============================================================================
+
+-- 数据指标-评估要素关联表 (支持多对多关联)
+CREATE TABLE IF NOT EXISTS data_indicator_elements (
+  id TEXT PRIMARY KEY,
+  data_indicator_id TEXT NOT NULL,        -- 数据指标ID
+  element_id TEXT NOT NULL,               -- 评估要素ID
+  mapping_type TEXT DEFAULT 'primary',    -- 关联类型: primary=主要关联, reference=参考关联
+  description TEXT,                       -- 关联说明
+  created_by TEXT,                        -- 创建人
+  created_at TEXT,
+  updated_at TEXT,
+  FOREIGN KEY (data_indicator_id) REFERENCES data_indicators(id) ON DELETE CASCADE,
+  FOREIGN KEY (element_id) REFERENCES elements(id) ON DELETE CASCADE,
+  UNIQUE (data_indicator_id, element_id)
+);
+
+-- 数据指标-要素关联索引
+CREATE INDEX IF NOT EXISTS idx_di_elements_indicator ON data_indicator_elements(data_indicator_id);
+CREATE INDEX IF NOT EXISTS idx_di_elements_element ON data_indicator_elements(element_id);
+CREATE INDEX IF NOT EXISTS idx_di_elements_type ON data_indicator_elements(mapping_type);

@@ -620,6 +620,213 @@
   font-size: 13px;
 }
 
+/* ==================== 指标体系Tab ==================== */
+.indicatorTab {
+  padding: 20px 0;
+}
+
+.indicatorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.indicatorInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.indicatorSystemName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mappingStatsCard {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.mappingProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progressLabel {
+  color: #666;
+  font-size: 14px;
+}
+
+.indicatorTreeContainer {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.indicatorTree {
+  background: transparent;
+}
+
+.indicatorNode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indicatorCode {
+  color: #666;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.indicatorName {
+  color: #333;
+  font-weight: 500;
+}
+
+.indicatorWeight {
+  color: #999;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.groupTitle {
+  color: #1890ff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dataIndicatorNode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.diCode {
+  color: #666;
+  font-family: monospace;
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.diName {
+  color: #333;
+  font-size: 13px;
+}
+
+.diThreshold {
+  font-size: 12px;
+}
+
+.materialNode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.materialIcon {
+  color: #52c41a;
+}
+
+.materialName {
+  color: #333;
+  font-size: 13px;
+}
+
+.materialTypes {
+  color: #999;
+  font-size: 12px;
+}
+
+/* ==================== 数据填报Tab ==================== */
+.dataEntryTab {
+  padding: 20px 0;
+}
+
+.tabHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.tabTitle h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabSubtitle {
+  color: #999;
+  font-size: 13px;
+}
+
+.toolTable {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toolTable :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 500;
+}
+
+/* ==================== 专家评审Tab ==================== */
+.expertReviewTab {
+  padding: 20px 0;
+}
+
+.statsCard {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.progressCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.submissionTable {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.submissionTable :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 500;
+}
+
 /* ==================== 响应式 ==================== */
 @media (max-width: 768px) {
   .projectConfigPage {

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Radio, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Radio, message, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores';
 import styles from './index.module.css';
 
 interface RoleOption {
@@ -24,6 +25,24 @@ const Login: React.FC = () => {
   const [form] = Form.useForm();
   const [selectedRole, setSelectedRole] = useState<string>('');
 
+  // 使用 Zustand auth store
+  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+
+  // 如果已登录，重定向到首页
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/home');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // 显示错误信息
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+      clearError();
+    }
+  }, [error, clearError]);
+
   const handleRoleSelect = (role: RoleOption) => {
     setSelectedRole(role.key);
     form.setFieldsValue({
@@ -32,19 +51,11 @@ const Login: React.FC = () => {
     });
   };
 
-  const handleLogin = (values: { username: string; password: string }) => {
-    // Mock login - just navigate to home
-    const role = roles.find(r => r.username === values.username);
-    if (role) {
-      localStorage.setItem('user', JSON.stringify({
-        username: values.username,
-        role: role.key,
-        roleName: role.name
-      }));
+  const handleLogin = async (values: { username: string; password: string }) => {
+    const success = await login(values);
+    if (success) {
       message.success('登录成功');
       navigate('/home');
-    } else {
-      message.error('用户名或密码错误');
     }
   };
 
@@ -61,38 +72,40 @@ const Login: React.FC = () => {
       </div>
 
       <div className={styles.loginContent}>
-        <div className={styles.loginFormCard}>
-          <h2 className={styles.formTitle}>用户登录</h2>
-          <p className={styles.formDesc}>请输入用户名和密码登录系统</p>
+        <Spin spinning={isLoading} tip="登录中...">
+          <div className={styles.loginFormCard}>
+            <h2 className={styles.formTitle}>用户登录</h2>
+            <p className={styles.formDesc}>请输入用户名和密码登录系统</p>
 
-          <Form
-            form={form}
-            onFinish={handleLogin}
-            layout="vertical"
-          >
-            <Form.Item
-              label="用户名"
-              name="username"
-              rules={[{ required: true, message: '请输入用户名' }]}
+            <Form
+              form={form}
+              onFinish={handleLogin}
+              layout="vertical"
             >
-              <Input placeholder="请输入用户名" size="large" />
-            </Form.Item>
+              <Form.Item
+                label="用户名"
+                name="username"
+                rules={[{ required: true, message: '请输入用户名' }]}
+              >
+                <Input placeholder="请输入用户名" size="large" disabled={isLoading} />
+              </Form.Item>
 
-            <Form.Item
-              label="密码"
-              name="password"
-              rules={[{ required: true, message: '请输入密码' }]}
-            >
-              <Input.Password placeholder="请输入密码" size="large" />
-            </Form.Item>
+              <Form.Item
+                label="密码"
+                name="password"
+                rules={[{ required: true, message: '请输入密码' }]}
+              >
+                <Input.Password placeholder="请输入密码" size="large" disabled={isLoading} />
+              </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block size="large">
-                登录
-              </Button>
-            </Form.Item>
-          </Form>
-        </div>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" block size="large" loading={isLoading}>
+                  登录
+                </Button>
+              </Form.Item>
+            </Form>
+          </div>
+        </Spin>
 
         <div className={styles.quickLoginCard}>
           <h2 className={styles.formTitle}>快速登录</h2>
@@ -105,12 +118,13 @@ const Login: React.FC = () => {
               if (role) handleRoleSelect(role);
             }}
             className={styles.roleList}
+            disabled={isLoading}
           >
             {roles.map(role => (
               <div
                 key={role.key}
                 className={`${styles.roleItem} ${selectedRole === role.key ? styles.roleItemSelected : ''}`}
-                onClick={() => handleRoleSelect(role)}
+                onClick={() => !isLoading && handleRoleSelect(role)}
               >
                 <Radio value={role.key}>
                   <div className={styles.roleInfo}>

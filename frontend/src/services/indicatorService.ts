@@ -118,3 +118,80 @@ export async function updateIndicator(
 export async function deleteIndicator(systemId: string, indicatorId: string): Promise<void> {
   return del(`/indicator-systems/${systemId}/indicators/${indicatorId}`);
 }
+
+// ==================== 数据指标-评估要素关联 ====================
+
+// 要素关联类型
+export interface ElementAssociation {
+  id: string;
+  dataIndicatorId: string;
+  elementId: string;
+  mappingType: 'primary' | 'reference';
+  description: string;
+  createdBy?: string;
+  createdAt?: string;
+  // 关联的要素信息
+  elementCode: string;
+  elementName: string;
+  elementType: '基础要素' | '派生要素';
+  dataType: string;
+  formula?: string;
+  libraryId: string;
+  libraryName: string;
+}
+
+// 数据指标及其要素关联
+export interface DataIndicatorWithElements {
+  id: string;
+  code: string;
+  name: string;
+  threshold: string;
+  description: string;
+  indicatorId: string;
+  indicatorCode: string;
+  indicatorName: string;
+  elements: ElementAssociation[];
+}
+
+// 获取数据指标的要素关联列表
+export async function getDataIndicatorElements(dataIndicatorId: string): Promise<ElementAssociation[]> {
+  return get<ElementAssociation[]>(`/data-indicators/${dataIndicatorId}/elements`);
+}
+
+// 添加数据指标-要素关联
+export async function addDataIndicatorElement(
+  dataIndicatorId: string,
+  data: { elementId: string; mappingType?: string; description?: string }
+): Promise<{ id: string }> {
+  return post<{ id: string }>(`/data-indicators/${dataIndicatorId}/elements`, data);
+}
+
+// 更新数据指标-要素关联
+export async function updateDataIndicatorElement(
+  dataIndicatorId: string,
+  associationId: string,
+  data: { mappingType?: string; description?: string }
+): Promise<void> {
+  return put(`/data-indicators/${dataIndicatorId}/elements/${associationId}`, data);
+}
+
+// 删除数据指标-要素关联
+export async function deleteDataIndicatorElement(
+  dataIndicatorId: string,
+  associationId: string
+): Promise<void> {
+  return del(`/data-indicators/${dataIndicatorId}/elements/${associationId}`);
+}
+
+// 批量保存数据指标-要素关联
+export async function saveDataIndicatorElements(
+  dataIndicatorId: string,
+  associations: Array<{ elementId: string; mappingType?: string; description?: string }>
+): Promise<void> {
+  return put(`/data-indicators/${dataIndicatorId}/elements`, { associations });
+}
+
+// 获取指标体系下所有数据指标及其要素关联
+export async function getSystemDataIndicatorElements(systemId: string): Promise<DataIndicatorWithElements[]> {
+  return get<DataIndicatorWithElements[]>(`/indicator-systems/${systemId}/data-indicator-elements`);
+}

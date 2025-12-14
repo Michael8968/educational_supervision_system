@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { indicatorSystemRules, listQueryRules, idParamRules } = require('../middleware/validate');
 
 // 数据库连接将在index.js中注入
 let db = null;
@@ -61,7 +62,7 @@ router.get('/indicator-systems/:id', (req, res) => {
 });
 
 // 创建指标体系
-router.post('/indicator-systems', (req, res) => {
+router.post('/indicator-systems', indicatorSystemRules.create, (req, res) => {
   try {
     const { name, type, target, tags, description, attachments } = req.body;
     const id = generateId();
@@ -80,7 +81,7 @@ router.post('/indicator-systems', (req, res) => {
 });
 
 // 更新指标体系
-router.put('/indicator-systems/:id', (req, res) => {
+router.put('/indicator-systems/:id', indicatorSystemRules.update, (req, res) => {
   try {
     const { name, type, target, tags, description, attachments, status } = req.body;
     const timestamp = now();
@@ -344,6 +345,196 @@ router.delete('/indicator-systems/:systemId/indicators/:indicatorId', (req, res)
       .run(deleteCount, timestamp, req.params.systemId);
 
     res.json({ code: 200, message: '删除成功' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// ==================== 数据指标-评估要素关联 ====================
+
+// 获取数据指标的要素关联列表
+router.get('/data-indicators/:dataIndicatorId/elements', (req, res) => {
+  try {
+    const associations = db.prepare(`
+      SELECT
+        die.id, die.data_indicator_id as dataIndicatorId, die.element_id as elementId,
+        die.mapping_type as mappingType, die.description,
+        die.created_by as createdBy, die.created_at as createdAt,
+        e.code as elementCode, e.name as elementName, e.element_type as elementType,
+        e.data_type as dataType, e.formula,
+        el.id as libraryId, el.name as libraryName
+      FROM data_indicator_elements die
+      JOIN elements e ON die.element_id = e.id
+      JOIN element_libraries el ON e.library_id = el.id
+      WHERE die.data_indicator_id = ?
+      ORDER BY die.created_at DESC
+    `).all(req.params.dataIndicatorId);
+
+    res.json({ code: 200, data: associations });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 添加数据指标-要素关联
+router.post('/data-indicators/:dataIndicatorId/elements', (req, res) => {
+  try {
+    const { elementId, mappingType, description } = req.body;
+    const dataIndicatorId = req.params.dataIndicatorId;
+    const id = generateId();
+    const timestamp = now();
+
+    // 检查数据指标是否存在
+    const indicator = db.prepare('SELECT id FROM data_indicators WHERE id = ?').get(dataIndicatorId);
+    if (!indicator) {
+      return res.status(404).json({ code: 404, message: '数据指标不存在' });
+    }
+
+    // 检查要素是否存在
+    const element = db.prepare('SELECT id FROM elements WHERE id = ?').get(elementId);
+    if (!element) {
+      return res.status(404).json({ code: 404, message: '要素不存在' });
+    }
+
+    // 检查是否已存在关联
+    const existing = db.prepare(`
+      SELECT id FROM data_indicator_elements WHERE data_indicator_id = ? AND element_id = ?
+    `).get(dataIndicatorId, elementId);
+    if (existing) {
+      return res.status(400).json({ code: 400, message: '该关联已存在' });
+    }
+
+    db.prepare(`
+      INSERT INTO data_indicator_elements (id, data_indicator_id, element_id, mapping_type, description, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)
+    `).run(id, dataIndicatorId, elementId, mappingType || 'primary', description || '', timestamp, timestamp);
+
+    res.json({ code: 200, data: { id }, message: '关联成功' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 更新数据指标-要素关联
+router.put('/data-indicators/:dataIndicatorId/elements/:associationId', (req, res) => {
+  try {
+    const { mappingType, description } = req.body;
+    const timestamp = now();
+
+    const result = db.prepare(`
+      UPDATE data_indicator_elements SET mapping_type = ?, description = ?, updated_at = ?
+      WHERE id = ? AND data_indicator_id = ?
+    `).run(mappingType, description || '', timestamp, req.params.associationId, req.params.dataIndicatorId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ code: 404, message: '关联不存在' });
+    }
+
+    res.json({ code: 200, message: '更新成功' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 删除数据指标-要素关联
+router.delete('/data-indicators/:dataIndicatorId/elements/:associationId', (req, res) => {
+  try {
+    const result = db.prepare(`
+      DELETE FROM data_indicator_elements WHERE id = ? AND data_indicator_id = ?
+    `).run(req.params.associationId, req.params.dataIndicatorId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ code: 404, message: '关联不存在' });
+    }
+
+    res.json({ code: 200, message: '删除成功' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 批量保存数据指标-要素关联
+router.put('/data-indicators/:dataIndicatorId/elements', (req, res) => {
+  const dataIndicatorId = req.params.dataIndicatorId;
+  const associations = req.body.associations || [];
+  const timestamp = now();
+
+  try {
+    const transaction = db.transaction(() => {
+      // 删除现有关联
+      db.prepare('DELETE FROM data_indicator_elements WHERE data_indicator_id = ?').run(dataIndicatorId);
+
+      // 插入新关联
+      const insert = db.prepare(`
+        INSERT INTO data_indicator_elements (id, data_indicator_id, element_id, mapping_type, description, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)
+      `);
+
+      associations.forEach(assoc => {
+        insert.run(
+          assoc.id || generateId(),
+          dataIndicatorId,
+          assoc.elementId,
+          assoc.mappingType || 'primary',
+          assoc.description || '',
+          timestamp,
+          timestamp
+        );
+      });
+    });
+
+    transaction();
+    res.json({ code: 200, message: '保存成功' });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 获取指标体系下所有数据指标及其要素关联
+router.get('/indicator-systems/:systemId/data-indicator-elements', (req, res) => {
+  try {
+    const systemId = req.params.systemId;
+
+    // 获取该指标体系下所有数据指标
+    const dataIndicators = db.prepare(`
+      SELECT di.id, di.code, di.name, di.threshold, di.description,
+             i.id as indicatorId, i.code as indicatorCode, i.name as indicatorName
+      FROM data_indicators di
+      JOIN indicators i ON di.indicator_id = i.id
+      WHERE i.system_id = ?
+      ORDER BY i.sort_order, di.sort_order
+    `).all(systemId);
+
+    // 获取所有关联
+    const associations = db.prepare(`
+      SELECT
+        die.id, die.data_indicator_id as dataIndicatorId, die.element_id as elementId,
+        die.mapping_type as mappingType, die.description,
+        e.code as elementCode, e.name as elementName, e.element_type as elementType,
+        e.data_type as dataType, e.formula,
+        el.id as libraryId, el.name as libraryName
+      FROM data_indicator_elements die
+      JOIN elements e ON die.element_id = e.id
+      JOIN element_libraries el ON e.library_id = el.id
+      JOIN data_indicators di ON die.data_indicator_id = di.id
+      JOIN indicators i ON di.indicator_id = i.id
+      WHERE i.system_id = ?
+    `).all(systemId);
+
+    // 构建映射
+    const assocMap = {};
+    associations.forEach(a => {
+      if (!assocMap[a.dataIndicatorId]) assocMap[a.dataIndicatorId] = [];
+      assocMap[a.dataIndicatorId].push(a);
+    });
+
+    // 组装结果
+    const result = dataIndicators.map(di => ({
+      ...di,
+      elements: assocMap[di.id] || []
+    }));
+
+    res.json({ code: 200, data: result });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
   }

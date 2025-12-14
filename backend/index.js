@@ -3,6 +3,9 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
+// 中间件
+const { loginRules } = require('./middleware/validate');
+
 // 路由模块
 const { router: indicatorRoutes, setDb: setIndicatorDb } = require('./routes/indicators');
 const { router: toolRoutes, setDb: setToolDb } = require('./routes/tools');
@@ -83,7 +86,7 @@ if (db) {
 }
 
 // 登录接口
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginRules, (req, res) => {
   const { username, password } = req.body;
 
   // 预设用户

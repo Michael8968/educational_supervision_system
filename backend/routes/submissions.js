@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { projectRules, submissionRules, idParamRules } = require('../middleware/validate');
 
 let db = null;
 
@@ -75,7 +76,7 @@ router.get('/projects/:id', (req, res) => {
 });
 
 // 创建项目
-router.post('/projects', (req, res) => {
+router.post('/projects', projectRules.create, (req, res) => {
   try {
     const { name, keywords, description, indicatorSystemId, startDate, endDate } = req.body;
     const id = generateId();
