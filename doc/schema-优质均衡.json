@@ -1,5 +1,52 @@
 [
   {
+    "id": "_split_config",
+    "type": "config",
+    "label": "一贯制学校/完全中学数据拆分配置",
+    "description": "网络多媒体教室数、教学仪器设备值、体育运动场馆面积、教学及辅助用房面积等四项指标需要做拆分处理",
+    "splitRules": {
+      "nine_year": {
+        "label": "九年一贯制学校",
+        "description": "根据小学、初中各自规模，按照一个小学生:一个初中生=1:1.1的比例进行拆分",
+        "weights": {
+          "primary": 1.0,
+          "junior": 1.1
+        },
+        "formula": "小学部占比 = (小学生人数 * 1.0) / (小学生人数 * 1.0 + 初中生人数 * 1.1)"
+      },
+      "complete_secondary": {
+        "label": "完全中学",
+        "description": "根据初中、高中各自规模，按照一个初中生:一个高中生=1:1.2的比例进行拆分",
+        "weights": {
+          "junior": 1.0,
+          "senior": 1.2
+        },
+        "formula": "初中部占比 = (初中生人数 * 1.0) / (初中生人数 * 1.0 + 高中生人数 * 1.2)"
+      },
+      "twelve_year": {
+        "label": "十二年一贯制学校",
+        "description": "根据小学、初中、高中各自规模，按照一个小学生:一个初中生:一个高中生=1:1.1:1.32的比例进行拆分",
+        "weights": {
+          "primary": 1.0,
+          "junior": 1.1,
+          "senior": 1.32
+        },
+        "formula": "小学部占比 = (小学生人数 * 1.0) / (小学生人数 * 1.0 + 初中生人数 * 1.1 + 高中生人数 * 1.32)"
+      }
+    },
+    "splitFields": [
+      "teaching_auxiliary_area",
+      "sports_venue_total_area",
+      "teaching_equipment_value",
+      "multimedia_classroom_count"
+    ],
+    "studentCountFields": {
+      "primary": "primary_student_count",
+      "junior": "junior_student_count",
+      "senior": "senior_student_count"
+    }
+  },
+  {
     "id": "group_school_type",
     "type": "group",
     "label": "学校类型信息",
@@ -540,7 +587,34 @@
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "autoSplit": {
+          "enabled": true,
+          "targetFields": {
+            "primary": "primary_teaching_auxiliary_area",
+            "junior": "junior_teaching_auxiliary_area"
+          },
+          "description": "一贯制学校和完全中学按学生人数加权比例自动拆分"
+        }
+      },
+      {
+        "id": "sports_venue_total_area",
+        "type": "number",
+        "label": "体育运动场馆总面积",
+        "placeholder": "请输入学校体育运动场馆总面积（含运动场地、室内体育用房、周边场馆等）",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "平方米",
+        "helpText": "包含运动场地、校内其他专用运动场地、室内体育用房、就近便利到达的校外周边体育场馆面积之和",
+        "autoSplit": {
+          "enabled": true,
+          "targetFields": {
+            "primary": "primary_sports_venue_area",
+            "junior": "junior_sports_venue_area"
+          },
+          "description": "一贯制学校和完全中学按学生人数加权比例自动拆分"
+        }
       },
       {
         "id": "sports_field_area",
@@ -548,9 +622,10 @@
         "label": "运动场地面积",
         "placeholder": "请输入学校运动场地面积",
         "width": "25%",
-        "required": true,
+        "required": false,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "helpText": "明细项，用于汇总到体育运动场馆总面积"
       },
       {
         "id": "other_sports_field_area",
@@ -558,9 +633,10 @@
         "label": "校内其他专用运动场地面积",
         "placeholder": "请输入学校校内其他专用运动场地面积",
         "width": "25%",
-        "required": true,
+        "required": false,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "helpText": "明细项，用于汇总到体育运动场馆总面积"
       },
       {
         "id": "indoor_sports_area",
@@ -568,9 +644,10 @@
         "label": "室内体育用房面积",
         "placeholder": "请输入学校室内体育用房面积",
         "width": "25%",
-        "required": true,
+        "required": false,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "helpText": "明细项，用于汇总到体育运动场馆总面积"
       },
       {
         "id": "nearby_sports_venue_area",
@@ -578,9 +655,10 @@
         "label": "就近便利到达的校外周边体育场馆面积",
         "placeholder": "请输入学校就近便利到达的校外周边体育场馆面积",
         "width": "25%",
-        "required": true,
+        "required": false,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "helpText": "明细项，用于汇总到体育运动场馆总面积"
       },
       {
         "id": "teaching_equipment_value",
@@ -590,7 +668,15 @@
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",
-        "unit": "万元"
+        "unit": "万元",
+        "autoSplit": {
+          "enabled": true,
+          "targetFields": {
+            "primary": "primary_teaching_equipment_value",
+            "junior": "junior_teaching_equipment_value"
+          },
+          "description": "一贯制学校和完全中学按学生人数加权比例自动拆分"
+        }
       },
       {
         "id": "multimedia_classroom_count",
@@ -600,7 +686,15 @@
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
-        "unit": "间"
+        "unit": "间",
+        "autoSplit": {
+          "enabled": true,
+          "targetFields": {
+            "primary": "primary_multimedia_classroom_count",
+            "junior": "junior_multimedia_classroom_count"
+          },
+          "description": "一贯制学校和完全中学按学生人数加权比例自动拆分"
+        }
       }
     ]
   },
@@ -742,39 +836,66 @@
       {
         "id": "divider_primary_facility",
         "type": "divider",
-        "label": "小学部场地设施",
+        "label": "小学部场地设施（自动拆分计算）",
         "width": "100%",
-        "required": false
+        "required": false,
+        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写"
       },
       {
         "id": "primary_teaching_auxiliary_area",
         "type": "number",
         "label": "小学部教学及辅助用房面积",
-        "placeholder": "请输入小学部教学及辅助用房面积",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "sourceField": "teaching_auxiliary_area",
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
       },
       {
-        "id": "primary_sports_field_area",
+        "id": "primary_sports_venue_area",
         "type": "number",
-        "label": "小学部运动场地面积",
-        "placeholder": "请输入小学部运动场地面积",
+        "label": "小学部体育运动场馆面积",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "sourceField": "sports_venue_total_area",
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
       },
       {
         "id": "primary_teaching_equipment_value",
         "type": "number",
         "label": "小学部教学仪器设备资产值",
-        "placeholder": "请输入小学部教学仪器设备资产值（账面原值）",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "万元"
+        "unit": "万元",
+        "sourceField": "teaching_equipment_value",
+        "helpText": "根据学校总资产值按学生人数加权比例自动拆分"
+      },
+      {
+        "id": "primary_multimedia_classroom_count",
+        "type": "number",
+        "label": "小学部网络多媒体教室间数",
+        "placeholder": "系统自动计算",
+        "width": "25%",
+        "required": false,
+        "readonly": true,
+        "computed": true,
+        "decimalPlaces": "整数",
+        "unit": "间",
+        "sourceField": "multimedia_classroom_count",
+        "helpText": "根据学校总间数按学生人数加权比例自动拆分"
       },
       {
         "id": "primary_computer_count",
@@ -1017,39 +1138,66 @@
       {
         "id": "divider_junior_facility",
         "type": "divider",
-        "label": "初中部场地设施",
+        "label": "初中部场地设施（自动拆分计算）",
         "width": "100%",
-        "required": false
+        "required": false,
+        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写"
       },
       {
         "id": "junior_teaching_auxiliary_area",
         "type": "number",
         "label": "初中部教学及辅助用房面积",
-        "placeholder": "请输入初中部教学及辅助用房面积",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "sourceField": "teaching_auxiliary_area",
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
       },
       {
-        "id": "junior_sports_field_area",
+        "id": "junior_sports_venue_area",
         "type": "number",
-        "label": "初中部运动场地面积",
-        "placeholder": "请输入初中部运动场地面积",
+        "label": "初中部体育运动场馆面积",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "平方米"
+        "unit": "平方米",
+        "sourceField": "sports_venue_total_area",
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
       },
       {
         "id": "junior_teaching_equipment_value",
         "type": "number",
         "label": "初中部教学仪器设备资产值",
-        "placeholder": "请输入初中部教学仪器设备资产值（账面原值）",
+        "placeholder": "系统自动计算",
         "width": "25%",
-        "required": true,
+        "required": false,
+        "readonly": true,
+        "computed": true,
         "decimalPlaces": "2位小数",
-        "unit": "万元"
+        "unit": "万元",
+        "sourceField": "teaching_equipment_value",
+        "helpText": "根据学校总资产值按学生人数加权比例自动拆分"
+      },
+      {
+        "id": "junior_multimedia_classroom_count",
+        "type": "number",
+        "label": "初中部网络多媒体教室间数",
+        "placeholder": "系统自动计算",
+        "width": "25%",
+        "required": false,
+        "readonly": true,
+        "computed": true,
+        "decimalPlaces": "整数",
+        "unit": "间",
+        "sourceField": "multimedia_classroom_count",
+        "helpText": "根据学校总间数按学生人数加权比例自动拆分"
       },
       {
         "id": "junior_computer_count",
@@ -1616,20 +1764,42 @@
         "unit": "万元"
       },
       {
-        "id": "teacher_training_funding",
+        "id": "public_funding_budget",
         "type": "number",
-        "label": "上年度教师培训经费决算总额",
-        "placeholder": "请输入学校上年度教师培训经费决算总额",
+        "label": "上年度公用经费预算总额",
+        "placeholder": "请输入学校上年度公用经费预算总额",
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",
-        "unit": "万元"
+        "unit": "万元",
+        "helpText": "用于计算生均公用经费"
       },
       {
         "id": "public_funding_settlement",
         "type": "number",
         "label": "上年度公用经费决算总额",
         "placeholder": "请输入学校上年度公用经费决算总额",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "万元"
+      },
+      {
+        "id": "teacher_training_budget",
+        "type": "number",
+        "label": "上年度教师培训经费预算总额",
+        "placeholder": "请输入学校上年度教师培训经费预算总额",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "万元",
+        "helpText": "用于计算教师培训经费占比（培训经费预算÷公用经费预算×100%≥5%）"
+      },
+      {
+        "id": "teacher_training_funding",
+        "type": "number",
+        "label": "上年度教师培训经费决算总额",
+        "placeholder": "请输入学校上年度教师培训经费决算总额",
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",

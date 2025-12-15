@@ -1616,20 +1616,42 @@
         "unit": "万元"
       },
       {
-        "id": "teacher_training_funding",
+        "id": "public_funding_budget",
         "type": "number",
-        "label": "上年度教师培训经费决算总额",
-        "placeholder": "请输入学校上年度教师培训经费决算总额",
+        "label": "上年度公用经费预算总额",
+        "placeholder": "请输入学校上年度公用经费预算总额",
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",
-        "unit": "万元"
+        "unit": "万元",
+        "helpText": "用于计算生均公用经费"
       },
       {
         "id": "public_funding_settlement",
         "type": "number",
         "label": "上年度公用经费决算总额",
         "placeholder": "请输入学校上年度公用经费决算总额",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "万元"
+      },
+      {
+        "id": "teacher_training_budget",
+        "type": "number",
+        "label": "上年度教师培训经费预算总额",
+        "placeholder": "请输入学校上年度教师培训经费预算总额",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "万元",
+        "helpText": "用于计算教师培训经费占比（培训经费预算÷公用经费预算×100%≥5%）"
+      },
+      {
+        "id": "teacher_training_funding",
+        "type": "number",
+        "label": "上年度教师培训经费决算总额",
+        "placeholder": "请输入学校上年度教师培训经费决算总额",
         "width": "25%",
         "required": true,
         "decimalPlaces": "2位小数",
