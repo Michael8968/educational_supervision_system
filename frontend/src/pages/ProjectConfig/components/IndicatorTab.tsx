@@ -41,7 +41,8 @@ import styles from '../index.module.css';
 import { indicatorTrees, dataIndicatorElements } from '../../../mock/data';
 
 // Mock 模式开关
-const USE_MOCK = process.env.REACT_APP_USE_MOCK === 'true' || true;
+// 通过环境变量 REACT_APP_USE_MOCK=true 启用 Mock 模式，默认使用 API
+const USE_MOCK = process.env.REACT_APP_USE_MOCK === 'true';
 
 interface IndicatorTabProps {
   projectId: string;

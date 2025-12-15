@@ -73,6 +73,9 @@ export interface Element {
   elementType: '基础要素' | '派生要素';
   dataType: '文本' | '数字' | '日期' | '时间' | '逻辑' | '数组' | '文件';
   formula?: string;
+  toolId?: string;
+  fieldId?: string;
+  fieldLabel?: string;
 }
 
 // ==================== 采集工具 API ====================

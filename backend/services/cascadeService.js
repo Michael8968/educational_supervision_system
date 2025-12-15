@@ -77,13 +77,12 @@ const SET_NULL_MAP = {
 
 /**
  * 递归获取所有待删除的记录 ID
- * @param {object} client - 数据库客户端
  * @param {string} table - 表名
  * @param {string} id - 记录 ID
  * @param {Map} visited - 已访问的记录（防止循环）
  * @returns {Promise<Map<string, Set<string>>>} 表名 -> ID 集合的映射
  */
-async function collectCascadeIds(client, table, id, visited = new Map()) {
+async function collectCascadeIds(table, id, visited = new Map()) {
   const key = `${table}:${id}`;
   if (visited.has(key)) {
     return new Map();
@@ -106,16 +105,20 @@ async function collectCascadeIds(client, table, id, visited = new Map()) {
 
   // 处理每个级联关系
   for (const cascade of cascades) {
-    // 查询所有需要级联删除的子记录
-    const childResult = await client.query(
-      `SELECT id FROM ${cascade.table} WHERE ${cascade.field} = $1`,
-      [id]
-    );
+    // 使用 Supabase Data API 查询子记录（避免 exec_sql 仅支持 SELECT 的限制导致写操作异常）
+    const { data: children, error } = await db
+      .from(cascade.table)
+      .select('id')
+      .eq(cascade.field, id);
 
-    for (const row of childResult.rows) {
+    if (error) {
+      throw new Error(`Database query failed: ${error.message}`);
+    }
+
+    for (const row of children || []) {
       // 如果需要递归级联，则收集子记录的级联
       if (cascade.cascade) {
-        const childCascades = await collectCascadeIds(client, cascade.table, row.id, visited);
+        const childCascades = await collectCascadeIds(cascade.table, row.id, visited);
         // 合并结果
         for (const [t, ids] of childCascades) {
           if (!result.has(t)) {
@@ -145,65 +148,72 @@ async function collectCascadeIds(client, table, id, visited = new Map()) {
  * @returns {Promise<{success: boolean, deleted: object}>}
  */
 async function cascadeDelete(table, id) {
-  return db.transaction(async (client) => {
-    // 1. 收集所有需要删除的记录
-    const toDelete = await collectCascadeIds(client, table, id);
+  // 1. 收集所有需要删除的记录
+  const toDelete = await collectCascadeIds(table, id);
 
-    // 2. 处理 SET NULL 关系
-    const setNulls = SET_NULL_MAP[table];
-    if (setNulls) {
-      for (const setNull of setNulls) {
-        await client.query(
-          `UPDATE ${setNull.table} SET ${setNull.field} = NULL WHERE ${setNull.field} = $1`,
-          [id]
-        );
+  // 2. 处理 SET NULL 关系（使用 Data API，避免 exec_sql 包裹导致 UPDATE 失败）
+  const setNulls = SET_NULL_MAP[table];
+  if (setNulls) {
+    for (const setNull of setNulls) {
+      const { error } = await db
+        .from(setNull.table)
+        .update({ [setNull.field]: null })
+        .eq(setNull.field, id);
+
+      if (error) {
+        throw new Error(`Database query failed: ${error.message}`);
       }
     }
+  }
 
-    // 3. 按照依赖顺序删除（先删子表，后删父表）
-    // 定义删除顺序（子表在前，父表在后）
-    const deleteOrder = [
-      'compliance_results',
-      'rule_actions',
-      'rule_conditions',
-      'compliance_rules',
-      'submission_materials',
-      'submissions',
-      'district_statistics',
-      'school_indicator_data',
-      'project_tools',
-      'field_mappings',
-      'data_indicator_elements',
-      'threshold_standards',
-      'data_indicators',
-      'supporting_materials',
-      'indicators',
-      'elements',
-      'element_libraries',
-      'schools',
-      'districts',
-      'data_tools',
-      'projects',
-      'indicator_systems'
-    ];
+  // 3. 按照依赖顺序删除（先删子表，后删父表）
+  // 注意：当前库未启用外键约束，此顺序主要用于保持逻辑一致性
+  const deleteOrder = [
+    'compliance_results',
+    'rule_actions',
+    'rule_conditions',
+    'compliance_rules',
+    'submission_materials',
+    'submissions',
+    'district_statistics',
+    'school_indicator_data',
+    'project_tools',
+    'field_mappings',
+    'data_indicator_elements',
+    'threshold_standards',
+    'data_indicators',
+    'supporting_materials',
+    'indicators',
+    'elements',
+    'element_libraries',
+    'schools',
+    'districts',
+    'data_tools',
+    'projects',
+    'indicator_systems',
+  ];
 
-    const deleted = {};
+  const deleted = {};
 
-    for (const t of deleteOrder) {
-      const ids = toDelete.get(t);
-      if (ids && ids.size > 0) {
-        const idArray = Array.from(ids);
-        const placeholders = idArray.map((_, i) => `$${i + 1}`).join(', ');
-        const result = await client.query(
-          `DELETE FROM ${t} WHERE id IN (${placeholders})`,
-          idArray
-        );
-        deleted[t] = result.rowCount;
+  for (const t of deleteOrder) {
+    const ids = toDelete.get(t);
+    if (ids && ids.size > 0) {
+      const idArray = Array.from(ids);
+      const { data, error } = await db
+        .from(t)
+        .delete()
+        .in('id', idArray)
+        .select('id');
+
+      if (error) {
+        throw new Error(`Database query failed: ${error.message}`);
       }
-    }
 
-    return { success: true, deleted };
-  });
+      deleted[t] = data?.length || 0;
+    }
+  }
+
+  return { success: true, deleted };
 }
 
 /**

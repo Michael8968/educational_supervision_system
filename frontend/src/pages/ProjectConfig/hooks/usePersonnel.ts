@@ -2,97 +2,179 @@
  * 人员管理 Hook
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { message, Modal } from 'antd';
+import * as personnelService from '../../../services/personnelService';
 import type { Personnel, ImportRecord, PersonnelFormValues } from '../types';
-
-// Mock 人员数据
-const mockPersonnel: Record<string, Personnel[]> = {
-  'system_admin': [
-    { id: '1', name: 'AAA', organization: '沈阳市教育局', phone: '', idCard: '', role: 'system_admin' },
-  ],
-  'project_manager': [
-    { id: '2', name: '111', organization: '沈阳市教育局', phone: '13900000111', idCard: '210100********1111', role: 'project_manager' },
-    { id: '3', name: '222', organization: '沈阳市教育督导室', phone: '13900000222', idCard: '210100********2222', role: 'project_manager' },
-  ],
-  'data_collector': [
-    { id: '4', name: '333', organization: '和平区教育局', phone: '13900000333', idCard: '210100********3333', role: 'data_collector' },
-    { id: '5', name: '444', organization: '沈河区教育局', phone: '13900000444', idCard: '210100********4444', role: 'data_collector' },
-  ],
-  'expert': [
-    { id: '6', name: '555', organization: '东北大学', phone: '13900000555', idCard: '210100********5555', role: 'expert' },
-    { id: '7', name: '666', organization: '辽宁大学', phone: '13900000666', idCard: '210100********6666', role: 'expert' },
-  ],
-};
-
-// Mock 导入数据
-const mockImportData: ImportRecord[] = [
-  { id: '1', status: 'confirmed', role: '数据采集员', name: '王明', organization: '铁西区教育局', phone: '13900001001', idCard: '210100********1001' },
-  { id: '2', status: 'name_conflict', role: '数据采集员', name: '李华', organization: '大东区教育局新址', phone: '13900009002', idCard: '210100********1002' },
-  { id: '3', status: 'new', role: '项目管理员', name: '陈新', organization: '沈阳市督导办', phone: '13900009001', idCard: '210100********9001' },
-  { id: '4', status: 'id_conflict', role: '数据采集员', name: '张丽丽', organization: '沈北新区教育局', phone: '13900001005', idCard: '210100********1005' },
-  { id: '5', status: 'confirmed', role: '评估专家', name: '张教授', organization: '东北大学', phone: '13900002001', idCard: '210100********2001' },
-  { id: '6', status: 'phone_conflict', role: '数据采集员', name: '孙小磊', organization: '法库县教育局', phone: '13900001010', idCard: '210100********1010' },
-  { id: '7', status: 'name_conflict', role: '项目管理员', name: '111', organization: '沈阳市教育局', phone: '13900001111', idCard: '210100********9999' },
-  { id: '8', status: 'name_conflict', role: '评估专家', name: '李教授', organization: '沈阳工业大学', phone: '13900002008', idCard: '210100********2008' },
-];
 
 export type ImportFilter = 'all' | 'confirmed' | 'new' | 'conflict';
 
-export function usePersonnel() {
-  const [personnel, setPersonnel] = useState<Record<string, Personnel[]>>(mockPersonnel);
+// 角色映射：后端角色 -> 前端角色key
+const backendToFrontendRole: Record<string, string> = {
+  leader: 'project_manager',
+  member: 'data_collector',
+  expert: 'expert',
+  observer: 'system_admin',
+};
+
+// 角色映射：前端角色key -> 后端角色
+const frontendToBackendRole: Record<string, string> = {
+  system_admin: 'observer',
+  project_manager: 'leader',
+  data_collector: 'member',
+  expert: 'expert',
+};
+
+export function usePersonnel(projectId?: string) {
+  const [personnel, setPersonnel] = useState<Record<string, Personnel[]>>({});
   const [personnelSearch, setPersonnelSearch] = useState('');
   const [importData, setImportData] = useState<ImportRecord[]>([]);
   const [importFilter, setImportFilter] = useState<ImportFilter>('all');
+  const [loading, setLoading] = useState(false);
+
+  // 加载人员数据
+  const loadPersonnel = useCallback(async () => {
+    if (!projectId) return;
+
+    try {
+      setLoading(true);
+      const data = await personnelService.getPersonnel(projectId);
+
+      // 按角色分组
+      const grouped: Record<string, Personnel[]> = {
+        system_admin: [],
+        project_manager: [],
+        data_collector: [],
+        expert: [],
+      };
+
+      data.forEach(person => {
+        const frontendRole = backendToFrontendRole[person.role] || person.role;
+        const mappedPerson: Personnel = {
+          id: person.id,
+          name: person.name,
+          organization: person.organization,
+          phone: person.phone,
+          idCard: person.idCard,
+          role: frontendRole,
+        };
+
+        if (!grouped[frontendRole]) {
+          grouped[frontendRole] = [];
+        }
+        grouped[frontendRole].push(mappedPerson);
+      });
+
+      setPersonnel(grouped);
+    } catch (error) {
+      console.error('加载人员数据失败:', error);
+      message.error('加载人员数据失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  // 初始加载
+  useEffect(() => {
+    loadPersonnel();
+  }, [loadPersonnel]);
 
   // 添加人员
-  const addPerson = useCallback((values: PersonnelFormValues) => {
-    const newPerson: Personnel = {
-      id: `p-${Date.now()}`,
-      name: values.name,
-      organization: values.organization,
-      phone: values.phone,
-      idCard: values.idCard || '',
-      role: values.role,
-    };
+  const addPerson = useCallback(async (values: PersonnelFormValues) => {
+    if (!projectId) {
+      message.error('项目ID不存在');
+      return;
+    }
 
-    setPersonnel(prev => ({
-      ...prev,
-      [values.role]: [...(prev[values.role] || []), newPerson],
-    }));
+    try {
+      const backendRole = frontendToBackendRole[values.role] || values.role;
 
-    message.success('添加成功');
-  }, []);
+      await personnelService.addPersonnel(projectId, {
+        name: values.name,
+        organization: values.organization,
+        phone: values.phone,
+        idCard: values.idCard || '',
+        role: backendRole as any,
+      });
+
+      message.success('添加成功');
+      loadPersonnel();
+    } catch (error) {
+      console.error('添加人员失败:', error);
+      message.error('添加人员失败');
+    }
+  }, [projectId, loadPersonnel]);
 
   // 删除人员
   const deletePerson = useCallback((person: Personnel) => {
+    if (!projectId) return;
+
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除 "${person.name}" 吗？`,
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
-      onOk: () => {
-        setPersonnel(prev => ({
-          ...prev,
-          [person.role]: prev[person.role]?.filter(p => p.id !== person.id) || [],
-        }));
-        message.success('删除成功');
+      onOk: async () => {
+        try {
+          await personnelService.deletePersonnel(projectId, person.id);
+          message.success('删除成功');
+          loadPersonnel();
+        } catch (error) {
+          console.error('删除人员失败:', error);
+          message.error('删除人员失败');
+        }
       },
     });
-  }, []);
+  }, [projectId, loadPersonnel]);
 
-  // 加载示例导入数据
+  // 加载示例导入数据（模拟文件解析后的预览）
   const loadSampleImportData = useCallback(() => {
+    // 这里实际应该是解析上传的文件
+    const mockImportData: ImportRecord[] = [
+      { id: '1', status: 'confirmed', role: 'data_collector', name: '王明', organization: '铁西区教育局', phone: '13900001001', idCard: '210100********1001' },
+      { id: '2', status: 'name_conflict', role: 'data_collector', name: '李华', organization: '大东区教育局新址', phone: '13900009002', idCard: '210100********1002' },
+      { id: '3', status: 'new', role: 'project_manager', name: '陈新', organization: '沈阳市督导办', phone: '13900009001', idCard: '210100********9001' },
+      { id: '4', status: 'id_conflict', role: 'data_collector', name: '张丽丽', organization: '沈北新区教育局', phone: '13900001005', idCard: '210100********1005' },
+      { id: '5', status: 'confirmed', role: 'expert', name: '张教授', organization: '东北大学', phone: '13900002001', idCard: '210100********2001' },
+    ];
     setImportData(mockImportData);
   }, []);
 
   // 确认导入
-  const confirmImport = useCallback(() => {
+  const confirmImport = useCallback(async () => {
+    if (!projectId) return;
+
     const importableData = importData.filter(r => r.status === 'confirmed' || r.status === 'new');
-    message.success(`成功导入 ${importableData.length} 条记录`);
-    setImportData([]);
-  }, [importData]);
+
+    if (importableData.length === 0) {
+      message.warning('没有可导入的数据');
+      return;
+    }
+
+    try {
+      const personnelToImport = importableData.map(record => ({
+        name: record.name,
+        organization: record.organization,
+        phone: record.phone,
+        idCard: record.idCard,
+        role: (frontendToBackendRole[record.role] || record.role) as 'leader' | 'member' | 'expert' | 'observer',
+      }));
+
+      const result = await personnelService.importPersonnel(projectId, personnelToImport);
+      message.success(`成功导入 ${result.success} 条记录`);
+
+      if (result.failed > 0) {
+        message.warning(`${result.failed} 条记录导入失败`);
+      }
+
+      setImportData([]);
+      loadPersonnel();
+    } catch (error) {
+      console.error('导入失败:', error);
+      message.error('导入失败');
+    }
+  }, [projectId, importData, loadPersonnel]);
 
   // 清空导入数据
   const clearImportData = useCallback(() => {
@@ -143,5 +225,7 @@ export function usePersonnel() {
     confirmImport,
     clearImportData,
     filterPersonnel,
+    loading,
+    loadPersonnel,
   };
 }

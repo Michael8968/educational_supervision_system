@@ -29,11 +29,11 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { dataTools, DataTool, formSchemas } from '../../mock/data';
 import styles from './index.module.css';
 import DataIndicatorSelector from '../../components/DataIndicatorSelector';
 import ElementSelector from '../../components/ElementSelector';
 import * as toolService from '../../services/toolService';
+import type { DataTool } from '../../services/toolService';
 
 // 控件类型定义
 type ControlType =
@@ -251,19 +251,47 @@ const FormToolEdit: React.FC = () => {
   // 表单预览值状态（用于条件显示）
   const [previewFormValues, setPreviewFormValues] = useState<Record<string, any>>({});
 
+  // 加载工具数据
   useEffect(() => {
-    if (id) {
-      const foundTool = dataTools.find(t => t.id === id);
-      if (foundTool) {
-        setTool(foundTool);
+    const loadToolData = async () => {
+      if (!id) return;
+
+      try {
+        // 加载工具信息
+        const toolData = await toolService.getTool(id);
+        setTool(toolData);
+
+        // 加载表单 schema
+        try {
+          const schemaResponse = await toolService.getSchema(id);
+          if (schemaResponse.schema && schemaResponse.schema.length > 0) {
+            setFormFields(schemaResponse.schema as FormField[]);
+          }
+        } catch (schemaError) {
+          // schema 可能不存在，忽略错误
+          console.log('No existing schema found');
+        }
+      } catch (error) {
+        console.error('加载工具数据失败:', error);
+        message.error('加载工具数据失败');
       }
-      // 从 formSchemas 加载已保存的表单字段
-      const schema = formSchemas[id];
-      if (schema && schema.length > 0) {
-        setFormFields(schema);
-      }
-    }
+    };
+
+    loadToolData();
   }, [id]);
+
+  // 保存表单 schema
+  const handleSaveSchema = async () => {
+    if (!id) return;
+
+    try {
+      await toolService.saveToolSchema(id, formFields as any);
+      message.success('保存成功');
+    } catch (error) {
+      console.error('保存失败:', error);
+      message.error('保存失败');
+    }
+  };
 
   // 控件拖拽开始
   const handleControlDragStart = (e: React.DragEvent, controlType: ControlType) => {
@@ -1425,6 +1453,9 @@ const FormToolEdit: React.FC = () => {
                 setDynamicListData({});
                 setPreviewModalVisible(true);
               }}>预览</Button>
+              <Button type="primary" onClick={handleSaveSchema}>
+                保存
+              </Button>
             </div>
           </div>
 

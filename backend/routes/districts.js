@@ -113,14 +113,25 @@ router.post('/districts', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
-    await db.query(`
-      INSERT INTO districts (id, code, name, type, parent_code, sort_order, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `, [id, code, name, type || '市辖区', parentCode || '210100', sortOrder || 0, timestamp, timestamp]);
+    // 使用 Supabase Data API，避免 exec_sql 仅支持 SELECT 导致 INSERT 失败
+    const { data, error } = await db
+      .from('districts')
+      .insert({
+        id,
+        code,
+        name,
+        type: type || '市辖区',
+        parent_code: parentCode || '210100',
+        sort_order: sortOrder || 0,
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -154,20 +165,30 @@ router.put('/districts/:id', async (req, res) => {
 
     const timestamp = now();
 
-    await db.query(`
-      UPDATE districts
-      SET code = COALESCE($1, code),
-          name = COALESCE($2, name),
-          type = COALESCE($3, type),
-          parent_code = COALESCE($4, parent_code),
-          sort_order = COALESCE($5, sort_order),
-          updated_at = $6
-      WHERE id = $7
-    `, [code, name, type, parentCode, sortOrder, timestamp, id]);
+    // 使用 Supabase Data API，避免 exec_sql 对 UPDATE 报错
+    const updates = {
+      ...(code !== undefined ? { code } : {}),
+      ...(name !== undefined ? { name } : {}),
+      ...(type !== undefined ? { type } : {}),
+      ...(parentCode !== undefined ? { parent_code: parentCode } : {}),
+      ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
+      updated_at: timestamp,
+    };
 
-    res.json({ code: 200, message: '更新成功' });
+    const { data, error } = await db
+      .from('districts')
+      .update(updates)
+      .eq('id', id)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -182,15 +203,20 @@ router.delete('/districts/:id', async (req, res) => {
       return res.status(400).json({ code: 400, message: `该区县下有 ${schoolCountResult.rows[0].count} 所学校，无法删除` });
     }
 
-    const result = await db.query('DELETE FROM districts WHERE id = $1', [id]);
+    const { data, error } = await db
+      .from('districts')
+      .delete()
+      .eq('id', id)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '区县不存在' });
     }
 
-    res.json({ code: 200, message: '删除成功' });
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 

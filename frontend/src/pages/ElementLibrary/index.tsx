@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button, Input, Tag, Modal, Form, message, Popconfirm } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Tag, Modal, Form, message, Popconfirm, Spin, Empty } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -12,76 +12,137 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { elementLibraries, elementLibraryStats, elements } from '../../mock/data';
+import * as toolService from '../../services/toolService';
+import type { ElementLibrary as ElementLibraryType, Element } from '../../services/toolService';
 import styles from './index.module.css';
 
 const { Search } = Input;
 
+// 统计数据类型
+interface ElementLibraryStats {
+  total: number;
+  published: number;
+  draft: number;
+  elementCount: number;
+}
+
 const ElementLibrary: React.FC = () => {
   const navigate = useNavigate();
-  const [libraries, setLibraries] = useState(elementLibraries);
+  const [loading, setLoading] = useState(true);
+  const [libraries, setLibraries] = useState<ElementLibraryType[]>([]);
+  const [filteredLibraries, setFilteredLibraries] = useState<ElementLibraryType[]>([]);
+  const [stats, setStats] = useState<ElementLibraryStats>({ total: 0, published: 0, draft: 0, elementCount: 0 });
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
-  const [selectedLibrary, setSelectedLibrary] = useState<typeof elementLibraries[0] | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState<ElementLibraryType | null>(null);
+  const [selectedLibraryElements, setSelectedLibraryElements] = useState<Element[]>([]);
   const [form] = Form.useForm();
 
+  // 加载要素库列表
+  const loadLibraries = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await toolService.getElementLibraries();
+      setLibraries(data);
+      setFilteredLibraries(data);
+
+      // 计算统计数据
+      const totalElements = data.reduce((sum, lib) => sum + (lib.elementCount || 0), 0);
+      setStats({
+        total: data.length,
+        published: data.filter(lib => lib.status === 'published').length,
+        draft: data.filter(lib => lib.status === 'draft').length,
+        elementCount: totalElements,
+      });
+    } catch (error) {
+      console.error('加载要素库列表失败:', error);
+      message.error('加载要素库列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLibraries();
+  }, [loadLibraries]);
+
+  // 搜索
   const handleSearch = (value: string) => {
     if (value) {
-      setLibraries(elementLibraries.filter(lib =>
+      setFilteredLibraries(libraries.filter(lib =>
         lib.name.includes(value) || lib.description.includes(value)
       ));
     } else {
-      setLibraries(elementLibraries);
+      setFilteredLibraries(libraries);
     }
   };
 
-  const handleCreate = (values: { name: string; description: string }) => {
-    const newLibrary = {
-      id: String(libraries.length + 1),
-      name: values.name,
-      description: values.description || '',
-      elementCount: 0,
-      status: 'draft' as const,
-      createdBy: 'admin',
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedBy: 'admin',
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-    setLibraries([newLibrary, ...libraries]);
-    setCreateModalVisible(false);
-    form.resetFields();
-    message.success('创建成功');
+  // 创建要素库
+  const handleCreate = async (values: { name: string; description: string }) => {
+    try {
+      await toolService.createElementLibrary({
+        name: values.name,
+        description: values.description || '',
+      });
+      setCreateModalVisible(false);
+      form.resetFields();
+      message.success('创建成功');
+      loadLibraries();
+    } catch (error) {
+      console.error('创建要素库失败:', error);
+      message.error('创建要素库失败');
+    }
   };
 
-  const handleShowInfo = (library: typeof elementLibraries[0]) => {
+  // 查看基础信息
+  const handleShowInfo = async (library: ElementLibraryType) => {
     setSelectedLibrary(library);
     setInfoModalVisible(true);
+
+    // 加载要素库详情（包含要素）
+    try {
+      const detail = await toolService.getElementLibrary(library.id);
+      setSelectedLibraryElements(detail.elements || []);
+    } catch (error) {
+      console.error('加载要素库详情失败:', error);
+      setSelectedLibraryElements([]);
+    }
   };
 
   // 发布要素库
-  const handlePublish = (libraryId: string) => {
-    setLibraries(prev => prev.map(lib =>
-      lib.id === libraryId
-        ? { ...lib, status: 'published' as const, updatedAt: new Date().toISOString().split('T')[0] }
-        : lib
-    ));
-    message.success('发布成功');
+  const handlePublish = async (libraryId: string) => {
+    try {
+      await toolService.updateElementLibrary(libraryId, { status: 'published' });
+      message.success('发布成功');
+      loadLibraries();
+    } catch (error) {
+      console.error('发布失败:', error);
+      message.error('发布失败');
+    }
   };
 
   // 取消发布
-  const handleUnpublish = (libraryId: string) => {
-    setLibraries(prev => prev.map(lib =>
-      lib.id === libraryId
-        ? { ...lib, status: 'draft' as const, updatedAt: new Date().toISOString().split('T')[0] }
-        : lib
-    ));
-    message.success('已取消发布');
+  const handleUnpublish = async (libraryId: string) => {
+    try {
+      await toolService.updateElementLibrary(libraryId, { status: 'draft' });
+      message.success('已取消发布');
+      loadLibraries();
+    } catch (error) {
+      console.error('取消发布失败:', error);
+      message.error('取消发布失败');
+    }
   };
 
   // 删除要素库
-  const handleDelete = (libraryId: string) => {
-    setLibraries(prev => prev.filter(lib => lib.id !== libraryId));
-    message.success('删除成功');
+  const handleDelete = async (libraryId: string) => {
+    try {
+      await toolService.deleteElementLibrary(libraryId);
+      message.success('删除成功');
+      loadLibraries();
+    } catch (error) {
+      console.error('删除失败:', error);
+      message.error('删除失败');
+    }
   };
 
   return (
@@ -97,28 +158,28 @@ const ElementLibrary: React.FC = () => {
         <div className={styles.statCard}>
           <div className={styles.statInfo}>
             <div className={styles.statLabel}>要素库总数</div>
-            <div className={styles.statValue}>{elementLibraryStats.total}</div>
+            <div className={styles.statValue}>{stats.total}</div>
           </div>
           <DatabaseOutlined className={styles.statIcon} style={{ color: '#1890ff' }} />
         </div>
         <div className={styles.statCard}>
           <div className={styles.statInfo}>
             <div className={styles.statLabel}>已发布</div>
-            <div className={styles.statValue} style={{ color: '#52c41a' }}>{elementLibraryStats.published}</div>
+            <div className={styles.statValue} style={{ color: '#52c41a' }}>{stats.published}</div>
           </div>
           <CheckCircleOutlined className={styles.statIcon} style={{ color: '#52c41a' }} />
         </div>
         <div className={styles.statCard}>
           <div className={styles.statInfo}>
             <div className={styles.statLabel}>未发布</div>
-            <div className={styles.statValue} style={{ color: '#fa8c16' }}>{elementLibraryStats.draft}</div>
+            <div className={styles.statValue} style={{ color: '#fa8c16' }}>{stats.draft}</div>
           </div>
           <FileTextOutlined className={styles.statIcon} style={{ color: '#fa8c16' }} />
         </div>
         <div className={styles.statCard}>
           <div className={styles.statInfo}>
             <div className={styles.statLabel}>要素总数</div>
-            <div className={styles.statValue} style={{ color: '#722ed1' }}>{elementLibraryStats.elementCount}</div>
+            <div className={styles.statValue} style={{ color: '#722ed1' }}>{stats.elementCount}</div>
           </div>
           <AppstoreOutlined className={styles.statIcon} style={{ color: '#722ed1' }} />
         </div>
@@ -139,77 +200,83 @@ const ElementLibrary: React.FC = () => {
         </div>
       </div>
 
-      <div className={styles.libraryList}>
-        {libraries.map((library, index) => (
-          <div key={library.id} className={`${styles.listCard} ${index === 0 ? '' : index === 1 ? styles.purple : styles.orange}`}>
-            <div className={styles.listCardHeader}>
-              <div>
-                <span className={styles.listCardTitle} onClick={() => navigate(`/home/balanced/elements/${library.id}`)}>
-                  {library.name}
-                </span>
-                <Tag color={library.status === 'published' ? 'blue' : 'default'} style={{ marginLeft: 8 }}>
-                  {library.status === 'published' ? '已发布' : '未发布'}
-                </Tag>
-                <span style={{ marginLeft: 8, color: '#666' }}>{library.elementCount} 个要素</span>
-              </div>
-              <div className={styles.listCardMeta}>
-                <div>创建人: {library.createdBy}</div>
-                <div>创建时间: {library.createdAt}</div>
-                <div>变更人: {library.updatedBy}</div>
-                <div>变更时间: {library.updatedAt}</div>
-              </div>
-            </div>
-            <div className={styles.listCardDesc}>{library.description}</div>
-            <div className={styles.listCardActions}>
-              <span className={styles.actionBtn} onClick={() => handleShowInfo(library)}>
-                <EyeOutlined /> 基础信息
-              </span>
-              {library.status === 'published' ? (
-                <Popconfirm
-                  title="取消发布"
-                  description="确定要取消发布该要素库吗？取消后将无法在项目中使用。"
-                  onConfirm={() => handleUnpublish(library.id)}
-                  okText="确定"
-                  cancelText="取消"
-                >
-                  <span className={styles.actionBtn}>
-                    <CloseOutlined /> 取消发布
-                  </span>
-                </Popconfirm>
-              ) : (
-                <>
-                  <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/elements/${library.id}/edit`)}>
-                    编辑要素
-                  </span>
-                  <Popconfirm
-                    title="发布要素库"
-                    description="确定要发布该要素库吗？发布后可在项目中使用。"
-                    onConfirm={() => handlePublish(library.id)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <span className={styles.actionBtn}>
-                      <CheckCircleOutlined /> 发布
+      <Spin spinning={loading}>
+        {filteredLibraries.length === 0 && !loading ? (
+          <Empty description="暂无要素库" />
+        ) : (
+          <div className={styles.libraryList}>
+            {filteredLibraries.map((library, index) => (
+              <div key={library.id} className={`${styles.listCard} ${index === 0 ? '' : index === 1 ? styles.purple : styles.orange}`}>
+                <div className={styles.listCardHeader}>
+                  <div>
+                    <span className={styles.listCardTitle} onClick={() => navigate(`/home/balanced/elements/${library.id}`)}>
+                      {library.name}
                     </span>
-                  </Popconfirm>
-                  <Popconfirm
-                    title="删除要素库"
-                    description="确定要删除该要素库吗？此操作不可恢复。"
-                    onConfirm={() => handleDelete(library.id)}
-                    okText="确定"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <span className={`${styles.actionBtn} ${styles.danger}`}>
-                      <DeleteOutlined /> 删除
-                    </span>
-                  </Popconfirm>
-                </>
-              )}
-            </div>
+                    <Tag color={library.status === 'published' ? 'blue' : 'default'} style={{ marginLeft: 8 }}>
+                      {library.status === 'published' ? '已发布' : '未发布'}
+                    </Tag>
+                    <span style={{ marginLeft: 8, color: '#666' }}>{library.elementCount || 0} 个要素</span>
+                  </div>
+                  <div className={styles.listCardMeta}>
+                    <div>创建人: {library.createdBy}</div>
+                    <div>创建时间: {library.createdAt}</div>
+                    <div>变更人: {library.updatedBy}</div>
+                    <div>变更时间: {library.updatedAt}</div>
+                  </div>
+                </div>
+                <div className={styles.listCardDesc}>{library.description}</div>
+                <div className={styles.listCardActions}>
+                  <span className={styles.actionBtn} onClick={() => handleShowInfo(library)}>
+                    <EyeOutlined /> 基础信息
+                  </span>
+                  {library.status === 'published' ? (
+                    <Popconfirm
+                      title="取消发布"
+                      description="确定要取消发布该要素库吗？取消后将无法在项目中使用。"
+                      onConfirm={() => handleUnpublish(library.id)}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <span className={styles.actionBtn}>
+                        <CloseOutlined /> 取消发布
+                      </span>
+                    </Popconfirm>
+                  ) : (
+                    <>
+                      <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/elements/${library.id}/edit`)}>
+                        编辑要素
+                      </span>
+                      <Popconfirm
+                        title="发布要素库"
+                        description="确定要发布该要素库吗？发布后可在项目中使用。"
+                        onConfirm={() => handlePublish(library.id)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <span className={styles.actionBtn}>
+                          <CheckCircleOutlined /> 发布
+                        </span>
+                      </Popconfirm>
+                      <Popconfirm
+                        title="删除要素库"
+                        description="确定要删除该要素库吗？此操作不可恢复。"
+                        onConfirm={() => handleDelete(library.id)}
+                        okText="确定"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <span className={`${styles.actionBtn} ${styles.danger}`}>
+                          <DeleteOutlined /> 删除
+                        </span>
+                      </Popconfirm>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
+      </Spin>
 
       <Modal
         title="新建评估要素库"
@@ -267,17 +334,21 @@ const ElementLibrary: React.FC = () => {
             <p className={styles.infoDesc}>{selectedLibrary.description}</p>
             <h4>数据要素（最近5个）</h4>
             <div className={styles.elementList}>
-              {elements.slice(0, 5).map(el => (
-                <div key={el.id} className={styles.elementItem}>
-                  <span className={styles.elementCode}>{el.code}</span>
-                  <span className={styles.elementName}>{el.name}</span>
-                  <Tag>{el.type}</Tag>
-                  <Tag>{el.dataType}</Tag>
-                </div>
-              ))}
+              {selectedLibraryElements.length === 0 ? (
+                <Empty description="暂无要素" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              ) : (
+                selectedLibraryElements.slice(0, 5).map(el => (
+                  <div key={el.id} className={styles.elementItem}>
+                    <span className={styles.elementCode}>{el.code}</span>
+                    <span className={styles.elementName}>{el.name}</span>
+                    <Tag>{el.elementType}</Tag>
+                    <Tag>{el.dataType}</Tag>
+                  </div>
+                ))
+              )}
             </div>
             <p style={{ color: '#1890ff', textAlign: 'center', marginTop: 16 }}>
-              共 {selectedLibrary.elementCount} 个要素，显示最近 5 个
+              共 {selectedLibrary.elementCount || 0} 个要素，显示最近 5 个
             </p>
           </div>
         )}

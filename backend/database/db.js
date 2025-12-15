@@ -33,9 +33,13 @@ async function query(sql, params = []) {
     params.forEach((param, index) => {
       const placeholder = `$${index + 1}`;
       const value = formatValue(param);
-      processedSql = processedSql.replace(placeholder, value);
+      // 使用函数作为替换值，避免 $& $' $` $n 等特殊模式被解释
+      processedSql = processedSql.replace(placeholder, () => value);
     });
   }
+
+  // Debug: 打印生成的 SQL
+  console.log('Generated SQL:', processedSql);
 
   const { data, error } = await supabase.rpc('exec_sql', {
     query_text: processedSql
@@ -69,6 +73,10 @@ function formatValue(value) {
     return value ? 'TRUE' : 'FALSE';
   }
   if (Array.isArray(value)) {
+    // 如果数组包含对象，视为 JSONB；否则视为 PostgreSQL 数组
+    if (value.length > 0 && typeof value[0] === 'object') {
+      return `'${JSON.stringify(value).replace(/'/g, "''")}'::jsonb`;
+    }
     return `ARRAY[${value.map(v => formatValue(v)).join(',')}]`;
   }
   if (typeof value === 'object') {

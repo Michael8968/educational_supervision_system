@@ -97,14 +97,27 @@ router.post('/projects', projectRules.create, async (req, res) => {
     const id = generateId();
     const timestamp = now().split('T')[0];
 
-    await db.query(`
-      INSERT INTO projects (id, name, keywords, description, indicator_system_id, start_date, end_date, status, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, '配置中', 'admin', $8, $9)
-    `, [id, name, JSON.stringify(keywords || []), description, indicatorSystemId, startDate, endDate, timestamp, timestamp]);
+    const { data, error } = await db
+      .from('projects')
+      .insert({
+        id,
+        name,
+        keywords: JSON.stringify(keywords || []),
+        description,
+        indicator_system_id: indicatorSystemId,
+        start_date: startDate,
+        end_date: endDate,
+        status: '配置中',
+        created_by: 'admin',
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -132,19 +145,31 @@ router.put('/projects/:id', async (req, res) => {
 
     const timestamp = now().split('T')[0];
 
-    const result = await db.query(`
-      UPDATE projects SET name = $1, keywords = $2, description = $3, indicator_system_id = $4,
-             start_date = $5, end_date = $6, status = $7, updated_at = $8
-      WHERE id = $9
-    `, [name, JSON.stringify(keywords || []), description, indicatorSystemId, startDate, endDate, status, timestamp, req.params.id]);
+    const updates = {
+      ...(name !== undefined ? { name } : {}),
+      ...(keywords !== undefined ? { keywords: JSON.stringify(keywords || []) } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(indicatorSystemId !== undefined ? { indicator_system_id: indicatorSystemId } : {}),
+      ...(startDate !== undefined ? { start_date: startDate } : {}),
+      ...(endDate !== undefined ? { end_date: endDate } : {}),
+      ...(status !== undefined ? { status } : {}),
+      updated_at: timestamp,
+    };
 
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('projects')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '项目不存在' });
     }
 
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -162,13 +187,19 @@ router.post('/projects/:id/start', async (req, res) => {
     }
 
     const timestamp = now().split('T')[0];
-    await db.query(`
-      UPDATE projects SET status = '填报中', updated_at = $1 WHERE id = $2
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('projects')
+      .update({ status: '填报中', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
 
-    res.json({ code: 200, message: '填报已启动' });
+    return res.json({ code: 200, message: '填报已启动' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -185,13 +216,19 @@ router.post('/projects/:id/stop', async (req, res) => {
     }
 
     const timestamp = now().split('T')[0];
-    await db.query(`
-      UPDATE projects SET status = '已中止', updated_at = $1 WHERE id = $2
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('projects')
+      .update({ status: '已中止', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
 
-    res.json({ code: 200, message: '项目已中止' });
+    return res.json({ code: 200, message: '项目已中止' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -208,13 +245,19 @@ router.post('/projects/:id/review', async (req, res) => {
     }
 
     const timestamp = now().split('T')[0];
-    await db.query(`
-      UPDATE projects SET status = '评审中', updated_at = $1 WHERE id = $2
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('projects')
+      .update({ status: '评审中', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
 
-    res.json({ code: 200, message: '项目已进入评审阶段' });
+    return res.json({ code: 200, message: '项目已进入评审阶段' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -231,13 +274,19 @@ router.post('/projects/:id/complete', async (req, res) => {
     }
 
     const timestamp = now().split('T')[0];
-    await db.query(`
-      UPDATE projects SET status = '已完成', updated_at = $1 WHERE id = $2
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('projects')
+      .update({ status: '已完成', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
 
-    res.json({ code: 200, message: '项目已完成' });
+    return res.json({ code: 200, message: '项目已完成' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -254,13 +303,19 @@ router.post('/projects/:id/restart', async (req, res) => {
     }
 
     const timestamp = now().split('T')[0];
-    await db.query(`
-      UPDATE projects SET status = '配置中', updated_at = $1 WHERE id = $2
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('projects')
+      .update({ status: '配置中', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '项目不存在' });
+    }
 
-    res.json({ code: 200, message: '项目已重新启动' });
+    return res.json({ code: 200, message: '项目已重新启动' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -404,14 +459,26 @@ router.post('/submissions', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
-    await db.query(`
-      INSERT INTO submissions (id, project_id, form_id, submitter_id, submitter_name, submitter_org, status, data, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9)
-    `, [id, projectId, formId, submitterId, submitterName, submitterOrg, JSON.stringify(data || {}), timestamp, timestamp]);
+    const { data: inserted, error } = await db
+      .from('submissions')
+      .insert({
+        id,
+        project_id: projectId,
+        form_id: formId,
+        submitter_id: submitterId,
+        submitter_name: submitterName,
+        submitter_org: submitterOrg,
+        status: 'draft',
+        data: JSON.stringify(data || {}),
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: inserted?.[0]?.id || id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -421,17 +488,26 @@ router.put('/submissions/:id', async (req, res) => {
     const { data, submitterName, submitterOrg } = req.body;
     const timestamp = now();
 
-    const result = await db.query(`
-      UPDATE submissions SET data = $1, submitter_name = $2, submitter_org = $3, updated_at = $4 WHERE id = $5 AND status = 'draft'
-    `, [JSON.stringify(data || {}), submitterName, submitterOrg, timestamp, req.params.id]);
+    const { data: updated, error } = await db
+      .from('submissions')
+      .update({
+        data: JSON.stringify(data || {}),
+        submitter_name: submitterName,
+        submitter_org: submitterOrg,
+        updated_at: timestamp,
+      })
+      .eq('id', req.params.id)
+      .eq('status', 'draft')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!updated || updated.length === 0) {
       return res.status(400).json({ code: 400, message: '只能更新草稿状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '保存成功' });
+    return res.json({ code: 200, message: '保存成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -439,17 +515,21 @@ router.put('/submissions/:id', async (req, res) => {
 router.post('/submissions/:id/submit', async (req, res) => {
   try {
     const timestamp = now();
-    const result = await db.query(`
-      UPDATE submissions SET status = 'submitted', submitted_at = $1, updated_at = $2 WHERE id = $3 AND status = 'draft'
-    `, [timestamp, timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('submissions')
+      .update({ status: 'submitted', submitted_at: timestamp, updated_at: timestamp })
+      .eq('id', req.params.id)
+      .eq('status', 'draft')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '只能提交草稿状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '提交成功' });
+    return res.json({ code: 200, message: '提交成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -457,17 +537,21 @@ router.post('/submissions/:id/submit', async (req, res) => {
 router.post('/submissions/:id/approve', async (req, res) => {
   try {
     const timestamp = now();
-    const result = await db.query(`
-      UPDATE submissions SET status = 'approved', approved_at = $1, updated_at = $2 WHERE id = $3 AND status = 'submitted'
-    `, [timestamp, timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('submissions')
+      .update({ status: 'approved', approved_at: timestamp, updated_at: timestamp })
+      .eq('id', req.params.id)
+      .eq('status', 'submitted')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '只能审核已提交状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '审核通过' });
+    return res.json({ code: 200, message: '审核通过' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -476,17 +560,21 @@ router.post('/submissions/:id/reject', async (req, res) => {
   try {
     const { reason } = req.body;
     const timestamp = now();
-    const result = await db.query(`
-      UPDATE submissions SET status = 'rejected', reject_reason = $1, updated_at = $2 WHERE id = $3 AND status = 'submitted'
-    `, [reason || '', timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('submissions')
+      .update({ status: 'rejected', reject_reason: reason || '', updated_at: timestamp })
+      .eq('id', req.params.id)
+      .eq('status', 'submitted')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '只能驳回已提交状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '已驳回' });
+    return res.json({ code: 200, message: '已驳回' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -494,32 +582,42 @@ router.post('/submissions/:id/reject', async (req, res) => {
 router.post('/submissions/:id/revise', async (req, res) => {
   try {
     const timestamp = now();
-    const result = await db.query(`
-      UPDATE submissions SET status = 'draft', reject_reason = NULL, updated_at = $1 WHERE id = $2 AND status = 'rejected'
-    `, [timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('submissions')
+      .update({ status: 'draft', reject_reason: null, updated_at: timestamp })
+      .eq('id', req.params.id)
+      .eq('status', 'rejected')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '只能修改已驳回状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '已退回修改' });
+    return res.json({ code: 200, message: '已退回修改' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
 // 删除填报记录
 router.delete('/submissions/:id', async (req, res) => {
   try {
-    const result = await db.query("DELETE FROM submissions WHERE id = $1 AND status = 'draft'", [req.params.id]);
+    const { data, error } = await db
+      .from('submissions')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('status', 'draft')
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '只能删除草稿状态的填报记录' });
     }
 
-    res.json({ code: 200, message: '删除成功' });
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 

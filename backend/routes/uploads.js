@@ -159,25 +159,22 @@ module.exports = (db) => {
       // 构建相对路径用于存储
       const relativePath = path.relative(uploadDir, file.path);
 
-      await db.query(`
-        INSERT INTO submission_materials (
-          id, submission_id, material_config_id, indicator_id,
-          file_name, file_path, file_size, file_type, description,
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      `, [
-        id,
-        submissionId,
-        materialConfigId || null,
-        indicatorId || null,
-        file.originalname,
-        relativePath,
-        file.size,
-        file.mimetype,
-        description || null,
-        now,
-        now
-      ]);
+      const { error } = await db
+        .from('submission_materials')
+        .insert({
+          id,
+          submission_id: submissionId,
+          material_config_id: materialConfigId || null,
+          indicator_id: indicatorId || null,
+          file_name: file.originalname,
+          file_path: relativePath,
+          file_size: file.size,
+          file_type: file.mimetype,
+          description: description || null,
+          created_at: now,
+          updated_at: now,
+        });
+      if (error) throw error;
 
       res.json({
         code: 0,
@@ -204,8 +201,12 @@ module.exports = (db) => {
     const { id } = req.params;
 
     try {
-      const materialResult = await db.query('SELECT * FROM submission_materials WHERE id = $1', [id]);
-      const material = materialResult.rows[0];
+      const { data: material, error: selErr } = await db
+        .from('submission_materials')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (selErr) throw selErr;
       if (!material) {
         return res.status(404).json({ code: 404, message: '资料不存在' });
       }
@@ -217,7 +218,15 @@ module.exports = (db) => {
       }
 
       // 删除数据库记录
-      await db.query('DELETE FROM submission_materials WHERE id = $1', [id]);
+      const { data: deleted, error: delErr } = await db
+        .from('submission_materials')
+        .delete()
+        .eq('id', id)
+        .select('id');
+      if (delErr) throw delErr;
+      if (!deleted || deleted.length === 0) {
+        return res.status(404).json({ code: 404, message: '资料不存在' });
+      }
 
       res.json({ code: 0, message: '删除成功' });
     } catch (error) {

@@ -48,7 +48,8 @@ import { usePersonnel, useSamples } from './hooks';
 import { projects as mockProjects } from '../../mock/data';
 
 // ==================== Mock 模式开关 ====================
-const USE_MOCK = process.env.REACT_APP_USE_MOCK === 'true' || true;
+// 通过环境变量 REACT_APP_USE_MOCK=true 启用 Mock 模式，默认使用 API
+const USE_MOCK = process.env.REACT_APP_USE_MOCK === 'true';
 
 // ==================== 组件 ====================
 
@@ -76,7 +77,7 @@ const ProjectConfig: React.FC = () => {
     confirmImport,
     clearImportData,
     filterPersonnel,
-  } = usePersonnel();
+  } = usePersonnel(projectId);
 
   // 样本配置 Hook
   const {
@@ -92,7 +93,7 @@ const ProjectConfig: React.FC = () => {
     deleteTeacher,
     updateTeacherMode,
     getSchoolById,
-  } = useSamples();
+  } = useSamples(projectId);
 
   // 弹窗状态
   const [addPersonModalVisible, setAddPersonModalVisible] = useState(false);

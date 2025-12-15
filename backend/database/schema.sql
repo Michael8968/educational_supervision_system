@@ -101,6 +101,9 @@ CREATE TABLE IF NOT EXISTS elements (
   name TEXT NOT NULL,
   element_type TEXT NOT NULL,        -- 枚举值由程序验证：基础要素 | 派生要素
   data_type TEXT NOT NULL,
+  tool_id TEXT,                      -- 基础要素可选：关联采集工具
+  field_id TEXT,                     -- 基础要素可选：关联表单控件
+  field_label TEXT,                  -- 可选：控件展示路径（用于回显）
   formula TEXT,
   sort_order INTEGER DEFAULT 0,
   created_at TEXT,

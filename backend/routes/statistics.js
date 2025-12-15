@@ -400,22 +400,44 @@ router.post('/school-indicator-data', async (req, res) => {
     const id = 'sid-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     const now = new Date().toISOString().split('T')[0];
 
-    await db.query(`
-      INSERT INTO school_indicator_data
-      (id, project_id, school_id, data_indicator_id, value, text_value, is_compliant, submission_id, collected_at, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT (project_id, school_id, data_indicator_id) DO UPDATE SET
-        value = EXCLUDED.value,
-        text_value = EXCLUDED.text_value,
-        is_compliant = EXCLUDED.is_compliant,
-        submission_id = EXCLUDED.submission_id,
-        collected_at = EXCLUDED.collected_at,
-        updated_at = EXCLUDED.updated_at
-    `, [
-      id, projectId, schoolId, dataIndicatorId, value, textValue,
-      isCompliant === null ? null : (isCompliant ? 1 : 0),
-      submissionId, now, now, now
-    ]);
+    // 避免 upsert 覆盖主键 id：先查是否存在，再 update/insert
+    const { data: existing, error: existErr } = await db
+      .from('school_indicator_data')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('school_id', schoolId)
+      .eq('data_indicator_id', dataIndicatorId)
+      .maybeSingle();
+    if (existErr) throw existErr;
+
+    const payload = {
+      project_id: projectId,
+      school_id: schoolId,
+      data_indicator_id: dataIndicatorId,
+      value,
+      text_value: textValue,
+      is_compliant: isCompliant === null ? null : (isCompliant ? 1 : 0),
+      submission_id: submissionId,
+      collected_at: now,
+      updated_at: now,
+    };
+
+    if (existing?.id) {
+      const { error } = await db
+        .from('school_indicator_data')
+        .update(payload)
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await db
+        .from('school_indicator_data')
+        .insert({
+          id,
+          ...payload,
+          created_at: now,
+        });
+      if (error) throw error;
+    }
 
     res.json({ code: 200, message: '保存成功' });
   } catch (error) {
@@ -432,52 +454,66 @@ router.post('/school-indicator-data/batch', async (req, res) => {
       return res.status(400).json({ code: 400, message: '缺少必要参数' });
     }
 
-    await db.transaction(async (client) => {
-      const now = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString().split('T')[0];
 
-      for (const item of data) {
-        // 获取阈值
-        const indicatorResult = await client.query('SELECT threshold FROM data_indicators WHERE id = $1', [item.dataIndicatorId]);
-        const indicator = indicatorResult.rows[0];
+    for (const item of data) {
+      // 获取阈值
+      const indicatorResult = await db.query('SELECT threshold FROM data_indicators WHERE id = $1', [item.dataIndicatorId]);
+      const indicator = indicatorResult.rows[0];
 
-        // 判断是否达标
-        let isCompliant = null;
-        if (indicator?.threshold && item.value !== null && item.value !== undefined) {
-          const threshold = indicator.threshold;
-          const match = threshold.match(/^([≥≤><]=?|>=|<=|>|<|=)?\s*([\d.]+)/);
-          if (match) {
-            const op = (match[1] || '≥').replace('>=', '≥').replace('<=', '≤');
-            const thresholdValue = parseFloat(match[2]);
-            switch (op) {
-              case '≥': isCompliant = item.value >= thresholdValue; break;
-              case '≤': isCompliant = item.value <= thresholdValue; break;
-              case '>': isCompliant = item.value > thresholdValue; break;
-              case '<': isCompliant = item.value < thresholdValue; break;
-              case '=': isCompliant = item.value === thresholdValue; break;
-            }
+      // 判断是否达标
+      let isCompliant = null;
+      if (indicator?.threshold && item.value !== null && item.value !== undefined) {
+        const threshold = indicator.threshold;
+        const match = threshold.match(/^([≥≤><]=?|>=|<=|>|<|=)?\s*([\d.]+)/);
+        if (match) {
+          const op = (match[1] || '≥').replace('>=', '≥').replace('<=', '≤');
+          const thresholdValue = parseFloat(match[2]);
+          switch (op) {
+            case '≥': isCompliant = item.value >= thresholdValue; break;
+            case '≤': isCompliant = item.value <= thresholdValue; break;
+            case '>': isCompliant = item.value > thresholdValue; break;
+            case '<': isCompliant = item.value < thresholdValue; break;
+            case '=': isCompliant = item.value === thresholdValue; break;
           }
         }
-
-        const id = 'sid-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-
-        await client.query(`
-          INSERT INTO school_indicator_data
-          (id, project_id, school_id, data_indicator_id, value, text_value, is_compliant, submission_id, collected_at, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          ON CONFLICT (project_id, school_id, data_indicator_id) DO UPDATE SET
-            value = EXCLUDED.value,
-            text_value = EXCLUDED.text_value,
-            is_compliant = EXCLUDED.is_compliant,
-            submission_id = EXCLUDED.submission_id,
-            collected_at = EXCLUDED.collected_at,
-            updated_at = EXCLUDED.updated_at
-        `, [
-          id, projectId, schoolId, item.dataIndicatorId, item.value, item.textValue,
-          isCompliant === null ? null : (isCompliant ? 1 : 0),
-          submissionId, now, now, now
-        ]);
       }
-    });
+
+      const payload = {
+        project_id: projectId,
+        school_id: schoolId,
+        data_indicator_id: item.dataIndicatorId,
+        value: item.value,
+        text_value: item.textValue,
+        is_compliant: isCompliant === null ? null : (isCompliant ? 1 : 0),
+        submission_id: submissionId,
+        collected_at: now,
+        updated_at: now,
+      };
+
+      const { data: existing, error: existErr } = await db
+        .from('school_indicator_data')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('school_id', schoolId)
+        .eq('data_indicator_id', item.dataIndicatorId)
+        .maybeSingle();
+      if (existErr) throw existErr;
+
+      if (existing?.id) {
+        const { error } = await db
+          .from('school_indicator_data')
+          .update(payload)
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const id = 'sid-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        const { error } = await db
+          .from('school_indicator_data')
+          .insert({ id, ...payload, created_at: now });
+        if (error) throw error;
+      }
+    }
 
     res.json({ code: 200, message: `成功保存 ${data.length} 条数据` });
   } catch (error) {
@@ -500,18 +536,38 @@ router.post('/projects/:projectId/refresh-statistics', async (req, res) => {
       for (const type of [schoolType || '小学', '初中']) {
         const cvAnalysis = await getDistrictCVAnalysis(projectId, districtId, type);
         if (cvAnalysis) {
-          const id = 'ds-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-          await db.query(`
-            INSERT INTO district_statistics
-            (id, project_id, district_id, school_type, school_count, cv_composite, is_cv_compliant, calculated_at, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            ON CONFLICT (project_id, district_id, school_type) DO UPDATE SET
-              school_count = EXCLUDED.school_count,
-              cv_composite = EXCLUDED.cv_composite,
-              is_cv_compliant = EXCLUDED.is_cv_compliant,
-              calculated_at = EXCLUDED.calculated_at
-          `, [id, projectId, districtId, type, cvAnalysis.schoolCount, cvAnalysis.cvComposite,
-            cvAnalysis.isCompliant ? 1 : 0, now, now]);
+          const { data: existing, error: existErr } = await db
+            .from('district_statistics')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('district_id', districtId)
+            .eq('school_type', type)
+            .maybeSingle();
+          if (existErr) throw existErr;
+
+          const payload = {
+            project_id: projectId,
+            district_id: districtId,
+            school_type: type,
+            school_count: cvAnalysis.schoolCount,
+            cv_composite: cvAnalysis.cvComposite,
+            is_cv_compliant: cvAnalysis.isCompliant ? 1 : 0,
+            calculated_at: now,
+          };
+
+          if (existing?.id) {
+            const { error } = await db
+              .from('district_statistics')
+              .update(payload)
+              .eq('id', existing.id);
+            if (error) throw error;
+          } else {
+            const id = 'ds-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+            const { error } = await db
+              .from('district_statistics')
+              .insert({ id, ...payload, created_at: now });
+            if (error) throw error;
+          }
         }
       }
     } else {
@@ -523,18 +579,38 @@ router.post('/projects/:projectId/refresh-statistics', async (req, res) => {
         for (const type of ['小学', '初中']) {
           const cvAnalysis = await getDistrictCVAnalysis(projectId, d.id, type);
           if (cvAnalysis && cvAnalysis.schoolCount > 0) {
-            const id = 'ds-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-            await db.query(`
-              INSERT INTO district_statistics
-              (id, project_id, district_id, school_type, school_count, cv_composite, is_cv_compliant, calculated_at, created_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-              ON CONFLICT (project_id, district_id, school_type) DO UPDATE SET
-                school_count = EXCLUDED.school_count,
-                cv_composite = EXCLUDED.cv_composite,
-                is_cv_compliant = EXCLUDED.is_cv_compliant,
-                calculated_at = EXCLUDED.calculated_at
-            `, [id, projectId, d.id, type, cvAnalysis.schoolCount, cvAnalysis.cvComposite,
-              cvAnalysis.isCompliant ? 1 : 0, now, now]);
+            const { data: existing, error: existErr } = await db
+              .from('district_statistics')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('district_id', d.id)
+              .eq('school_type', type)
+              .maybeSingle();
+            if (existErr) throw existErr;
+
+            const payload = {
+              project_id: projectId,
+              district_id: d.id,
+              school_type: type,
+              school_count: cvAnalysis.schoolCount,
+              cv_composite: cvAnalysis.cvComposite,
+              is_cv_compliant: cvAnalysis.isCompliant ? 1 : 0,
+              calculated_at: now,
+            };
+
+            if (existing?.id) {
+              const { error } = await db
+                .from('district_statistics')
+                .update(payload)
+                .eq('id', existing.id);
+              if (error) throw error;
+            } else {
+              const id = 'ds-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+              const { error } = await db
+                .from('district_statistics')
+                .insert({ id, ...payload, created_at: now });
+              if (error) throw error;
+            }
           }
         }
       }

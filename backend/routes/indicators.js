@@ -11,6 +11,127 @@ const setDb = (database) => {
   db = database;
 };
 
+/**
+ * 清空指标体系下的“树数据”（不删除指标体系本身）
+ * @param {string} systemId
+ * @param {string} timestamp
+ */
+async function clearIndicatorSystemTree(systemId, timestamp) {
+  // 1) 获取该体系下所有指标
+  const { data: indicators, error: indErr } = await db
+    .from('indicators')
+    .select('id')
+    .eq('system_id', systemId);
+  if (indErr) throw indErr;
+
+  const indicatorIds = (indicators || []).map(i => i.id);
+  if (indicatorIds.length === 0) {
+    return {
+      data_indicator_elements: 0,
+      threshold_standards: 0,
+      data_indicators: 0,
+      supporting_materials: 0,
+      indicators: 0,
+    };
+  }
+
+  // 2) 获取体系下所有数据指标（依附于指标叶子）
+  const { data: dataIndicators, error: diErr } = await db
+    .from('data_indicators')
+    .select('id')
+    .in('indicator_id', indicatorIds);
+  if (diErr) throw diErr;
+  const dataIndicatorIds = (dataIndicators || []).map(d => d.id);
+
+  // 3) 删除 data_indicator_elements / threshold_standards（依赖 dataIndicatorIds）
+  if (dataIndicatorIds.length > 0) {
+    const { error: dieErr } = await db
+      .from('data_indicator_elements')
+      .delete()
+      .in('data_indicator_id', dataIndicatorIds);
+    if (dieErr) throw dieErr;
+
+    const { error: tsErr } = await db
+      .from('threshold_standards')
+      .delete()
+      .in('indicator_id', dataIndicatorIds);
+    if (tsErr) throw tsErr;
+
+    const { error: diDelErr } = await db
+      .from('data_indicators')
+      .delete()
+      .in('id', dataIndicatorIds);
+    if (diDelErr) throw diDelErr;
+  }
+
+  // 4) 删除 supporting_materials（依赖 indicatorIds）
+  const { error: smErr } = await db
+    .from('supporting_materials')
+    .delete()
+    .in('indicator_id', indicatorIds);
+  if (smErr) throw smErr;
+
+  // 5) 删除 indicators
+  const { error: indDelErr } = await db
+    .from('indicators')
+    .delete()
+    .eq('system_id', systemId);
+  if (indDelErr) throw indDelErr;
+
+  // 6) 重置指标数量（保持与数据一致）
+  const { error: resetErr } = await db
+    .from('indicator_systems')
+    .update({ indicator_count: 0, updated_at: timestamp })
+    .eq('id', systemId);
+  if (resetErr) throw resetErr;
+
+  return {
+    data_indicator_elements: dataIndicatorIds.length,
+    threshold_standards: dataIndicatorIds.length,
+    data_indicators: dataIndicatorIds.length,
+    supporting_materials: indicatorIds.length,
+    indicators: indicatorIds.length,
+  };
+}
+
+/**
+ * 删除整个指标体系（含树数据）
+ * @param {string} systemId
+ * @param {string} timestamp
+ */
+async function deleteIndicatorSystemCascade(systemId, timestamp) {
+  await clearIndicatorSystemTree(systemId, timestamp);
+
+  const { data, error } = await db
+    .from('indicator_systems')
+    .delete()
+    .eq('id', systemId)
+    .select('id');
+  if (error) throw error;
+
+  return { indicator_systems: data?.length || 0 };
+}
+
+/**
+ * 收集某个指标节点的子树（包含自身）
+ * @param {string} indicatorId
+ * @returns {Promise<string[]>}
+ */
+async function collectIndicatorSubtreeIds(indicatorId) {
+  const ids = [indicatorId];
+  const { data: children, error } = await db
+    .from('indicators')
+    .select('id')
+    .eq('parent_id', indicatorId);
+  if (error) throw error;
+
+  for (const child of children || []) {
+    const childIds = await collectIndicatorSubtreeIds(child.id);
+    ids.push(...childIds);
+  }
+  return ids;
+}
+
 // 生成UUID
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 const now = () => new Date().toISOString().split('T')[0];
@@ -81,15 +202,28 @@ router.post('/indicator-systems', indicatorSystemRules.create, async (req, res) 
     const id = generateId();
     const timestamp = now();
 
-    await db.query(`
-      INSERT INTO indicator_systems
-      (id, name, type, target, tags, description, attachments, status, created_by, created_at, updated_by, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', 'admin', $8, 'admin', $9)
-    `, [id, name, type, target, JSON.stringify(tags || []), description, JSON.stringify(attachments || []), timestamp, timestamp]);
+    const { data, error } = await db
+      .from('indicator_systems')
+      .insert({
+        id,
+        name,
+        type,
+        target,
+        tags: JSON.stringify(tags || []),
+        description,
+        attachments: JSON.stringify(attachments || []),
+        status: 'draft',
+        created_by: 'admin',
+        created_at: timestamp,
+        updated_by: 'admin',
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -108,34 +242,46 @@ router.put('/indicator-systems/:id', indicatorSystemRules.update, async (req, re
 
     const timestamp = now();
 
-    const result = await db.query(`
-      UPDATE indicator_systems
-      SET name = $1, type = $2, target = $3, tags = $4, description = $5, attachments = $6, status = $7, updated_by = 'admin', updated_at = $8
-      WHERE id = $9
-    `, [name, type, target, JSON.stringify(tags || []), description, JSON.stringify(attachments || []), status, timestamp, req.params.id]);
+    const { data, error } = await db
+      .from('indicator_systems')
+      .update({
+        name,
+        type,
+        target,
+        tags: JSON.stringify(tags || []),
+        description,
+        attachments: JSON.stringify(attachments || []),
+        status,
+        updated_by: 'admin',
+        updated_at: timestamp,
+      })
+      .eq('id', req.params.id)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '指标体系不存在' });
     }
 
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
 // 删除指标体系（使用级联删除服务）
 router.delete('/indicator-systems/:id', async (req, res) => {
   try {
-    const result = await deleteIndicatorSystem(req.params.id);
+    const timestamp = now();
+    const deleted = await deleteIndicatorSystemCascade(req.params.id, timestamp);
 
-    if (!result.deleted.indicator_systems) {
+    if (!deleted.indicator_systems) {
       return res.status(404).json({ code: 404, message: '指标体系不存在' });
     }
 
-    res.json({ code: 200, message: '删除成功', data: result.deleted });
+    return res.json({ code: 200, message: '删除成功', data: deleted });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -221,99 +367,92 @@ router.put('/indicator-systems/:id/tree', async (req, res) => {
   const timestamp = now();
 
   try {
-    await db.transaction(async (client) => {
-      // 1. 删除现有的指标树（级联删除数据指标和佐证资料）
-      // 先删除子表数据
-      await client.query(`
-        DELETE FROM data_indicator_elements WHERE data_indicator_id IN (
-          SELECT di.id FROM data_indicators di
-          JOIN indicators i ON di.indicator_id = i.id
-          WHERE i.system_id = $1
-        )
-      `, [systemId]);
+    // 1) 清空旧树
+    await clearIndicatorSystemTree(systemId, timestamp);
 
-      await client.query(`
-        DELETE FROM threshold_standards WHERE indicator_id IN (
-          SELECT di.id FROM data_indicators di
-          JOIN indicators i ON di.indicator_id = i.id
-          WHERE i.system_id = $1
-        )
-      `, [systemId]);
+    // 2) 递归插入新树
+    let indicatorCount = 0;
 
-      await client.query(`
-        DELETE FROM data_indicators WHERE indicator_id IN (
-          SELECT id FROM indicators WHERE system_id = $1
-        )
-      `, [systemId]);
+    const insertNode = async (node, parentId, sortOrder) => {
+      const nodeId = node.id || generateId();
+      const { error: indErr } = await db.from('indicators').insert({
+        id: nodeId,
+        system_id: systemId,
+        parent_id: parentId,
+        code: node.code,
+        name: node.name,
+        description: node.description || '',
+        level: node.level,
+        is_leaf: node.isLeaf ? 1 : 0,
+        weight: node.weight || null,
+        sort_order: sortOrder,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+      if (indErr) throw indErr;
+      indicatorCount++;
 
-      await client.query(`
-        DELETE FROM supporting_materials WHERE indicator_id IN (
-          SELECT id FROM indicators WHERE system_id = $1
-        )
-      `, [systemId]);
-
-      await client.query('DELETE FROM indicators WHERE system_id = $1', [systemId]);
-
-      // 2. 递归插入新的指标树
-      let indicatorCount = 0;
-
-      const insertNode = async (node, parentId, sortOrder) => {
-        const nodeId = node.id || generateId();
-        await client.query(`
-          INSERT INTO indicators (id, system_id, parent_id, code, name, description, level, is_leaf, weight, sort_order, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        `, [
-          nodeId, systemId, parentId, node.code, node.name, node.description || '',
-          node.level, node.isLeaf ? 1 : 0, node.weight || null, sortOrder, timestamp, timestamp
-        ]);
-        indicatorCount++;
-
-        // 插入数据指标
-        if (node.isLeaf && node.dataIndicators) {
-          for (let idx = 0; idx < node.dataIndicators.length; idx++) {
-            const di = node.dataIndicators[idx];
-            await client.query(`
-              INSERT INTO data_indicators (id, indicator_id, code, name, threshold, description, sort_order, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            `, [
-              di.id || generateId(), nodeId, di.code, di.name, di.threshold || '', di.description || '', idx, timestamp, timestamp
-            ]);
-          }
+      // 数据指标
+      if (node.isLeaf && node.dataIndicators && Array.isArray(node.dataIndicators)) {
+        const records = node.dataIndicators.map((di, idx) => ({
+          id: di.id || generateId(),
+          indicator_id: nodeId,
+          code: di.code,
+          name: di.name,
+          threshold: di.threshold || '',
+          description: di.description || '',
+          sort_order: idx,
+          created_at: timestamp,
+          updated_at: timestamp,
+        }));
+        if (records.length > 0) {
+          const { error: diErr } = await db.from('data_indicators').insert(records);
+          if (diErr) throw diErr;
         }
-
-        // 插入佐证资料
-        if (node.isLeaf && node.supportingMaterials) {
-          for (let idx = 0; idx < node.supportingMaterials.length; idx++) {
-            const sm = node.supportingMaterials[idx];
-            await client.query(`
-              INSERT INTO supporting_materials (id, indicator_id, code, name, file_types, max_size, description, required, sort_order, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            `, [
-              sm.id || generateId(), nodeId, sm.code, sm.name, sm.fileTypes || '', sm.maxSize || '', sm.description || '', sm.required ? 1 : 0, idx, timestamp, timestamp
-            ]);
-          }
-        }
-
-        // 递归处理子节点
-        if (node.children) {
-          for (let idx = 0; idx < node.children.length; idx++) {
-            await insertNode(node.children[idx], nodeId, idx);
-          }
-        }
-      };
-
-      for (let idx = 0; idx < tree.length; idx++) {
-        await insertNode(tree[idx], null, idx);
       }
 
-      // 3. 更新指标体系的指标数量
-      await client.query('UPDATE indicator_systems SET indicator_count = $1, updated_at = $2 WHERE id = $3',
-        [indicatorCount, timestamp, systemId]);
-    });
+      // 佐证资料
+      if (node.isLeaf && node.supportingMaterials && Array.isArray(node.supportingMaterials)) {
+        const records = node.supportingMaterials.map((sm, idx) => ({
+          id: sm.id || generateId(),
+          indicator_id: nodeId,
+          code: sm.code,
+          name: sm.name,
+          file_types: sm.fileTypes || '',
+          max_size: sm.maxSize || '',
+          description: sm.description || '',
+          required: sm.required ? 1 : 0,
+          sort_order: idx,
+          created_at: timestamp,
+          updated_at: timestamp,
+        }));
+        if (records.length > 0) {
+          const { error: smErr } = await db.from('supporting_materials').insert(records);
+          if (smErr) throw smErr;
+        }
+      }
 
-    res.json({ code: 200, message: '保存成功' });
+      if (node.children && Array.isArray(node.children)) {
+        for (let idx = 0; idx < node.children.length; idx++) {
+          await insertNode(node.children[idx], nodeId, idx);
+        }
+      }
+    };
+
+    for (let idx = 0; idx < tree.length; idx++) {
+      await insertNode(tree[idx], null, idx);
+    }
+
+    // 3) 更新数量
+    const { error: updErr } = await db
+      .from('indicator_systems')
+      .update({ indicator_count: indicatorCount, updated_at: timestamp })
+      .eq('id', systemId);
+    if (updErr) throw updErr;
+
+    return res.json({ code: 200, message: '保存成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -348,18 +487,36 @@ router.post('/indicator-systems/:systemId/indicators', async (req, res) => {
 
     const sortOrder = (maxOrderResult.rows[0]?.maxOrder ?? -1) + 1;
 
-    await db.query(`
-      INSERT INTO indicators (id, system_id, parent_id, code, name, description, level, is_leaf, sort_order, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, [id, systemId, parentId || null, code, name, description || '', level, isLeaf ? 1 : 0, sortOrder, timestamp, timestamp]);
+    const { error: insErr } = await db.from('indicators').insert({
+      id,
+      system_id: systemId,
+      parent_id: parentId || null,
+      code,
+      name,
+      description: description || '',
+      level,
+      is_leaf: isLeaf ? 1 : 0,
+      sort_order: sortOrder,
+      created_at: timestamp,
+      updated_at: timestamp,
+    });
+    if (insErr) throw insErr;
 
-    // 更新指标数量
-    await db.query('UPDATE indicator_systems SET indicator_count = indicator_count + 1, updated_at = $1 WHERE id = $2',
-      [timestamp, systemId]);
+    // 重新计算数量，避免无法原子自增
+    const { count, error: countErr } = await db
+      .from('indicators')
+      .select('id', { count: 'exact', head: true })
+      .eq('system_id', systemId);
+    if (countErr) throw countErr;
+    const { error: updErr } = await db
+      .from('indicator_systems')
+      .update({ indicator_count: count || 0, updated_at: timestamp })
+      .eq('id', systemId);
+    if (updErr) throw updErr;
 
-    res.json({ code: 200, data: { id }, message: '添加成功' });
+    return res.json({ code: 200, data: { id }, message: '添加成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -369,51 +526,104 @@ router.put('/indicator-systems/:systemId/indicators/:indicatorId', async (req, r
     const { code, name, description, isLeaf, weight } = req.body;
     const timestamp = now();
 
-    const result = await db.query(`
-      UPDATE indicators SET code = $1, name = $2, description = $3, is_leaf = $4, weight = $5, updated_at = $6
-      WHERE id = $7 AND system_id = $8
-    `, [code, name, description || '', isLeaf ? 1 : 0, weight || null, timestamp, req.params.indicatorId, req.params.systemId]);
+    const { data, error } = await db
+      .from('indicators')
+      .update({
+        code,
+        name,
+        description: description || '',
+        is_leaf: isLeaf ? 1 : 0,
+        weight: weight || null,
+        updated_at: timestamp,
+      })
+      .eq('id', req.params.indicatorId)
+      .eq('system_id', req.params.systemId)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '指标不存在' });
     }
 
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
 // 删除指标节点（使用级联删除服务）
 router.delete('/indicator-systems/:systemId/indicators/:indicatorId', async (req, res) => {
   try {
+    const systemId = req.params.systemId;
+    const indicatorId = req.params.indicatorId;
     const timestamp = now();
 
-    // 计算要删除的节点数（包括子节点）
-    const countDeleted = async (id) => {
-      const childrenResult = await db.query('SELECT id FROM indicators WHERE parent_id = $1', [id]);
-      let count = 1;
-      for (const child of childrenResult.rows) {
-        count += await countDeleted(child.id);
-      }
-      return count;
-    };
+    // 收集子树
+    const indicatorIds = await collectIndicatorSubtreeIds(indicatorId);
 
-    const deleteCount = await countDeleted(req.params.indicatorId);
+    // 查出数据指标
+    const { data: dataIndicators, error: diErr } = await db
+      .from('data_indicators')
+      .select('id')
+      .in('indicator_id', indicatorIds);
+    if (diErr) throw diErr;
+    const dataIndicatorIds = (dataIndicators || []).map(d => d.id);
 
-    const result = await deleteIndicator(req.params.indicatorId);
+    // 删除 data_indicator_elements / threshold_standards / data_indicators
+    if (dataIndicatorIds.length > 0) {
+      const { error: dieErr } = await db
+        .from('data_indicator_elements')
+        .delete()
+        .in('data_indicator_id', dataIndicatorIds);
+      if (dieErr) throw dieErr;
 
-    if (!result.deleted.indicators) {
+      const { error: tsErr } = await db
+        .from('threshold_standards')
+        .delete()
+        .in('indicator_id', dataIndicatorIds);
+      if (tsErr) throw tsErr;
+
+      const { error: diDelErr } = await db
+        .from('data_indicators')
+        .delete()
+        .in('id', dataIndicatorIds);
+      if (diDelErr) throw diDelErr;
+    }
+
+    // 删除 supporting_materials
+    const { error: smErr } = await db
+      .from('supporting_materials')
+      .delete()
+      .in('indicator_id', indicatorIds);
+    if (smErr) throw smErr;
+
+    // 删除 indicators
+    const { data: deletedIndicators, error: indDelErr } = await db
+      .from('indicators')
+      .delete()
+      .in('id', indicatorIds)
+      .eq('system_id', systemId)
+      .select('id');
+    if (indDelErr) throw indDelErr;
+    if (!deletedIndicators || deletedIndicators.length === 0) {
       return res.status(404).json({ code: 404, message: '指标不存在' });
     }
 
-    // 更新指标数量
-    await db.query('UPDATE indicator_systems SET indicator_count = indicator_count - $1, updated_at = $2 WHERE id = $3',
-      [deleteCount, timestamp, req.params.systemId]);
+    // 重新计算数量
+    const { count, error: countErr } = await db
+      .from('indicators')
+      .select('id', { count: 'exact', head: true })
+      .eq('system_id', systemId);
+    if (countErr) throw countErr;
+    const { error: updErr } = await db
+      .from('indicator_systems')
+      .update({ indicator_count: count || 0, updated_at: timestamp })
+      .eq('id', systemId);
+    if (updErr) throw updErr;
 
-    res.json({ code: 200, message: '删除成功' });
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -471,14 +681,21 @@ router.post('/data-indicators/:dataIndicatorId/elements', async (req, res) => {
       return res.status(400).json({ code: 400, message: '该关联已存在' });
     }
 
-    await db.query(`
-      INSERT INTO data_indicator_elements (id, data_indicator_id, element_id, mapping_type, description, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 'admin', $6, $7)
-    `, [id, dataIndicatorId, elementId, mappingType || 'primary', description || '', timestamp, timestamp]);
+    const { error } = await db.from('data_indicator_elements').insert({
+      id,
+      data_indicator_id: dataIndicatorId,
+      element_id: elementId,
+      mapping_type: mappingType || 'primary',
+      description: description || '',
+      created_by: 'admin',
+      created_at: timestamp,
+      updated_at: timestamp,
+    });
+    if (error) throw error;
 
-    res.json({ code: 200, data: { id }, message: '关联成功' });
+    return res.json({ code: 200, data: { id }, message: '关联成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -488,35 +705,46 @@ router.put('/data-indicators/:dataIndicatorId/elements/:associationId', async (r
     const { mappingType, description } = req.body;
     const timestamp = now();
 
-    const result = await db.query(`
-      UPDATE data_indicator_elements SET mapping_type = $1, description = $2, updated_at = $3
-      WHERE id = $4 AND data_indicator_id = $5
-    `, [mappingType, description || '', timestamp, req.params.associationId, req.params.dataIndicatorId]);
+    const { data, error } = await db
+      .from('data_indicator_elements')
+      .update({
+        mapping_type: mappingType,
+        description: description || '',
+        updated_at: timestamp,
+      })
+      .eq('id', req.params.associationId)
+      .eq('data_indicator_id', req.params.dataIndicatorId)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '关联不存在' });
     }
 
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
 // 删除数据指标-要素关联
 router.delete('/data-indicators/:dataIndicatorId/elements/:associationId', async (req, res) => {
   try {
-    const result = await db.query(`
-      DELETE FROM data_indicator_elements WHERE id = $1 AND data_indicator_id = $2
-    `, [req.params.associationId, req.params.dataIndicatorId]);
+    const { data, error } = await db
+      .from('data_indicator_elements')
+      .delete()
+      .eq('id', req.params.associationId)
+      .eq('data_indicator_id', req.params.dataIndicatorId)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '关联不存在' });
     }
 
-    res.json({ code: 200, message: '删除成功' });
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -527,30 +755,30 @@ router.put('/data-indicators/:dataIndicatorId/elements', async (req, res) => {
   const timestamp = now();
 
   try {
-    await db.transaction(async (client) => {
-      // 删除现有关联
-      await client.query('DELETE FROM data_indicator_elements WHERE data_indicator_id = $1', [dataIndicatorId]);
+    const { error: delErr } = await db
+      .from('data_indicator_elements')
+      .delete()
+      .eq('data_indicator_id', dataIndicatorId);
+    if (delErr) throw delErr;
 
-      // 插入新关联
-      for (const assoc of associations) {
-        await client.query(`
-          INSERT INTO data_indicator_elements (id, data_indicator_id, element_id, mapping_type, description, created_by, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, 'admin', $6, $7)
-        `, [
-          assoc.id || generateId(),
-          dataIndicatorId,
-          assoc.elementId,
-          assoc.mappingType || 'primary',
-          assoc.description || '',
-          timestamp,
-          timestamp
-        ]);
-      }
-    });
+    if (associations && Array.isArray(associations) && associations.length > 0) {
+      const records = associations.map(a => ({
+        id: a.id || generateId(),
+        data_indicator_id: dataIndicatorId,
+        element_id: a.elementId,
+        mapping_type: a.mappingType || 'primary',
+        description: a.description || '',
+        created_by: 'admin',
+        created_at: timestamp,
+        updated_at: timestamp,
+      }));
+      const { error: insErr } = await db.from('data_indicator_elements').insert(records);
+      if (insErr) throw insErr;
+    }
 
-    res.json({ code: 200, message: '保存成功' });
+    return res.json({ code: 200, message: '保存成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 

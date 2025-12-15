@@ -180,22 +180,32 @@ router.post('/schools', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
-    await db.query(`
-      INSERT INTO schools
-      (id, code, name, district_id, school_type, school_category, urban_rural,
-       address, principal, contact_phone, student_count, teacher_count, status, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', $13, $14)
-    `, [
-      id, code, name, districtId, schoolType,
-      schoolCategory || '公办', urbanRural || '城区',
-      address || '', principal || '', contactPhone || '',
-      studentCount || 0, teacherCount || 0,
-      timestamp, timestamp
-    ]);
+    // 使用 Supabase Data API，避免 exec_sql 对 INSERT 报错
+    const { data, error } = await db
+      .from('schools')
+      .insert({
+        id,
+        code,
+        name,
+        district_id: districtId,
+        school_type: schoolType,
+        school_category: schoolCategory || '公办',
+        urban_rural: urbanRural || '城区',
+        address: address || '',
+        principal: principal || '',
+        contact_phone: contactPhone || '',
+        student_count: studentCount || 0,
+        teacher_count: teacherCount || 0,
+        status: 'active',
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -241,31 +251,37 @@ router.put('/schools/:id', async (req, res) => {
 
     const timestamp = now();
 
-    await db.query(`
-      UPDATE schools SET
-        code = COALESCE($1, code),
-        name = COALESCE($2, name),
-        district_id = COALESCE($3, district_id),
-        school_type = COALESCE($4, school_type),
-        school_category = COALESCE($5, school_category),
-        urban_rural = COALESCE($6, urban_rural),
-        address = COALESCE($7, address),
-        principal = COALESCE($8, principal),
-        contact_phone = COALESCE($9, contact_phone),
-        student_count = COALESCE($10, student_count),
-        teacher_count = COALESCE($11, teacher_count),
-        status = COALESCE($12, status),
-        updated_at = $13
-      WHERE id = $14
-    `, [
-      code, name, districtId, schoolType, schoolCategory,
-      urbanRural, address, principal, contactPhone,
-      studentCount, teacherCount, status, timestamp, id
-    ]);
+    // 使用 Supabase Data API，避免 exec_sql 对 UPDATE 报错
+    const updates = {
+      ...(code !== undefined ? { code } : {}),
+      ...(name !== undefined ? { name } : {}),
+      ...(districtId !== undefined ? { district_id: districtId } : {}),
+      ...(schoolType !== undefined ? { school_type: schoolType } : {}),
+      ...(schoolCategory !== undefined ? { school_category: schoolCategory } : {}),
+      ...(urbanRural !== undefined ? { urban_rural: urbanRural } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(principal !== undefined ? { principal } : {}),
+      ...(contactPhone !== undefined ? { contact_phone: contactPhone } : {}),
+      ...(studentCount !== undefined ? { student_count: studentCount } : {}),
+      ...(teacherCount !== undefined ? { teacher_count: teacherCount } : {}),
+      ...(status !== undefined ? { status } : {}),
+      updated_at: timestamp,
+    };
 
-    res.json({ code: 200, message: '更新成功' });
+    const { data, error } = await db
+      .from('schools')
+      .update(updates)
+      .eq('id', id)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '学校不存在' });
+    }
+
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -281,15 +297,20 @@ router.delete('/schools/:id', async (req, res) => {
       return res.status(400).json({ code: 400, message: `该学校有 ${submissionCount} 条填报记录，无法删除` });
     }
 
-    const result = await db.query('DELETE FROM schools WHERE id = $1', [id]);
+    const { data, error } = await db
+      .from('schools')
+      .delete()
+      .eq('id', id)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '学校不存在' });
     }
 
-    res.json({ code: 200, message: '删除成功' });
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -309,69 +330,82 @@ router.post('/schools/import', async (req, res) => {
       errors: []
     };
 
-    // 使用事务批量插入
-    await db.transaction(async (client) => {
-      for (const school of schools) {
-        try {
-          // 验证必填字段
-          if (!school.code || !school.name || !school.districtId || !school.schoolType) {
-            results.failed++;
-            results.errors.push({ code: school.code, error: '缺少必填字段' });
-            continue;
-          }
-
-          // 程序层面枚举验证
-          try {
-            validateEnum('SCHOOL_TYPE', school.schoolType, 'schoolType');
-            if (school.schoolCategory) validateEnum('SCHOOL_CATEGORY', school.schoolCategory, 'schoolCategory');
-            if (school.urbanRural) validateEnum('URBAN_RURAL_TYPE', school.urbanRural, 'urbanRural');
-          } catch (e) {
-            results.failed++;
-            results.errors.push({ code: school.code, error: e.message });
-            continue;
-          }
-
-          // 检查代码是否已存在
-          const existingResult = await client.query('SELECT id FROM schools WHERE code = $1', [school.code]);
-          if (existingResult.rows[0]) {
-            results.failed++;
-            results.errors.push({ code: school.code, error: '学校代码已存在' });
-            continue;
-          }
-
-          // 验证区县（支持ID或代码）（程序层面引用验证）
-          const districtResult = await client.query(
-            'SELECT id FROM districts WHERE id = $1 OR code = $1',
-            [school.districtId]
-          );
-          if (!districtResult.rows[0]) {
-            results.failed++;
-            results.errors.push({ code: school.code, error: '所属区县不存在' });
-            continue;
-          }
-
-          const id = generateId();
-          await client.query(`
-            INSERT INTO schools
-            (id, code, name, district_id, school_type, school_category, urban_rural,
-             address, principal, contact_phone, student_count, teacher_count, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', $13, $14)
-          `, [
-            id, school.code, school.name, districtResult.rows[0].id,
-            school.schoolType, school.schoolCategory || '公办',
-            school.urbanRural || '城区', school.address || '',
-            school.principal || '', school.contactPhone || '',
-            school.studentCount || 0, school.teacherCount || 0,
-            timestamp, timestamp
-          ]);
-
-          results.success++;
-        } catch (err) {
+    // Supabase Data API 不支持跨多步原子事务；原实现的 db.transaction 也非真正事务
+    // 这里改为逐条校验 + 插入，避免 exec_sql 对写操作报错
+    for (const school of schools) {
+      try {
+        // 验证必填字段
+        if (!school.code || !school.name || !school.districtId || !school.schoolType) {
           results.failed++;
-          results.errors.push({ code: school.code, error: err.message });
+          results.errors.push({ code: school.code, error: '缺少必填字段' });
+          continue;
         }
+
+        // 程序层面枚举验证
+        try {
+          validateEnum('SCHOOL_TYPE', school.schoolType, 'schoolType');
+          if (school.schoolCategory) validateEnum('SCHOOL_CATEGORY', school.schoolCategory, 'schoolCategory');
+          if (school.urbanRural) validateEnum('URBAN_RURAL_TYPE', school.urbanRural, 'urbanRural');
+        } catch (e) {
+          results.failed++;
+          results.errors.push({ code: school.code, error: e.message });
+          continue;
+        }
+
+        // 检查代码是否已存在
+        const { data: existing, error: existErr } = await db
+          .from('schools')
+          .select('id')
+          .eq('code', school.code)
+          .maybeSingle();
+        if (existErr) throw existErr;
+        if (existing) {
+          results.failed++;
+          results.errors.push({ code: school.code, error: '学校代码已存在' });
+          continue;
+        }
+
+        // 验证区县（支持ID或代码）
+        const { data: district, error: districtErr } = await db
+          .from('districts')
+          .select('id')
+          .or(`id.eq.${school.districtId},code.eq.${school.districtId}`)
+          .maybeSingle();
+        if (districtErr) throw districtErr;
+        if (!district) {
+          results.failed++;
+          results.errors.push({ code: school.code, error: '所属区县不存在' });
+          continue;
+        }
+
+        const id = generateId();
+        const { error: insErr } = await db
+          .from('schools')
+          .insert({
+            id,
+            code: school.code,
+            name: school.name,
+            district_id: district.id,
+            school_type: school.schoolType,
+            school_category: school.schoolCategory || '公办',
+            urban_rural: school.urbanRural || '城区',
+            address: school.address || '',
+            principal: school.principal || '',
+            contact_phone: school.contactPhone || '',
+            student_count: school.studentCount || 0,
+            teacher_count: school.teacherCount || 0,
+            status: 'active',
+            created_at: timestamp,
+            updated_at: timestamp,
+          });
+        if (insErr) throw insErr;
+
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ code: school.code, error: err.message });
       }
-    });
+    }
 
     res.json({
       code: 200,

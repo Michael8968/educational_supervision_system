@@ -148,49 +148,57 @@ router.post('/compliance-rules', async (req, res) => {
       return res.status(400).json({ code: 400, message: '规则代码已存在' });
     }
 
-    await db.transaction(async (client) => {
-      // 插入规则
-      await client.query(`
-        INSERT INTO compliance_rules
-        (id, code, name, rule_type, indicator_id, element_id, enabled, priority, description, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'admin', $10, $11)
-      `, [id, code, name, ruleType, indicatorId || null, elementId || null,
-        enabled !== false ? 1 : 0, priority || 0, description || '', timestamp, timestamp]);
-
-      // 插入条件
-      if (conditions && conditions.length > 0) {
-        for (let idx = 0; idx < conditions.length; idx++) {
-          const c = conditions[idx];
-          await client.query(`
-            INSERT INTO rule_conditions (id, rule_id, field, operator, value, logical_operator, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `, [
-            generateId(), id, c.field, c.operator,
-            typeof c.value === 'object' ? JSON.stringify(c.value) : String(c.value),
-            c.logicalOperator || 'AND', idx
-          ]);
-        }
-      }
-
-      // 插入动作
-      if (actions && actions.length > 0) {
-        for (let idx = 0; idx < actions.length; idx++) {
-          const a = actions[idx];
-          await client.query(`
-            INSERT INTO rule_actions (id, rule_id, action_type, config, result_field, pass_message, fail_message, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          `, [
-            generateId(), id, a.actionType,
-            typeof a.config === 'object' ? JSON.stringify(a.config) : a.config,
-            a.resultField || null, a.passMessage || null, a.failMessage || null, idx
-          ]);
-        }
-      }
+    // 使用 Supabase Data API（避免 exec_sql 仅支持 SELECT 的限制）
+    const { error: ruleErr } = await db.from('compliance_rules').insert({
+      id,
+      code,
+      name,
+      rule_type: ruleType,
+      indicator_id: indicatorId || null,
+      element_id: elementId || null,
+      enabled: enabled !== false ? 1 : 0,
+      priority: priority || 0,
+      description: description || '',
+      created_by: 'admin',
+      created_at: timestamp,
+      updated_at: timestamp,
     });
+    if (ruleErr) throw ruleErr;
 
-    res.json({ code: 200, data: { id }, message: '创建成功' });
+    if (conditions && Array.isArray(conditions) && conditions.length > 0) {
+      const records = conditions.map((c, idx) => ({
+        id: generateId(),
+        rule_id: id,
+        field: c.field,
+        operator: c.operator,
+        value: typeof c.value === 'object' ? JSON.stringify(c.value) : String(c.value),
+        logical_operator: c.logicalOperator || 'AND',
+        sort_order: idx,
+        created_at: timestamp,
+      }));
+      const { error: condErr } = await db.from('rule_conditions').insert(records);
+      if (condErr) throw condErr;
+    }
+
+    if (actions && Array.isArray(actions) && actions.length > 0) {
+      const records = actions.map((a, idx) => ({
+        id: generateId(),
+        rule_id: id,
+        action_type: a.actionType,
+        config: typeof a.config === 'object' ? JSON.stringify(a.config) : a.config,
+        result_field: a.resultField || null,
+        pass_message: a.passMessage || null,
+        fail_message: a.failMessage || null,
+        sort_order: idx,
+        created_at: timestamp,
+      }));
+      const { error: actErr } = await db.from('rule_actions').insert(records);
+      if (actErr) throw actErr;
+    }
+
+    return res.json({ code: 200, data: { id }, message: '创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -224,69 +232,104 @@ router.put('/compliance-rules/:id', async (req, res) => {
       }
     }
 
-    await db.transaction(async (client) => {
-      // 更新规则
-      await client.query(`
-        UPDATE compliance_rules
-        SET code = $1, name = $2, rule_type = $3, indicator_id = $4, element_id = $5,
-            enabled = $6, priority = $7, description = $8, updated_by = 'admin', updated_at = $9
-        WHERE id = $10
-      `, [code, name, ruleType, indicatorId || null, elementId || null,
-        enabled !== false ? 1 : 0, priority || 0, description || '', timestamp, ruleId]);
+    const { data: updated, error: updErr } = await db
+      .from('compliance_rules')
+      .update({
+        code,
+        name,
+        rule_type: ruleType,
+        indicator_id: indicatorId || null,
+        element_id: elementId || null,
+        enabled: enabled !== false ? 1 : 0,
+        priority: priority || 0,
+        description: description || '',
+        updated_by: 'admin',
+        updated_at: timestamp,
+      })
+      .eq('id', ruleId)
+      .select('id');
+    if (updErr) throw updErr;
+    if (!updated || updated.length === 0) {
+      return res.status(404).json({ code: 404, message: '规则不存在' });
+    }
 
-      // 更新条件：删除旧的，插入新的
-      await client.query('DELETE FROM rule_conditions WHERE rule_id = $1', [ruleId]);
+    // 条件：全量覆盖
+    const { error: delCondErr } = await db.from('rule_conditions').delete().eq('rule_id', ruleId);
+    if (delCondErr) throw delCondErr;
+    if (conditions && Array.isArray(conditions) && conditions.length > 0) {
+      const records = conditions.map((c, idx) => ({
+        id: c.id || generateId(),
+        rule_id: ruleId,
+        field: c.field,
+        operator: c.operator,
+        value: typeof c.value === 'object' ? JSON.stringify(c.value) : String(c.value),
+        logical_operator: c.logicalOperator || 'AND',
+        sort_order: idx,
+        created_at: timestamp,
+      }));
+      const { error: insCondErr } = await db.from('rule_conditions').insert(records);
+      if (insCondErr) throw insCondErr;
+    }
 
-      if (conditions && conditions.length > 0) {
-        for (let idx = 0; idx < conditions.length; idx++) {
-          const c = conditions[idx];
-          await client.query(`
-            INSERT INTO rule_conditions (id, rule_id, field, operator, value, logical_operator, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `, [
-            c.id || generateId(), ruleId, c.field, c.operator,
-            typeof c.value === 'object' ? JSON.stringify(c.value) : String(c.value),
-            c.logicalOperator || 'AND', idx
-          ]);
-        }
-      }
+    // 动作：全量覆盖
+    const { error: delActErr } = await db.from('rule_actions').delete().eq('rule_id', ruleId);
+    if (delActErr) throw delActErr;
+    if (actions && Array.isArray(actions) && actions.length > 0) {
+      const records = actions.map((a, idx) => ({
+        id: a.id || generateId(),
+        rule_id: ruleId,
+        action_type: a.actionType,
+        config: typeof a.config === 'object' ? JSON.stringify(a.config) : a.config,
+        result_field: a.resultField || null,
+        pass_message: a.passMessage || null,
+        fail_message: a.failMessage || null,
+        sort_order: idx,
+        created_at: timestamp,
+      }));
+      const { error: insActErr } = await db.from('rule_actions').insert(records);
+      if (insActErr) throw insActErr;
+    }
 
-      // 更新动作
-      await client.query('DELETE FROM rule_actions WHERE rule_id = $1', [ruleId]);
-
-      if (actions && actions.length > 0) {
-        for (let idx = 0; idx < actions.length; idx++) {
-          const a = actions[idx];
-          await client.query(`
-            INSERT INTO rule_actions (id, rule_id, action_type, config, result_field, pass_message, fail_message, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          `, [
-            a.id || generateId(), ruleId, a.actionType,
-            typeof a.config === 'object' ? JSON.stringify(a.config) : a.config,
-            a.resultField || null, a.passMessage || null, a.failMessage || null, idx
-          ]);
-        }
-      }
-    });
-
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
 // 删除规则（使用级联删除服务）
 router.delete('/compliance-rules/:id', async (req, res) => {
   try {
-    const result = await deleteComplianceRule(req.params.id);
+    const ruleId = req.params.id;
 
-    if (!result.deleted.compliance_rules) {
+    // 先确认存在
+    const { data: rule, error: ruleErr } = await db
+      .from('compliance_rules')
+      .select('id')
+      .eq('id', ruleId)
+      .maybeSingle();
+    if (ruleErr) throw ruleErr;
+    if (!rule) {
       return res.status(404).json({ code: 404, message: '规则不存在' });
     }
 
-    res.json({ code: 200, message: '删除成功' });
+    // 级联删除：conditions/actions/results -> rule
+    await db.from('compliance_results').delete().eq('rule_id', ruleId);
+    await db.from('rule_conditions').delete().eq('rule_id', ruleId);
+    await db.from('rule_actions').delete().eq('rule_id', ruleId);
+
+    const { data: deleted, error: delErr } = await db
+      .from('compliance_rules')
+      .delete()
+      .eq('id', ruleId)
+      .select('id');
+    if (delErr) throw delErr;
+    if (!deleted || deleted.length === 0) {
+      return res.status(404).json({ code: 404, message: '规则不存在' });
+    }
+
+    return res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -301,12 +344,19 @@ router.post('/compliance-rules/:id/toggle', async (req, res) => {
     }
 
     const newEnabled = rule.enabled ? 0 : 1;
-    await db.query('UPDATE compliance_rules SET enabled = $1, updated_at = $2 WHERE id = $3',
-      [newEnabled, now(), req.params.id]);
+    const { data, error } = await db
+      .from('compliance_rules')
+      .update({ enabled: newEnabled, updated_at: now() })
+      .eq('id', req.params.id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '规则不存在' });
+    }
 
-    res.json({ code: 200, data: { enabled: !!newEnabled }, message: newEnabled ? '已启用' : '已禁用' });
+    return res.json({ code: 200, data: { enabled: !!newEnabled }, message: newEnabled ? '已启用' : '已禁用' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -496,25 +546,29 @@ router.post('/threshold-standards', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
-    // 使用UPSERT
-    await db.query(`
-      INSERT INTO threshold_standards
-      (id, indicator_id, institution_type, threshold_operator, threshold_value, unit, source, effective_date, expiry_date, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT(indicator_id, institution_type) DO UPDATE SET
-        threshold_operator = EXCLUDED.threshold_operator,
-        threshold_value = EXCLUDED.threshold_value,
-        unit = EXCLUDED.unit,
-        source = EXCLUDED.source,
-        effective_date = EXCLUDED.effective_date,
-        expiry_date = EXCLUDED.expiry_date,
-        updated_at = EXCLUDED.updated_at
-    `, [id, indicatorId, institutionType, thresholdOperator, String(thresholdValue),
-      unit || null, source || null, effectiveDate || null, expiryDate || null, timestamp, timestamp]);
+    const { error } = await db
+      .from('threshold_standards')
+      .upsert(
+        {
+          id,
+          indicator_id: indicatorId,
+          institution_type: institutionType,
+          threshold_operator: thresholdOperator,
+          threshold_value: String(thresholdValue),
+          unit: unit || null,
+          source: source || null,
+          effective_date: effectiveDate || null,
+          expiry_date: expiryDate || null,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+        { onConflict: 'indicator_id,institution_type' }
+      );
+    if (error) throw error;
 
-    res.json({ code: 200, message: '保存成功' });
+    return res.json({ code: 200, message: '保存成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button, Input, Tag, Modal, Form, Select, Upload, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Tag, Modal, Form, Select, Upload, message, Spin, Empty, Popconfirm } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -17,71 +17,119 @@ import {
   ApartmentOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { indicatorSystems, indicatorSystemStats, IndicatorSystem } from '../../mock/data';
+import * as indicatorService from '../../services/indicatorService';
+import type { IndicatorSystem } from '../../services/indicatorService';
 import styles from './index.module.css';
 
 const { Search } = Input;
 
+// 统计数据类型
+interface IndicatorSystemStats {
+  total: number;
+  published: number;
+  editing: number;
+  standard: number;
+  scoring: number;
+}
+
 const IndicatorLibrary: React.FC = () => {
   const navigate = useNavigate();
-  const [systems, setSystems] = useState(indicatorSystems);
+  const [loading, setLoading] = useState(true);
+  const [systems, setSystems] = useState<IndicatorSystem[]>([]);
+  const [filteredSystems, setFilteredSystems] = useState<IndicatorSystem[]>([]);
+  const [stats, setStats] = useState<IndicatorSystemStats>({ total: 0, published: 0, editing: 0, standard: 0, scoring: 0 });
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [editInfoModalVisible, setEditInfoModalVisible] = useState(false);
   const [currentSystem, setCurrentSystem] = useState<IndicatorSystem | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [searchValue, setSearchValue] = useState('');
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  const handleSearch = (value: string) => {
-    filterSystems(value, statusFilter);
-  };
+  // 加载指标体系列表
+  const loadSystems = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await indicatorService.getIndicatorSystems();
+      setSystems(data);
 
-  const handleStatusFilter = (value: string) => {
-    setStatusFilter(value);
-    filterSystems('', value);
-  };
+      // 计算统计数据
+      setStats({
+        total: data.length,
+        published: data.filter(sys => sys.status === 'published').length,
+        editing: data.filter(sys => sys.status === 'editing' || sys.status === 'draft').length,
+        standard: data.filter(sys => sys.type === '达标类').length,
+        scoring: data.filter(sys => sys.type === '评分类').length,
+      });
 
-  const filterSystems = (searchValue: string, status: string) => {
-    let filtered = indicatorSystems;
-    if (searchValue) {
+      // 应用筛选
+      applyFilter(data, searchValue, statusFilter);
+    } catch (error) {
+      console.error('加载指标体系列表失败:', error);
+      message.error('加载指标体系列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchValue, statusFilter]);
+
+  useEffect(() => {
+    loadSystems();
+  }, [loadSystems]);
+
+  // 应用筛选
+  const applyFilter = (data: IndicatorSystem[], search: string, status: string) => {
+    let filtered = data;
+    if (search) {
       filtered = filtered.filter(sys =>
-        sys.name.includes(searchValue) || sys.description.includes(searchValue)
+        sys.name.includes(search) || sys.description.includes(search)
       );
     }
     if (status !== 'all') {
       filtered = filtered.filter(sys => sys.status === status);
     }
-    setSystems(filtered);
+    setFilteredSystems(filtered);
   };
 
-  const handleCreate = (values: any) => {
-    const newSystem: IndicatorSystem = {
-      id: String(systems.length + 1),
-      name: values.name,
-      type: values.type,
-      target: values.target,
-      tags: values.keywords ? values.keywords.split(/[,，\s]+/) : [],
-      description: values.description || '',
-      indicatorCount: 0,
-      attachments: [],
-      status: 'draft' as const,
-      createdBy: 'admin',
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedBy: 'admin',
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-    setSystems([newSystem, ...systems]);
-    setCreateModalVisible(false);
-    form.resetFields();
-    message.success('创建成功');
+  // 搜索
+  const handleSearch = (value: string) => {
+    setSearchValue(value);
+    applyFilter(systems, value, statusFilter);
   };
 
+  // 状态筛选
+  const handleStatusFilter = (value: string) => {
+    setStatusFilter(value);
+    applyFilter(systems, searchValue, value);
+  };
+
+  // 创建指标体系
+  const handleCreate = async (values: any) => {
+    try {
+      await indicatorService.createIndicatorSystem({
+        name: values.name,
+        type: values.type,
+        target: values.target,
+        tags: values.keywords ? values.keywords.split(/[,，\s]+/).filter(Boolean) : [],
+        description: values.description || '',
+      });
+      setCreateModalVisible(false);
+      form.resetFields();
+      message.success('创建成功');
+      loadSystems();
+    } catch (error) {
+      console.error('创建指标体系失败:', error);
+      message.error('创建指标体系失败');
+    }
+  };
+
+  // 查看基础信息
   const handleViewInfo = (system: IndicatorSystem) => {
     setCurrentSystem(system);
     setInfoModalVisible(true);
   };
 
+  // 进入编辑模式
   const handleEditInfo = () => {
     if (currentSystem) {
       editForm.setFieldsValue({
@@ -96,33 +144,69 @@ const IndicatorLibrary: React.FC = () => {
     }
   };
 
-  const handleSaveInfo = (values: any) => {
-    if (currentSystem) {
-      const updatedSystem = {
-        ...currentSystem,
+  // 保存编辑
+  const handleSaveInfo = async (values: any) => {
+    if (!currentSystem) return;
+
+    try {
+      await indicatorService.updateIndicatorSystem(currentSystem.id, {
         name: values.name,
         type: values.type,
         target: values.target,
-        tags: values.keywords ? values.keywords.split(/[,，\s]+/) : [],
+        tags: values.keywords ? values.keywords.split(/[,，\s]+/).filter(Boolean) : [],
         description: values.description || '',
-        updatedAt: new Date().toISOString().split('T')[0],
-        updatedBy: 'admin',
-      };
-      setSystems(systems.map(sys => sys.id === currentSystem.id ? updatedSystem : sys));
-      setCurrentSystem(updatedSystem);
+      });
       setEditInfoModalVisible(false);
       message.success('保存成功');
+      loadSystems();
+    } catch (error) {
+      console.error('保存失败:', error);
+      message.error('保存失败');
     }
   };
 
-  const handleEditIndicators = (system: IndicatorSystem) => {
-    navigate(`/home/balanced/indicators/${system.id}/edit`);
+  // 发布指标体系
+  const handlePublish = async (systemId: string) => {
+    try {
+      await indicatorService.updateIndicatorSystem(systemId, { status: 'published' });
+      message.success('发布成功');
+      loadSystems();
+    } catch (error) {
+      console.error('发布失败:', error);
+      message.error('发布失败');
+    }
   };
 
+  // 取消发布
+  const handleUnpublish = async (systemId: string) => {
+    try {
+      await indicatorService.updateIndicatorSystem(systemId, { status: 'draft' });
+      message.success('已取消发布');
+      loadSystems();
+    } catch (error) {
+      console.error('取消发布失败:', error);
+      message.error('取消发布失败');
+    }
+  };
+
+  // 删除指标体系
+  const handleDelete = async (systemId: string) => {
+    try {
+      await indicatorService.deleteIndicatorSystem(systemId);
+      message.success('删除成功');
+      loadSystems();
+    } catch (error) {
+      console.error('删除失败:', error);
+      message.error('删除失败');
+    }
+  };
+
+  // 编辑指标树
   const handleEditTree = (system: IndicatorSystem) => {
     navigate(`/home/balanced/indicators/${system.id}/tree`);
   };
 
+  // 获取状态标签
   const getStatusTag = (status: string) => {
     switch (status) {
       case 'published':
@@ -149,35 +233,35 @@ const IndicatorLibrary: React.FC = () => {
           <div className={styles.statCard}>
             <div className={styles.statInfo}>
               <div className={styles.statLabel}>体系总数</div>
-              <div className={styles.statValue}>{indicatorSystemStats.total}</div>
+              <div className={styles.statValue}>{stats.total}</div>
             </div>
             <DatabaseOutlined className={styles.statIcon} style={{ color: '#1890ff' }} />
           </div>
           <div className={styles.statCard}>
             <div className={styles.statInfo}>
               <div className={styles.statLabel}>已发布</div>
-              <div className={styles.statValue} style={{ color: '#52c41a' }}>{indicatorSystemStats.published}</div>
+              <div className={styles.statValue} style={{ color: '#52c41a' }}>{stats.published}</div>
             </div>
             <CheckCircleOutlined className={styles.statIcon} style={{ color: '#52c41a' }} />
           </div>
           <div className={styles.statCard}>
             <div className={styles.statInfo}>
               <div className={styles.statLabel}>编辑中</div>
-              <div className={styles.statValue} style={{ color: '#fa8c16' }}>{indicatorSystemStats.editing}</div>
+              <div className={styles.statValue} style={{ color: '#fa8c16' }}>{stats.editing}</div>
             </div>
             <EditOutlined className={styles.statIcon} style={{ color: '#fa8c16' }} />
           </div>
           <div className={styles.statCard}>
             <div className={styles.statInfo}>
               <div className={styles.statLabel}>达标类</div>
-              <div className={styles.statValue} style={{ color: '#1890ff' }}>{indicatorSystemStats.standard}</div>
+              <div className={styles.statValue} style={{ color: '#1890ff' }}>{stats.standard}</div>
             </div>
             <AimOutlined className={styles.statIcon} style={{ color: '#1890ff' }} />
           </div>
           <div className={styles.statCard}>
             <div className={styles.statInfo}>
               <div className={styles.statLabel}>评分类</div>
-              <div className={styles.statValue} style={{ color: '#722ed1' }}>{indicatorSystemStats.scoring}</div>
+              <div className={styles.statValue} style={{ color: '#722ed1' }}>{stats.scoring}</div>
             </div>
             <BarChartOutlined className={styles.statIcon} style={{ color: '#722ed1' }} />
           </div>
@@ -209,62 +293,93 @@ const IndicatorLibrary: React.FC = () => {
         </div>
       </div>
 
-      <div className={styles.systemList}>
-        {systems.map(system => (
-          <div key={system.id} className={styles.systemCard}>
-            <div className={styles.systemCardHeader}>
-              <div className={styles.systemMainInfo}>
-                <span className={styles.systemName}>{system.name}</span>
-                <Tag color={system.type === '达标类' ? 'blue' : 'purple'}>{system.type}</Tag>
-                <Tag color="cyan">评估对象: {system.target}</Tag>
-              </div>
-              <div className={styles.systemStats}>
-                <span>指标数: {system.indicatorCount}</span>
-                {getStatusTag(system.status)}
-              </div>
-            </div>
-            <div className={styles.systemTags}>
-              {system.tags.map(tag => (
-                <Tag key={tag} color="blue">{tag}</Tag>
-              ))}
-            </div>
-            <p className={styles.systemDesc}>{system.description}</p>
-            {system.attachments.length > 0 && (
-              <div className={styles.systemAttachments}>
-                {system.attachments.map(att => (
-                  <Tag key={att.name} icon={<FileTextOutlined />} color="orange">
-                    {att.name} ({att.size})
-                  </Tag>
-                ))}
-              </div>
-            )}
-            <div className={styles.systemMeta}>
-              创建时间: {system.createdAt} &nbsp;&nbsp;
-              创建人: {system.createdBy} &nbsp;&nbsp;
-              更新时间: {system.updatedAt} &nbsp;&nbsp;
-              更新人: {system.updatedBy}
-            </div>
-            <div className={styles.systemActions}>
-              <span className={styles.actionBtn} onClick={() => handleViewInfo(system)}>
-                <EyeOutlined /> 基础信息
-              </span>
-              <span className={styles.actionBtn} onClick={() => handleEditTree(system)}>
-                <ApartmentOutlined /> 编辑指标
-              </span>
-              {system.status === 'published' ? (
-                <span className={styles.actionBtn}>取消发布</span>
-              ) : (
-                <>
-                  <span className={styles.actionBtn}>发布</span>
-                  <span className={`${styles.actionBtn} ${styles.danger}`}>
-                    <DeleteOutlined /> 删除
+      <Spin spinning={loading}>
+        {filteredSystems.length === 0 && !loading ? (
+          <Empty description="暂无指标体系" />
+        ) : (
+          <div className={styles.systemList}>
+            {filteredSystems.map(system => (
+              <div key={system.id} className={styles.systemCard}>
+                <div className={styles.systemCardHeader}>
+                  <div className={styles.systemMainInfo}>
+                    <span className={styles.systemName}>{system.name}</span>
+                    <Tag color={system.type === '达标类' ? 'blue' : 'purple'}>{system.type}</Tag>
+                    <Tag color="cyan">评估对象: {system.target}</Tag>
+                  </div>
+                  <div className={styles.systemStats}>
+                    <span>指标数: {system.indicatorCount || 0}</span>
+                    {getStatusTag(system.status)}
+                  </div>
+                </div>
+                <div className={styles.systemTags}>
+                  {system.tags.map(tag => (
+                    <Tag key={tag} color="blue">{tag}</Tag>
+                  ))}
+                </div>
+                <p className={styles.systemDesc}>{system.description}</p>
+                {system.attachments && system.attachments.length > 0 && (
+                  <div className={styles.systemAttachments}>
+                    {system.attachments.map(att => (
+                      <Tag key={att.name} icon={<FileTextOutlined />} color="orange">
+                        {att.name} ({att.size})
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+                <div className={styles.systemMeta}>
+                  创建时间: {system.createdAt} &nbsp;&nbsp;
+                  创建人: {system.createdBy} &nbsp;&nbsp;
+                  更新时间: {system.updatedAt} &nbsp;&nbsp;
+                  更新人: {system.updatedBy}
+                </div>
+                <div className={styles.systemActions}>
+                  <span className={styles.actionBtn} onClick={() => handleViewInfo(system)}>
+                    <EyeOutlined /> 基础信息
                   </span>
-                </>
-              )}
-            </div>
+                  <span className={styles.actionBtn} onClick={() => handleEditTree(system)}>
+                    <ApartmentOutlined /> 编辑指标
+                  </span>
+                  {system.status === 'published' ? (
+                    <Popconfirm
+                      title="取消发布"
+                      description="确定要取消发布该指标体系吗？"
+                      onConfirm={() => handleUnpublish(system.id)}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <span className={styles.actionBtn}>取消发布</span>
+                    </Popconfirm>
+                  ) : (
+                    <>
+                      <Popconfirm
+                        title="发布指标体系"
+                        description="确定要发布该指标体系吗？"
+                        onConfirm={() => handlePublish(system.id)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <span className={styles.actionBtn}>发布</span>
+                      </Popconfirm>
+                      <Popconfirm
+                        title="删除指标体系"
+                        description="确定要删除该指标体系吗？此操作不可恢复。"
+                        onConfirm={() => handleDelete(system.id)}
+                        okText="确定"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <span className={`${styles.actionBtn} ${styles.danger}`}>
+                          <DeleteOutlined /> 删除
+                        </span>
+                      </Popconfirm>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
+      </Spin>
 
       {/* 创建指标体系弹窗 */}
       <Modal
@@ -305,7 +420,7 @@ const IndicatorLibrary: React.FC = () => {
             </Form.Item>
           </div>
           <Form.Item label="关键字" name="keywords">
-            <Input placeholder="用逗号、分号、|或空格分割" />
+            <Input placeholder="用逗号、分号或空格分割" />
           </Form.Item>
           <Form.Item label="描述" name="description">
             <Input.TextArea placeholder="请输入指标体系描述" rows={3} />
@@ -353,7 +468,7 @@ const IndicatorLibrary: React.FC = () => {
             <div className={styles.infoModalTags}>
               <Tag color="orange">{currentSystem.type}</Tag>
               <Tag color="cyan">评估对象: {currentSystem.target}</Tag>
-              <Tag>指标数: {currentSystem.indicatorCount}</Tag>
+              <Tag>指标数: {currentSystem.indicatorCount || 0}</Tag>
             </div>
             <div className={styles.infoModalKeywords}>
               {currentSystem.tags.map(tag => (
@@ -363,18 +478,22 @@ const IndicatorLibrary: React.FC = () => {
             <p className={styles.infoModalDesc}>{currentSystem.description}</p>
 
             <div className={styles.infoModalAttachments}>
-              <h4>附件 ({currentSystem.attachments.length})</h4>
+              <h4>附件 ({currentSystem.attachments?.length || 0})</h4>
               <div className={styles.attachmentList}>
-                {currentSystem.attachments.map(att => (
-                  <div key={att.name} className={styles.attachmentItem}>
-                    <div className={styles.attachmentInfo}>
-                      <FileTextOutlined className={styles.attachmentIcon} />
-                      <span className={styles.attachmentName}>{att.name}</span>
-                      <span className={styles.attachmentSize}>({att.size})</span>
+                {currentSystem.attachments && currentSystem.attachments.length > 0 ? (
+                  currentSystem.attachments.map(att => (
+                    <div key={att.name} className={styles.attachmentItem}>
+                      <div className={styles.attachmentInfo}>
+                        <FileTextOutlined className={styles.attachmentIcon} />
+                        <span className={styles.attachmentName}>{att.name}</span>
+                        <span className={styles.attachmentSize}>({att.size})</span>
+                      </div>
+                      <Button type="link" icon={<DownloadOutlined />}>下载</Button>
                     </div>
-                    <Button type="link" icon={<DownloadOutlined />}>下载</Button>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <Empty description="暂无附件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
               </div>
             </div>
 
@@ -439,7 +558,7 @@ const IndicatorLibrary: React.FC = () => {
               <p className="ant-upload-text">点击上传附件</p>
               <p className="ant-upload-hint">支持PDF、Word、Excel等格式</p>
             </Upload.Dragger>
-            {currentSystem && currentSystem.attachments.length > 0 && (
+            {currentSystem && currentSystem.attachments && currentSystem.attachments.length > 0 && (
               <div className={styles.uploadedAttachments}>
                 {currentSystem.attachments.map(att => (
                   <div key={att.name} className={styles.uploadedAttachmentItem}>

@@ -80,17 +80,31 @@ router.post('/projects/:projectId/tools', async (req, res) => {
     const timestamp = now();
 
     // 获取最大排序号
-    const maxOrderResult = await db.query('SELECT MAX(sort_order) as "maxOrder" FROM project_tools WHERE project_id = $1', [projectId]);
-    const sortOrder = (maxOrderResult.rows[0]?.maxOrder ?? -1) + 1;
+    const { data: maxRows, error: maxErr } = await db
+      .from('project_tools')
+      .select('sort_order')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+    if (maxErr) throw maxErr;
+    const sortOrder = ((maxRows?.[0]?.sort_order ?? -1) + 1);
 
-    await db.query(`
-      INSERT INTO project_tools (id, project_id, tool_id, sort_order, is_required, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [id, projectId, toolId, sortOrder, isRequired ? 1 : 0, timestamp]);
+    const { data, error } = await db
+      .from('project_tools')
+      .insert({
+        id,
+        project_id: projectId,
+        tool_id: toolId,
+        sort_order: sortOrder,
+        is_required: isRequired ? 1 : 0,
+        created_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '关联成功' });
+    if (error) throw error;
+    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '关联成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -112,27 +126,44 @@ router.post('/projects/:projectId/tools/batch', async (req, res) => {
 
     const timestamp = now();
 
-    await db.transaction(async (client) => {
-      // 获取当前最大排序号
-      const maxOrderResult = await client.query('SELECT MAX(sort_order) as "maxOrder" FROM project_tools WHERE project_id = $1', [projectId]);
-      let sortOrder = (maxOrderResult.rows[0]?.maxOrder ?? -1) + 1;
+    // Data API 不支持多语句事务；原 db.transaction 也非真正事务，这里改为逐条写入
+    const { data: maxRows, error: maxErr } = await db
+      .from('project_tools')
+      .select('sort_order')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+    if (maxErr) throw maxErr;
+    let sortOrder = ((maxRows?.[0]?.sort_order ?? -1) + 1);
 
-      for (const toolId of toolIds) {
-        // 检查是否已关联
-        const existingResult = await client.query('SELECT id FROM project_tools WHERE project_id = $1 AND tool_id = $2', [projectId, toolId]);
-        if (!existingResult.rows[0]) {
-          const id = generateId();
-          await client.query(`
-            INSERT INTO project_tools (id, project_id, tool_id, sort_order, is_required, created_at)
-            VALUES ($1, $2, $3, $4, 1, $5)
-          `, [id, projectId, toolId, sortOrder++, timestamp]);
-        }
-      }
-    });
+    for (const toolId of toolIds) {
+      // 检查是否已关联
+      const { data: existing, error: existErr } = await db
+        .from('project_tools')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('tool_id', toolId)
+        .maybeSingle();
+      if (existErr) throw existErr;
+      if (existing) continue;
 
-    res.json({ code: 200, message: '批量关联成功' });
+      const id = generateId();
+      const { error: insErr } = await db
+        .from('project_tools')
+        .insert({
+          id,
+          project_id: projectId,
+          tool_id: toolId,
+          sort_order: sortOrder++,
+          is_required: 1,
+          created_at: timestamp,
+        });
+      if (insErr) throw insErr;
+    }
+
+    return res.json({ code: 200, message: '批量关联成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -141,15 +172,21 @@ router.delete('/projects/:projectId/tools/:toolId', async (req, res) => {
   try {
     const { projectId, toolId } = req.params;
 
-    const result = await db.query('DELETE FROM project_tools WHERE project_id = $1 AND tool_id = $2', [projectId, toolId]);
+    const { data, error } = await db
+      .from('project_tools')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('tool_id', toolId)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '关联关系不存在' });
     }
 
-    res.json({ code: 200, message: '移除成功' });
+    return res.json({ code: 200, message: '移除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -159,17 +196,21 @@ router.put('/projects/:projectId/tools/:toolId', async (req, res) => {
     const { projectId, toolId } = req.params;
     const { isRequired } = req.body;
 
-    const result = await db.query(`
-      UPDATE project_tools SET is_required = $1 WHERE project_id = $2 AND tool_id = $3
-    `, [isRequired ? 1 : 0, projectId, toolId]);
+    const { data, error } = await db
+      .from('project_tools')
+      .update({ is_required: isRequired ? 1 : 0 })
+      .eq('project_id', projectId)
+      .eq('tool_id', toolId)
+      .select('id');
 
-    if (result.rowCount === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '关联关系不存在' });
     }
 
-    res.json({ code: 200, message: '更新成功' });
+    return res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 
@@ -183,17 +224,23 @@ router.put('/projects/:projectId/tools/order', async (req, res) => {
       return res.status(400).json({ code: 400, message: '工具ID列表格式错误' });
     }
 
-    await db.transaction(async (client) => {
-      for (let index = 0; index < toolIds.length; index++) {
-        await client.query(`
-          UPDATE project_tools SET sort_order = $1 WHERE project_id = $2 AND tool_id = $3
-        `, [index, projectId, toolIds[index]]);
+    for (let index = 0; index < toolIds.length; index++) {
+      const toolId = toolIds[index];
+      const { data, error } = await db
+        .from('project_tools')
+        .update({ sort_order: index })
+        .eq('project_id', projectId)
+        .eq('tool_id', toolId)
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        return res.status(404).json({ code: 404, message: '关联关系不存在' });
       }
-    });
+    }
 
-    res.json({ code: 200, message: '排序更新成功' });
+    return res.json({ code: 200, message: '排序更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    return res.status(500).json({ code: 500, message: error.message });
   }
 });
 

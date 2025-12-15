@@ -32,6 +32,12 @@ ALTER TABLE data_indicator_elements ADD COLUMN IF NOT EXISTS updated_at TEXT;
 ALTER TABLE field_mappings RENAME COLUMN field_key TO field_id;
 ALTER TABLE field_mappings ADD COLUMN IF NOT EXISTS updated_at TEXT;
 
+-- ==================== elements ====================
+-- 基础要素可选：关联采集工具/表单控件（用于页面回显与筛选“未关联/已关联”）
+ALTER TABLE elements ADD COLUMN IF NOT EXISTS tool_id TEXT;
+ALTER TABLE elements ADD COLUMN IF NOT EXISTS field_id TEXT;
+ALTER TABLE elements ADD COLUMN IF NOT EXISTS field_label TEXT;
+
 -- ==================== submissions ====================
 -- 添加 form_id 列（与 tool_id 分开，或作为别名）
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS form_id TEXT;

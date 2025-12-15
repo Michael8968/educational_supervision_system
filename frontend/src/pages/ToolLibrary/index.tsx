@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button, Input, Tag, Modal, Form, Select, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Tag, Modal, Form, Select, message, Spin, Empty, Popconfirm } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -11,14 +11,17 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { dataTools, DataTool } from '../../mock/data';
+import * as toolService from '../../services/toolService';
+import type { DataTool } from '../../services/toolService';
 import styles from './index.module.css';
 
 const { Search } = Input;
 
 const ToolLibrary: React.FC = () => {
   const navigate = useNavigate();
-  const [tools, setTools] = useState(dataTools);
+  const [loading, setLoading] = useState(true);
+  const [tools, setTools] = useState<DataTool[]>([]);
+  const [filteredTools, setFilteredTools] = useState<DataTool[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -26,40 +29,62 @@ const ToolLibrary: React.FC = () => {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  // 加载工具列表
+  const loadTools = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await toolService.getTools();
+      setTools(data);
+      setFilteredTools(data);
+    } catch (error) {
+      console.error('加载工具列表失败:', error);
+      message.error('加载工具列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTools();
+  }, [loadTools]);
+
+  // 搜索
   const handleSearch = (value: string) => {
     if (value) {
-      setTools(dataTools.filter(tool =>
+      setFilteredTools(tools.filter(tool =>
         tool.name.includes(value) || tool.description.includes(value)
       ));
     } else {
-      setTools(dataTools);
+      setFilteredTools(tools);
     }
   };
 
-  const handleCreate = (values: { type: string; name: string; target: string; description: string }) => {
-    const newTool = {
-      id: String(tools.length + 1),
-      name: values.name,
-      type: values.type as '表单' | '问卷',
-      target: values.target,
-      description: values.description || '',
-      status: 'draft' as const,
-      createdBy: 'admin',
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedBy: 'admin',
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-    setTools([newTool, ...tools]);
-    setCreateModalVisible(false);
-    form.resetFields();
-    message.success('创建成功');
+  // 创建工具
+  const handleCreate = async (values: { type: string; name: string; target: string; description: string }) => {
+    try {
+      await toolService.createTool({
+        name: values.name,
+        type: values.type as '表单' | '问卷',
+        target: values.target || '',
+        description: values.description || '',
+      });
+      setCreateModalVisible(false);
+      form.resetFields();
+      message.success('创建成功');
+      loadTools();
+    } catch (error) {
+      console.error('创建工具失败:', error);
+      message.error('创建工具失败');
+    }
   };
 
+  // 查看工具信息
   const handleViewTool = (tool: DataTool) => {
     setCurrentTool(tool);
     setViewModalVisible(true);
   };
 
+  // 从查看弹窗进入编辑
   const handleEditFromView = () => {
     setViewModalVisible(false);
     if (currentTool) {
@@ -73,29 +98,29 @@ const ToolLibrary: React.FC = () => {
     }
   };
 
-  const handleSaveEdit = (values: { type: string; name: string; target: string; description: string }) => {
-    if (currentTool) {
-      const updatedTools = tools.map(tool =>
-        tool.id === currentTool.id
-          ? {
-              ...tool,
-              type: values.type as '表单' | '问卷',
-              name: values.name,
-              target: values.target,
-              description: values.description || '',
-              updatedAt: new Date().toISOString().split('T')[0],
-              updatedBy: 'admin',
-            }
-          : tool
-      );
-      setTools(updatedTools);
+  // 保存编辑
+  const handleSaveEdit = async (values: { type: string; name: string; target: string; description: string }) => {
+    if (!currentTool) return;
+
+    try {
+      await toolService.updateTool(currentTool.id, {
+        name: values.name,
+        type: values.type as '表单' | '问卷',
+        target: values.target || '',
+        description: values.description || '',
+      });
       setEditModalVisible(false);
       editForm.resetFields();
       setCurrentTool(null);
       message.success('保存成功');
+      loadTools();
+    } catch (error) {
+      console.error('保存失败:', error);
+      message.error('保存失败');
     }
   };
 
+  // 获取状态标签
   const getStatusTag = (status: string) => {
     switch (status) {
       case 'published':
@@ -107,20 +132,33 @@ const ToolLibrary: React.FC = () => {
     }
   };
 
-  const handleTogglePublish = (tool: DataTool) => {
-    const newStatus = tool.status === 'published' ? 'editing' : 'published';
-    const updatedTools = tools.map(t =>
-      t.id === tool.id
-        ? { ...t, status: newStatus as 'published' | 'editing' | 'draft', updatedAt: new Date().toISOString().split('T')[0] }
-        : t
-    );
-    setTools(updatedTools);
-    message.success(newStatus === 'published' ? '发布成功' : '已取消发布');
+  // 发布/取消发布
+  const handleTogglePublish = async (tool: DataTool) => {
+    try {
+      if (tool.status === 'published') {
+        await toolService.unpublishTool(tool.id);
+        message.success('已取消发布');
+      } else {
+        await toolService.publishTool(tool.id);
+        message.success('发布成功');
+      }
+      loadTools();
+    } catch (error) {
+      console.error('操作失败:', error);
+      message.error('操作失败');
+    }
   };
 
-  const handleDelete = (toolId: string) => {
-    setTools(tools.filter(t => t.id !== toolId));
-    message.success('删除成功');
+  // 删除工具
+  const handleDelete = async (toolId: string) => {
+    try {
+      await toolService.deleteTool(toolId);
+      message.success('删除成功');
+      loadTools();
+    } catch (error) {
+      console.error('删除失败:', error);
+      message.error('删除失败');
+    }
   };
 
   return (
@@ -147,55 +185,82 @@ const ToolLibrary: React.FC = () => {
           </div>
         </div>
 
-        <div className={styles.toolList}>
-          {tools.map(tool => (
-            <div key={tool.id} className={styles.toolCard}>
-              <div className={styles.toolCardHeader}>
-                <div className={styles.toolInfo}>
-                  <span className={styles.toolName}>{tool.name}</span>
-                  <Tag icon={tool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
-                    {tool.type}
-                  </Tag>
-                  <Tag>{tool.target}</Tag>
-                </div>
-                {getStatusTag(tool.status)}
-              </div>
-              <p className={styles.toolDesc}>{tool.description}</p>
-              <div className={styles.toolMeta}>
-                <span>创建时间: {tool.createdAt}</span>
-                <span>创建人: {tool.createdBy}</span>
-                <span>更新时间: {tool.updatedAt}</span>
-                <span>更新人: {tool.updatedBy}</span>
-              </div>
-              <div className={styles.toolActions}>
-                <span className={styles.actionBtn} onClick={() => handleViewTool(tool)}>
-                  <EyeOutlined /> 工具信息
-                </span>
-                <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/tools/${tool.id}/edit`)}>
-                  <EditOutlined /> 编辑工具
-                </span>
-                {tool.status === 'published' ? (
-                  <span className={styles.actionBtn} onClick={() => handleTogglePublish(tool)}>
-                    取消发布
-                  </span>
-                ) : tool.status === 'editing' ? (
-                  <>
-                    <span className={`${styles.actionBtn} ${styles.danger}`} onClick={() => handleDelete(tool.id)}>
-                      <DeleteOutlined /> 删除
+        <Spin spinning={loading}>
+          {filteredTools.length === 0 && !loading ? (
+            <Empty description="暂无采集工具" />
+          ) : (
+            <div className={styles.toolList}>
+              {filteredTools.map(tool => (
+                <div key={tool.id} className={styles.toolCard}>
+                  <div className={styles.toolCardHeader}>
+                    <div className={styles.toolInfo}>
+                      <span className={styles.toolName}>{tool.name}</span>
+                      <Tag icon={tool.type === '表单' ? <FormOutlined /> : <FileTextOutlined />}>
+                        {tool.type}
+                      </Tag>
+                      <Tag>{tool.target}</Tag>
+                    </div>
+                    {getStatusTag(tool.status)}
+                  </div>
+                  <p className={styles.toolDesc}>{tool.description}</p>
+                  <div className={styles.toolMeta}>
+                    <span>创建时间: {tool.createdAt}</span>
+                    <span>创建人: {tool.createdBy}</span>
+                    <span>更新时间: {tool.updatedAt}</span>
+                    <span>更新人: {tool.updatedBy}</span>
+                  </div>
+                  <div className={styles.toolActions}>
+                    <span className={styles.actionBtn} onClick={() => handleViewTool(tool)}>
+                      <EyeOutlined /> 工具信息
                     </span>
-                    <Button type="primary" size="small" onClick={() => handleTogglePublish(tool)}>
-                      发布
-                    </Button>
-                  </>
-                ) : (
-                  <span className={styles.actionBtn} onClick={() => handleTogglePublish(tool)}>
-                    取消发布
-                  </span>
-                )}
-              </div>
+                    <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/tools/${tool.id}/edit`)}>
+                      <EditOutlined /> 编辑工具
+                    </span>
+                    {tool.status === 'published' ? (
+                      <Popconfirm
+                        title="取消发布"
+                        description="确定要取消发布该工具吗？"
+                        onConfirm={() => handleTogglePublish(tool)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <span className={styles.actionBtn}>
+                          取消发布
+                        </span>
+                      </Popconfirm>
+                    ) : (
+                      <>
+                        <Popconfirm
+                          title="删除工具"
+                          description="确定要删除该工具吗？此操作不可恢复。"
+                          onConfirm={() => handleDelete(tool.id)}
+                          okText="确定"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <span className={`${styles.actionBtn} ${styles.danger}`}>
+                            <DeleteOutlined /> 删除
+                          </span>
+                        </Popconfirm>
+                        <Popconfirm
+                          title="发布工具"
+                          description="确定要发布该工具吗？"
+                          onConfirm={() => handleTogglePublish(tool)}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <Button type="primary" size="small">
+                            发布
+                          </Button>
+                        </Popconfirm>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </Spin>
       </div>
 
       <Modal
@@ -216,8 +281,6 @@ const ToolLibrary: React.FC = () => {
             <Select placeholder="请选择工具类型">
               <Select.Option value="表单">表单</Select.Option>
               <Select.Option value="问卷">问卷</Select.Option>
-              <Select.Option value="访谈">访谈</Select.Option>
-              <Select.Option value="现场查验">现场查验</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item
@@ -316,8 +379,6 @@ const ToolLibrary: React.FC = () => {
             <Select placeholder="请选择工具类型">
               <Select.Option value="表单">表单</Select.Option>
               <Select.Option value="问卷">问卷</Select.Option>
-              <Select.Option value="访谈">访谈</Select.Option>
-              <Select.Option value="现场查验">现场查验</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item

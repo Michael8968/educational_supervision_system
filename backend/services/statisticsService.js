@@ -300,46 +300,39 @@ async function saveSchoolIndicatorData(db, data) {
   const now = new Date().toISOString().split('T')[0];
 
   // 检查是否已存在
-  const existingResult = await db.query(
-    'SELECT id FROM school_indicator_data WHERE project_id = $1 AND school_id = $2 AND data_indicator_id = $3',
-    [projectId, schoolId, dataIndicatorId]
-  );
+  const { data: existing, error: existErr } = await db
+    .from('school_indicator_data')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('school_id', schoolId)
+    .eq('data_indicator_id', dataIndicatorId)
+    .maybeSingle();
+  if (existErr) throw existErr;
 
-  if (existingResult.rows[0]) {
-    // 更新
-    await db.query(`
-      UPDATE school_indicator_data
-      SET value = $1, text_value = $2, is_compliant = $3, submission_id = $4, collected_at = $5, updated_at = $6
-      WHERE id = $7
-    `, [
-      value,
-      textValue,
-      isCompliant === null ? null : (isCompliant ? 1 : 0),
-      submissionId,
-      now,
-      now,
-      existingResult.rows[0].id
-    ]);
+  const payload = {
+    project_id: projectId,
+    school_id: schoolId,
+    data_indicator_id: dataIndicatorId,
+    value,
+    text_value: textValue,
+    is_compliant: isCompliant === null ? null : (isCompliant ? 1 : 0),
+    submission_id: submissionId,
+    collected_at: now,
+    updated_at: now,
+  };
+
+  if (existing?.id) {
+    const { error } = await db
+      .from('school_indicator_data')
+      .update(payload)
+      .eq('id', existing.id);
+    if (error) throw error;
   } else {
-    // 插入
     const id = 'sid-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    await db.query(`
-      INSERT INTO school_indicator_data
-      (id, project_id, school_id, data_indicator_id, value, text_value, is_compliant, submission_id, collected_at, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, [
-      id,
-      projectId,
-      schoolId,
-      dataIndicatorId,
-      value,
-      textValue,
-      isCompliant === null ? null : (isCompliant ? 1 : 0),
-      submissionId,
-      now,
-      now,
-      now
-    ]);
+    const { error } = await db
+      .from('school_indicator_data')
+      .insert({ id, ...payload, created_at: now });
+    if (error) throw error;
   }
 }
 
@@ -359,54 +352,41 @@ async function updateDistrictStatistics(db, projectId, districtId, schoolType) {
   const now = new Date().toISOString();
 
   // 检查是否已存在
-  const existingResult = await db.query(
-    'SELECT id FROM district_statistics WHERE project_id = $1 AND district_id = $2 AND school_type = $3',
-    [projectId, districtId, schoolType]
-  );
+  const { data: existing, error: existErr } = await db
+    .from('district_statistics')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('district_id', districtId)
+    .eq('school_type', schoolType)
+    .maybeSingle();
+  if (existErr) throw existErr;
 
-  if (existingResult.rows[0]) {
-    // 更新
-    await db.query(`
-      UPDATE district_statistics
-      SET school_count = $1, compliant_school_count = $2,
-          cv_teacher_ratio = $3, cv_composite = $4, is_cv_compliant = $5,
-          resource_compliance_rate = $6, overall_score = $7, calculated_at = $8
-      WHERE id = $9
-    `, [
-      cvAnalysis.schoolCount,
-      0,
-      cvAnalysis.cvIndicators.studentTeacherRatio?.cv || null,
-      cvAnalysis.cvComposite,
-      cvAnalysis.isCompliant ? 1 : 0,
-      complianceStats.complianceRate,
-      null,  // overall_score
-      now,
-      existingResult.rows[0].id
-    ]);
+  const payload = {
+    project_id: projectId,
+    district_id: districtId,
+    school_type: schoolType,
+    school_count: cvAnalysis.schoolCount,
+    compliant_school_count: 0,
+    cv_teacher_ratio: cvAnalysis.cvIndicators.studentTeacherRatio?.cv || null,
+    cv_composite: cvAnalysis.cvComposite,
+    is_cv_compliant: cvAnalysis.isCompliant ? 1 : 0,
+    resource_compliance_rate: complianceStats.complianceRate,
+    overall_score: null,
+    calculated_at: now,
+  };
+
+  if (existing?.id) {
+    const { error } = await db
+      .from('district_statistics')
+      .update(payload)
+      .eq('id', existing.id);
+    if (error) throw error;
   } else {
-    // 插入
     const id = 'ds-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    await db.query(`
-      INSERT INTO district_statistics
-      (id, project_id, district_id, school_type, school_count, compliant_school_count,
-       cv_teacher_ratio, cv_composite, is_cv_compliant,
-       resource_compliance_rate, overall_score, calculated_at, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-    `, [
-      id,
-      projectId,
-      districtId,
-      schoolType,
-      cvAnalysis.schoolCount,
-      0,
-      cvAnalysis.cvIndicators.studentTeacherRatio?.cv || null,
-      cvAnalysis.cvComposite,
-      cvAnalysis.isCompliant ? 1 : 0,
-      complianceStats.complianceRate,
-      null,  // overall_score
-      now,
-      now
-    ]);
+    const { error } = await db
+      .from('district_statistics')
+      .insert({ id, ...payload, created_at: now });
+    if (error) throw error;
   }
 }
 
