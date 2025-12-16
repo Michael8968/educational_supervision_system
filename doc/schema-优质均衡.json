@@ -416,163 +416,6 @@
         "unit": "人"
       },
       {
-        "id": "divider_teacher",
-        "type": "divider",
-        "label": "教师信息",
-        "width": "100%",
-        "required": false
-      },
-      {
-        "id": "college_degree_teacher_count",
-        "type": "number",
-        "label": "专科学历教师人数",
-        "placeholder": "请输入学校内专科学历教师总人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "bachelor_degree_teacher_count",
-        "type": "number",
-        "label": "本科学历教师人数",
-        "placeholder": "请输入学校内本科学历教师总人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "master_degree_teacher_count",
-        "type": "number",
-        "label": "硕士研究生毕业学历教师人数",
-        "placeholder": "请输入学校内硕士研究生毕业学历教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "doctor_degree_teacher_count",
-        "type": "number",
-        "label": "博士研究生毕业学历教师人数",
-        "placeholder": "请输入学校内博士研究生毕业学历教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "county_backbone_teacher_count",
-        "type": "number",
-        "label": "县级及以上骨干教师人数",
-        "placeholder": "请输入学校内县级及以上骨干教师总人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "full_time_teacher_count",
-        "type": "number",
-        "label": "专任教师总人数",
-        "placeholder": "请输入学校内专任教师总人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "certified_teacher_count",
-        "type": "number",
-        "label": "持有教师资格证的专任教师人数",
-        "placeholder": "请输入学校内持有教师资格证的专任教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "pe_teacher_count",
-        "type": "number",
-        "label": "体育专任教师人数",
-        "placeholder": "请输入学校内体育专任教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "music_teacher_count",
-        "type": "number",
-        "label": "音乐专任教师人数",
-        "placeholder": "请输入学校内音乐专任教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "art_teacher_count",
-        "type": "number",
-        "label": "美术专任教师人数",
-        "placeholder": "请输入学校内美术专任教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "arts_teacher_count",
-        "type": "number",
-        "label": "艺术专任教师人数",
-        "placeholder": "请输入学校内艺术专任教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "pe_exchange_teacher_count",
-        "type": "number",
-        "label": "体育到校交流轮岗&兼职&走教教师人数",
-        "placeholder": "请输入学校内体育到校交流轮岗&兼职&走教教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "music_exchange_teacher_count",
-        "type": "number",
-        "label": "音乐到校交流轮岗&兼职&走教教师人数",
-        "placeholder": "请输入学校内音乐到校交流轮岗&兼职&走教教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "art_exchange_teacher_count",
-        "type": "number",
-        "label": "美术到校交流轮岗&兼职&走教教师人数",
-        "placeholder": "请输入学校内美术到校交流轮岗&兼职&走教教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "arts_exchange_teacher_count",
-        "type": "number",
-        "label": "艺术到校交流轮岗&兼职&走教教师人数",
-        "placeholder": "请输入学校内艺术到校交流轮岗&兼职&走教教师人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
         "id": "divider_facility",
         "type": "divider",
         "label": "场地设施",
@@ -702,6 +545,9 @@
     "id": "group_primary_section",
     "type": "group",
     "label": "小学部数据",
+    "labelWhen": [
+      { "field": "school_type", "value": "primary", "label": "小学数据" }
+    ],
     "width": "100%",
     "required": false,
     "showWhen": {
@@ -712,15 +558,19 @@
       {
         "id": "divider_primary_student",
         "type": "divider",
-        "label": "小学部学生信息",
+        "label": "学生信息",
         "width": "100%",
-        "required": false
+        "required": false,
+        "showWhen": {
+          "field": "school_type",
+          "value": ["primary", "nine_year", "twelve_year"]
+        }
       },
       {
         "id": "primary_student_count",
         "type": "number",
-        "label": "小学部学生人数（在校人数）",
-        "placeholder": "请输入小学部在校学生总人数",
+        "label": "学生人数（在校人数）",
+        "placeholder": "请输入在校学生总人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -729,8 +579,8 @@
       {
         "id": "primary_class_count",
         "type": "number",
-        "label": "小学部班级数",
-        "placeholder": "请输入小学部班级总数",
+        "label": "班级数",
+        "placeholder": "请输入班级总数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -739,8 +589,8 @@
       {
         "id": "primary_graduate_count",
         "type": "number",
-        "label": "小学部毕业学生人数",
-        "placeholder": "请输入小学部今年毕业学生总人数",
+        "label": "毕业学生人数",
+        "placeholder": "请输入今年毕业学生总人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -749,14 +599,14 @@
       {
         "id": "divider_primary_teacher",
         "type": "divider",
-        "label": "小学部教师信息",
+        "label": "教师信息",
         "width": "100%",
         "required": false
       },
       {
         "id": "primary_full_time_teacher_count",
         "type": "number",
-        "label": "小学部专任教师总人数",
+        "label": "专任教师总人数",
         "placeholder": "请输入小学部专任教师总人数",
         "width": "25%",
         "required": true,
@@ -766,7 +616,7 @@
       {
         "id": "primary_college_degree_teacher_count",
         "type": "number",
-        "label": "小学部专科学历教师人数",
+        "label": "专科学历教师人数",
         "placeholder": "请输入小学部专科学历教师人数",
         "width": "25%",
         "required": true,
@@ -776,7 +626,7 @@
       {
         "id": "primary_bachelor_degree_teacher_count",
         "type": "number",
-        "label": "小学部本科学历教师人数",
+        "label": "本科学历教师人数",
         "placeholder": "请输入小学部本科学历教师人数",
         "width": "25%",
         "required": true,
@@ -786,7 +636,7 @@
       {
         "id": "primary_master_degree_teacher_count",
         "type": "number",
-        "label": "小学部硕士研究生学历教师人数",
+        "label": "硕士研究生学历教师人数",
         "placeholder": "请输入小学部硕士研究生学历教师人数",
         "width": "25%",
         "required": true,
@@ -796,7 +646,7 @@
       {
         "id": "primary_county_backbone_teacher_count",
         "type": "number",
-        "label": "小学部县级及以上骨干教师人数",
+        "label": "县级及以上骨干教师人数",
         "placeholder": "请输入小学部县级及以上骨干教师人数",
         "width": "25%",
         "required": true,
@@ -806,7 +656,7 @@
       {
         "id": "primary_pe_teacher_count",
         "type": "number",
-        "label": "小学部体育专任教师人数",
+        "label": "体育专任教师人数",
         "placeholder": "请输入小学部体育专任教师人数",
         "width": "25%",
         "required": true,
@@ -816,7 +666,7 @@
       {
         "id": "primary_music_teacher_count",
         "type": "number",
-        "label": "小学部音乐专任教师人数",
+        "label": "音乐专任教师人数",
         "placeholder": "请输入小学部音乐专任教师人数",
         "width": "25%",
         "required": true,
@@ -826,7 +676,7 @@
       {
         "id": "primary_art_teacher_count",
         "type": "number",
-        "label": "小学部美术专任教师人数",
+        "label": "美术专任教师人数",
         "placeholder": "请输入小学部美术专任教师人数",
         "width": "25%",
         "required": true,
@@ -836,15 +686,19 @@
       {
         "id": "divider_primary_facility",
         "type": "divider",
-        "label": "小学部场地设施（自动拆分计算）",
+        "label": "场地设施（自动拆分计算）",
         "width": "100%",
         "required": false,
-        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写"
+        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "primary_teaching_auxiliary_area",
         "type": "number",
-        "label": "小学部教学及辅助用房面积",
+        "label": "教学及辅助用房面积",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -853,12 +707,16 @@
         "decimalPlaces": "2位小数",
         "unit": "平方米",
         "sourceField": "teaching_auxiliary_area",
-        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "primary_sports_venue_area",
         "type": "number",
-        "label": "小学部体育运动场馆面积",
+        "label": "体育运动场馆面积",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -867,12 +725,16 @@
         "decimalPlaces": "2位小数",
         "unit": "平方米",
         "sourceField": "sports_venue_total_area",
-        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "primary_teaching_equipment_value",
         "type": "number",
-        "label": "小学部教学仪器设备资产值",
+        "label": "教学仪器设备资产值",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -881,12 +743,16 @@
         "decimalPlaces": "2位小数",
         "unit": "万元",
         "sourceField": "teaching_equipment_value",
-        "helpText": "根据学校总资产值按学生人数加权比例自动拆分"
+        "helpText": "根据学校总资产值按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "primary_multimedia_classroom_count",
         "type": "number",
-        "label": "小学部网络多媒体教室间数",
+        "label": "网络多媒体教室间数",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -895,12 +761,16 @@
         "decimalPlaces": "整数",
         "unit": "间",
         "sourceField": "multimedia_classroom_count",
-        "helpText": "根据学校总间数按学生人数加权比例自动拆分"
+        "helpText": "根据学校总间数按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "primary_computer_count",
         "type": "number",
-        "label": "小学部计算机总台数",
+        "label": "计算机总台数",
         "placeholder": "请输入小学部计算机总台数",
         "width": "25%",
         "required": true,
@@ -910,7 +780,7 @@
       {
         "id": "primary_class_student_list",
         "type": "dynamicList",
-        "label": "小学部班级人数",
+        "label": "班级人数",
         "width": "100%",
         "required": true,
         "minRows": 1,
@@ -964,6 +834,9 @@
     "id": "group_junior_section",
     "type": "group",
     "label": "初中部数据",
+    "labelWhen": [
+      { "field": "school_type", "value": "junior", "label": "初中数据" }
+    ],
     "width": "100%",
     "required": false,
     "showWhen": {
@@ -974,15 +847,15 @@
       {
         "id": "divider_junior_student",
         "type": "divider",
-        "label": "初中部学生信息",
+        "label": "学生信息",
         "width": "100%",
         "required": false
       },
       {
         "id": "junior_student_count",
         "type": "number",
-        "label": "初中部学生人数（在校人数）",
-        "placeholder": "请输入初中部在校学生总人数",
+        "label": "学生人数（在校人数）",
+        "placeholder": "请输入在校学生总人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -991,8 +864,8 @@
       {
         "id": "junior_class_count",
         "type": "number",
-        "label": "初中部班级数",
-        "placeholder": "请输入初中部班级总数",
+        "label": "班级数",
+        "placeholder": "请输入班级总数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1001,8 +874,8 @@
       {
         "id": "junior_graduate_count",
         "type": "number",
-        "label": "初中部毕业学生人数",
-        "placeholder": "请输入初中部今年毕业学生总人数",
+        "label": "毕业学生人数",
+        "placeholder": "请输入今年毕业学生总人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1011,7 +884,7 @@
       {
         "id": "junior_grade7_student_count_3years_ago",
         "type": "number",
-        "label": "初中部毕业年级三年前初一时在校学生人数",
+        "label": "毕业年级三年前初一时在校学生人数",
         "placeholder": "请输入毕业年级三年前初一时在校学生总人数",
         "width": "25%",
         "required": true,
@@ -1021,7 +894,7 @@
       {
         "id": "junior_transfer_in_count_3years",
         "type": "number",
-        "label": "初中部毕业年级三年转入学生人数",
+        "label": "毕业年级三年转入学生人数",
         "placeholder": "请输入毕业年级三年转入学生总人数",
         "width": "25%",
         "required": true,
@@ -1031,7 +904,7 @@
       {
         "id": "junior_transfer_out_count_3years",
         "type": "number",
-        "label": "初中部毕业年级三年转出学生人数",
+        "label": "毕业年级三年转出学生人数",
         "placeholder": "请输入毕业年级三年转出学生总人数",
         "width": "25%",
         "required": true,
@@ -1041,7 +914,7 @@
       {
         "id": "junior_deceased_count_3years",
         "type": "number",
-        "label": "初中部毕业年级三年死亡学生人数",
+        "label": "毕业年级三年死亡学生人数",
         "placeholder": "请输入毕业年级三年死亡学生总人数",
         "width": "25%",
         "required": true,
@@ -1051,25 +924,15 @@
       {
         "id": "divider_junior_teacher",
         "type": "divider",
-        "label": "初中部教师信息",
+        "label": "教师信息",
         "width": "100%",
         "required": false
       },
       {
         "id": "junior_full_time_teacher_count",
         "type": "number",
-        "label": "初中部专任教师总人数",
-        "placeholder": "请输入初中部专任教师总人数",
-        "width": "25%",
-        "required": true,
-        "decimalPlaces": "整数",
-        "unit": "人"
-      },
-      {
-        "id": "junior_college_degree_teacher_count",
-        "type": "number",
-        "label": "初中部专科学历教师人数",
-        "placeholder": "请输入初中部专科学历教师人数",
+        "label": "专任教师总人数",
+        "placeholder": "请输入专任教师总人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1078,8 +941,8 @@
       {
         "id": "junior_bachelor_degree_teacher_count",
         "type": "number",
-        "label": "初中部本科学历教师人数",
-        "placeholder": "请输入初中部本科学历教师人数",
+        "label": "本科学历教师人数",
+        "placeholder": "请输入本科学历教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1088,8 +951,8 @@
       {
         "id": "junior_master_degree_teacher_count",
         "type": "number",
-        "label": "初中部硕士研究生学历教师人数",
-        "placeholder": "请输入初中部硕士研究生学历教师人数",
+        "label": "硕士研究生学历教师人数",
+        "placeholder": "请输入硕士研究生学历教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1098,8 +961,8 @@
       {
         "id": "junior_county_backbone_teacher_count",
         "type": "number",
-        "label": "初中部县级及以上骨干教师人数",
-        "placeholder": "请输入初中部县级及以上骨干教师人数",
+        "label": "县级及以上骨干教师人数",
+        "placeholder": "请输入县级及以上骨干教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1108,8 +971,8 @@
       {
         "id": "junior_pe_teacher_count",
         "type": "number",
-        "label": "初中部体育专任教师人数",
-        "placeholder": "请输入初中部体育专任教师人数",
+        "label": "体育专任教师人数",
+        "placeholder": "请输入体育专任教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1118,8 +981,8 @@
       {
         "id": "junior_music_teacher_count",
         "type": "number",
-        "label": "初中部音乐专任教师人数",
-        "placeholder": "请输入初中部音乐专任教师人数",
+        "label": "音乐专任教师人数",
+        "placeholder": "请输入音乐专任教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1128,8 +991,8 @@
       {
         "id": "junior_art_teacher_count",
         "type": "number",
-        "label": "初中部美术专任教师人数",
-        "placeholder": "请输入初中部美术专任教师人数",
+        "label": "美术专任教师人数",
+        "placeholder": "请输入美术专任教师人数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1138,15 +1001,19 @@
       {
         "id": "divider_junior_facility",
         "type": "divider",
-        "label": "初中部场地设施（自动拆分计算）",
+        "label": "场地设施（自动拆分计算）",
         "width": "100%",
         "required": false,
-        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写"
+        "helpText": "以下字段根据学校总数据按学生人数加权比例自动计算，无需手动填写",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "junior_teaching_auxiliary_area",
         "type": "number",
-        "label": "初中部教学及辅助用房面积",
+        "label": "教学及辅助用房面积",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -1155,12 +1022,16 @@
         "decimalPlaces": "2位小数",
         "unit": "平方米",
         "sourceField": "teaching_auxiliary_area",
-        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "junior_sports_venue_area",
         "type": "number",
-        "label": "初中部体育运动场馆面积",
+        "label": "体育运动场馆面积",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -1169,12 +1040,16 @@
         "decimalPlaces": "2位小数",
         "unit": "平方米",
         "sourceField": "sports_venue_total_area",
-        "helpText": "根据学校总面积按学生人数加权比例自动拆分"
+        "helpText": "根据学校总面积按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "junior_teaching_equipment_value",
         "type": "number",
-        "label": "初中部教学仪器设备资产值",
+        "label": "教学仪器设备资产值",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -1183,12 +1058,16 @@
         "decimalPlaces": "2位小数",
         "unit": "万元",
         "sourceField": "teaching_equipment_value",
-        "helpText": "根据学校总资产值按学生人数加权比例自动拆分"
+        "helpText": "根据学校总资产值按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "junior_multimedia_classroom_count",
         "type": "number",
-        "label": "初中部网络多媒体教室间数",
+        "label": "网络多媒体教室间数",
         "placeholder": "系统自动计算",
         "width": "25%",
         "required": false,
@@ -1197,13 +1076,17 @@
         "decimalPlaces": "整数",
         "unit": "间",
         "sourceField": "multimedia_classroom_count",
-        "helpText": "根据学校总间数按学生人数加权比例自动拆分"
+        "helpText": "根据学校总间数按学生人数加权比例自动拆分",
+        "showWhen": {
+          "field": "school_type",
+          "value": ["nine_year", "twelve_year", "complete_secondary"]
+        }
       },
       {
         "id": "junior_computer_count",
         "type": "number",
-        "label": "初中部计算机总台数",
-        "placeholder": "请输入初中部计算机总台数",
+        "label": "计算机总台数",
+        "placeholder": "请输入计算机总台数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1212,8 +1095,8 @@
       {
         "id": "junior_physics_chemistry_biology_lab_count",
         "type": "number",
-        "label": "初中部理化生实验室教室间数",
-        "placeholder": "请输入初中部理化生实验室教室总数",
+        "label": "理化生实验室教室间数",
+        "placeholder": "请输入理化生实验室教室总数",
         "width": "25%",
         "required": true,
         "decimalPlaces": "整数",
@@ -1222,7 +1105,7 @@
       {
         "id": "junior_class_student_list",
         "type": "dynamicList",
-        "label": "初中部班级人数",
+        "label": "班级人数",
         "width": "100%",
         "required": true,
         "minRows": 1,
@@ -1449,49 +1332,6 @@
         "options": [
           { "label": "是", "value": "yes" },
           { "label": "否", "value": "no" }
-        ]
-      },
-      {
-        "id": "class_student_list",
-        "type": "dynamicList",
-        "label": "班级人数",
-        "width": "100%",
-        "required": true,
-        "minRows": 1,
-        "maxRows": 100,
-        "headers": ["序号", "年级", "班级名称", "人数（人）"],
-        "fields": [
-          {
-            "id": "class_index",
-            "type": "number",
-            "label": "序号",
-            "width": "15%",
-            "required": true,
-            "decimalPlaces": "整数"
-          },
-          {
-            "id": "class_grade",
-            "type": "text",
-            "label": "年级",
-            "width": "25%",
-            "required": true
-          },
-          {
-            "id": "class_name",
-            "type": "text",
-            "label": "班级名称",
-            "width": "30%",
-            "required": true
-          },
-          {
-            "id": "class_student_count",
-            "type": "number",
-            "label": "人数",
-            "width": "30%",
-            "required": true,
-            "decimalPlaces": "整数",
-            "unit": "人"
-          }
         ]
       },
       {

@@ -103,6 +103,14 @@ interface ShowWhenCondition {
   condition?: 'filled' | 'empty' | 'equals';
 }
 
+// labelWhen 动态标题配置
+interface LabelWhenRule {
+  field: string;
+  value?: string | string[];
+  condition?: 'filled' | 'empty' | 'equals';
+  label: string;
+}
+
 // 表单字段定义
 interface FormField {
   id: string;
@@ -137,6 +145,8 @@ interface FormField {
   mapping?: FieldMappingInfo | null;
   // 条件显示
   showWhen?: ShowWhenCondition;
+  // 动态标题（预览时根据表单值动态显示 label）
+  labelWhen?: LabelWhenRule[];
 }
 
 // 控件库配置
@@ -568,30 +578,105 @@ const FormToolEdit: React.FC = () => {
     return normalized as FormField;
   };
 
-  // 为导入的字段生成新ID（避免ID冲突）
-  const regenerateFieldIds = (fields: FormField[]): FormField[] => {
-    return fields.map(field => {
-      // 先标准化字段格式
-      const normalizedField = normalizeImportedField(field);
+  // 收集字段 id（含 group children、dynamicList 子字段）
+  const collectAllIds = (fields: FormField[] | undefined): string[] => {
+    if (!fields || fields.length === 0) return [];
+    const ids: string[] = [];
+    const walk = (fs: FormField[]) => {
+      fs.forEach((f) => {
+        if (typeof f.id === 'string') ids.push(f.id);
+        // group children
+        if (f.type === 'group' && Array.isArray(f.children) && f.children.length > 0) {
+          walk(f.children);
+        }
+        // dynamicList 子字段（兼容 dynamicListFields / fields）
+        const listFields: any[] = (f as any).dynamicListFields || (f as any).fields || [];
+        if (Array.isArray(listFields) && listFields.length > 0) {
+          listFields.forEach((df) => {
+            if (df && typeof df.id === 'string') ids.push(df.id);
+          });
+        }
+      });
+    };
+    walk(fields);
+    return ids;
+  };
 
-      const newId = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const newField = { ...normalizedField, id: newId };
+  // 深度克隆（schema 字段基本为纯对象，使用 JSON 即可）
+  const deepClone = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
 
-      // 递归处理子字段
-      if (normalizedField.children && normalizedField.children.length > 0) {
-        newField.children = regenerateFieldIds(normalizedField.children);
-      }
+  // 生成 id 映射（给导入字段统一加前缀，用于“追加导入”时避免与现有字段冲突）
+  const buildIdMapWithPrefix = (fields: FormField[], prefix: string): Record<string, string> => {
+    const map: Record<string, string> = {};
+    const walk = (fs: FormField[]) => {
+      fs.forEach((f) => {
+        if (typeof f.id === 'string') map[f.id] = `${prefix}${f.id}`;
+        if (f.type === 'group' && Array.isArray(f.children) && f.children.length > 0) {
+          walk(f.children);
+        }
+        const listFields: any[] = (f as any).dynamicListFields || (f as any).fields || [];
+        if (Array.isArray(listFields) && listFields.length > 0) {
+          listFields.forEach((df) => {
+            if (df && typeof df.id === 'string') map[df.id] = `${prefix}${df.id}`;
+          });
+        }
+      });
+    };
+    walk(fields);
+    return map;
+  };
 
-      // 处理动态列表字段
-      if (newField.dynamicListFields && newField.dynamicListFields.length > 0) {
-        newField.dynamicListFields = newField.dynamicListFields.map(df => ({
-          ...df,
-          id: `dlf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        }));
-      }
+  // 应用 id 映射，并同步修正常见“跨字段引用”（showWhen/sourceField/autoSplit 等）
+  const applyIdMap = (fields: FormField[], idMap: Record<string, string>): FormField[] => {
+    const remapValue = (v: any) => (typeof v === 'string' && idMap[v] ? idMap[v] : v);
+    const walk = (fs: any[]): any[] => {
+      return fs.map((raw) => {
+        const f: any = { ...raw };
+        f.id = remapValue(f.id);
 
-      return newField;
-    });
+        // showWhen.field 指向其他字段 id
+        if (f.showWhen && typeof f.showWhen === 'object') {
+          f.showWhen = { ...f.showWhen, field: remapValue(f.showWhen.field) };
+        }
+
+        // computed 字段可能引用 sourceField
+        if (typeof f.sourceField === 'string') {
+          f.sourceField = remapValue(f.sourceField);
+        }
+
+        // autoSplit.targetFields 内引用 id
+        if (f.autoSplit && typeof f.autoSplit === 'object' && f.autoSplit.targetFields) {
+          const tf = f.autoSplit.targetFields;
+          const nextTf: any = { ...tf };
+          Object.keys(nextTf).forEach((k) => {
+            nextTf[k] = remapValue(nextTf[k]);
+          });
+          f.autoSplit = { ...f.autoSplit, targetFields: nextTf };
+        }
+
+        // group children
+        if (f.type === 'group' && Array.isArray(f.children)) {
+          f.children = walk(f.children);
+        }
+
+        // dynamicList 子字段（兼容 dynamicListFields / fields）
+        if (Array.isArray(f.dynamicListFields)) {
+          f.dynamicListFields = f.dynamicListFields.map((df: any) => ({
+            ...df,
+            id: remapValue(df.id),
+          }));
+        }
+        if (Array.isArray(f.fields)) {
+          f.fields = f.fields.map((df: any) => ({
+            ...df,
+            id: remapValue(df.id),
+          }));
+        }
+
+        return f;
+      });
+    };
+    return walk(fields) as FormField[];
   };
 
   // 处理文件选择
@@ -644,17 +729,23 @@ const FormToolEdit: React.FC = () => {
           message.warning(`已跳过 ${invalidCount.count} 个无效字段`);
         }
 
-        // 生成新ID避免冲突
-        const fieldsWithNewIds = regenerateFieldIds(validFields);
+        // 只做格式标准化：导入时默认保留原始 id（否则会导致 showWhen/sourceField 等引用失效）
+        const normalizedFields = validFields.map((f) => normalizeImportedField(f));
 
         // 如果当前有字段，显示确认弹窗
         if (formFields.length > 0) {
-          setPendingImportFields(fieldsWithNewIds);
+          setPendingImportFields(normalizedFields);
           setImportModalVisible(true);
         } else {
           // 直接导入
-          setFormFields(fieldsWithNewIds);
-          message.success(`成功导入 ${fieldsWithNewIds.length} 个字段`);
+          // 检查导入内容内部是否存在重复 id（提示但不强制修改）
+          const importIds = collectAllIds(normalizedFields);
+          const dupIds = importIds.filter((id, idx) => importIds.indexOf(id) !== idx);
+          if (dupIds.length > 0) {
+            message.warning(`导入内容存在重复字段ID（如：${dupIds.slice(0, 3).join('、')}），可能影响条件显示/联动`);
+          }
+          setFormFields(normalizedFields);
+          message.success(`成功导入 ${normalizedFields.length} 个字段`);
         }
       } catch (error) {
         console.error('解析 JSON 失败:', error);
@@ -688,10 +779,27 @@ const FormToolEdit: React.FC = () => {
 
   // 确认导入 - 追加到现有字段
   const handleImportAppend = () => {
-    setFormFields([...formFields, ...pendingImportFields]);
+    const existingIds = new Set(collectAllIds(formFields));
+    const incomingIds = collectAllIds(pendingImportFields);
+    const hasCollision = incomingIds.some((id) => existingIds.has(id));
+
+    if (!hasCollision) {
+      setFormFields([...formFields, ...pendingImportFields]);
+      setImportModalVisible(false);
+      setPendingImportFields([]);
+      message.success(`成功追加 ${pendingImportFields.length} 个字段`);
+      return;
+    }
+
+    // 有冲突：对整批导入字段加前缀，并同步更新 showWhen/sourceField 等引用，避免“条件显示失效”
+    const prefix = `imp_${Date.now()}_`;
+    const cloned = deepClone(pendingImportFields);
+    const idMap = buildIdMapWithPrefix(cloned, prefix);
+    const remapped = applyIdMap(cloned, idMap);
+    setFormFields([...formFields, ...remapped]);
     setImportModalVisible(false);
     setPendingImportFields([]);
-    message.success(`成功追加 ${pendingImportFields.length} 个字段`);
+    message.warning('检测到字段ID冲突：已自动为追加字段加前缀，避免覆盖并保持条件显示/引用关系正确');
   };
 
   // 取消导入
@@ -724,6 +832,38 @@ const FormToolEdit: React.FC = () => {
     }
 
     return true;
+  };
+
+  // 根据 labelWhen 计算预览时实际显示的标题
+  const getDisplayLabel = (field: FormField, formValues: Record<string, any>): string => {
+    if (!field.labelWhen || field.labelWhen.length === 0) return field.label;
+
+    for (const rule of field.labelWhen) {
+      const targetValue = formValues[rule.field];
+
+      if (rule.condition === 'filled') {
+        if (targetValue !== undefined && targetValue !== null && targetValue !== '') return rule.label;
+        continue;
+      }
+      if (rule.condition === 'empty') {
+        if (targetValue === undefined || targetValue === null || targetValue === '') return rule.label;
+        continue;
+      }
+
+      if (rule.value !== undefined) {
+        if (Array.isArray(rule.value)) {
+          if (rule.value.includes(targetValue)) return rule.label;
+        } else {
+          if (targetValue === rule.value) return rule.label;
+        }
+        continue;
+      }
+
+      // 没有指定 condition/value，则视为无条件匹配
+      return rule.label;
+    }
+
+    return field.label;
   };
 
   // 更新预览表单值
@@ -1034,6 +1174,7 @@ const FormToolEdit: React.FC = () => {
       return null;
     }
 
+    const displayLabel = getDisplayLabel(field, previewFormValues);
     const fieldStyle = { width: field.width };
 
     switch (field.type) {
@@ -1041,7 +1182,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <Input
@@ -1056,7 +1197,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <Input.TextArea
@@ -1072,7 +1213,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             {field.unit && <div className={styles.previewFieldUnit}>单位：{field.unit}</div>}
@@ -1097,7 +1238,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <Select
@@ -1115,7 +1256,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <div className={`${styles.previewOptionsGroup} ${field.optionLayout === 'vertical' ? styles.vertical : ''}`}>
@@ -1133,7 +1274,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <DatePicker placeholder="年 /月/日" style={{ width: '100%' }} />
@@ -1144,7 +1285,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <TimePicker placeholder="选择时间" style={{ width: '100%' }} />
@@ -1155,7 +1296,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <Button icon={<CloudUploadOutlined />}>上传文件</Button>
@@ -1172,7 +1313,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             {field.helpText && <div className={styles.previewFieldHelpText}>{field.helpText}</div>}
@@ -1190,7 +1331,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={fieldStyle}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <div className={styles.previewSwitchWrapper}>
@@ -1202,7 +1343,7 @@ const FormToolEdit: React.FC = () => {
       case 'divider':
         return (
           <div key={field.id} className={styles.previewDivider} style={{ width: '100%' }}>
-            {field.label && <div className={styles.previewDividerLabel}>{field.label}</div>}
+            {displayLabel && <div className={styles.previewDividerLabel}>{displayLabel}</div>}
             <div className={styles.previewDividerLine} />
           </div>
         );
@@ -1210,7 +1351,7 @@ const FormToolEdit: React.FC = () => {
       case 'group':
         return (
           <div key={field.id} className={styles.previewGroup} style={{ width: '100%' }}>
-            <div className={styles.previewGroupTitle}>{field.label}</div>
+            <div className={styles.previewGroupTitle}>{displayLabel}</div>
             <div className={styles.previewGroupContent}>
               {field.children?.map(childField => renderPreviewFormField(childField)).filter(Boolean)}
             </div>
@@ -1235,7 +1376,7 @@ const FormToolEdit: React.FC = () => {
         return (
           <div key={field.id} className={styles.previewFieldItem} style={{ width: '100%' }}>
             <div className={styles.previewFieldLabel}>
-              {field.label}
+              {displayLabel}
               {field.required && <span className={styles.previewRequiredMark}>*</span>}
             </div>
             <div className={styles.previewDynamicListTable}>
