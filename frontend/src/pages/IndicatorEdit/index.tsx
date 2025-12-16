@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button, Tag, Modal, Form, Input, Select, message, Radio, Upload } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -16,6 +16,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import styles from './index.module.css';
 import * as toolService from '../../services/toolService';
 import type { DataTool, FormField, Element as ApiElement } from '../../services/toolService';
+import { normalizeOptionalId, normalizeOptionalText } from '../../utils/normalize';
 
 // 扁平化的表单字段项（用于选择器）
 interface FlattenedField {
@@ -106,7 +107,11 @@ const IndicatorEdit: React.FC = () => {
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
   const [importData, setImportData] = useState<any>(null);
   const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 自动关联弹窗状态
+  const [autoLinkModalVisible, setAutoLinkModalVisible] = useState(false);
+  const [selectedAutoLinkToolId, setSelectedAutoLinkToolId] = useState<string | undefined>();
+  const [autoLinking, setAutoLinking] = useState(false);
 
   // 筛选状态: 'all' | 'unlinked' | 'linked'
   const [filterType, setFilterType] = useState<'all' | 'unlinked' | 'linked'>('all');
@@ -155,20 +160,31 @@ const IndicatorEdit: React.FC = () => {
     if (!library) return [];
     return library.elements.filter(element => {
       if (filterType === 'all') return true;
-      // 未关联：基础要素且有toolId但没有fieldId
-      const isUnlinked = element.elementType === '基础要素' && element.toolId && !element.fieldId;
+      // 未关联：基础要素且没有有效 fieldId（避免 "null"/"undefined" 误判）
+      const isUnlinked = element.elementType === '基础要素' && (!element.toolId || !element.fieldId);
       if (filterType === 'unlinked') return isUnlinked;
-      // 已关联：基础要素且有fieldId，或者派生要素
-      if (filterType === 'linked') return !isUnlinked;
+      // 已关联：基础要素且有有效 fieldId，或者派生要素
+      const isLinked = element.elementType === '派生要素' || (element.elementType === '基础要素' && element.toolId && element.fieldId);
+      if (filterType === 'linked') return isLinked;
       return true;
     });
   }, [library, filterType]);
 
-  // 统计未关联要素数量
+//   {
+//     "id": "mj7c54rp80yc0butw",
+//     "code": "E002",
+//     "name": "小学部学生人数",
+//     "elementType": "基础要素",
+//     "dataType": "数字",
+//     "formula": null,
+//     "fieldId": "primary_student_count"
+// }
+
+  // 统计未关联要素数量（基础要素且没有 fieldId）
   const unlinkedCount = useMemo(() => {
     if (!library) return 0;
     return library.elements.filter(el =>
-      el.elementType === '基础要素' && el.toolId && !el.fieldId
+      el.elementType === '基础要素' && (!el.toolId || !el.fieldId)
     ).length;
   }, [library]);
 
@@ -197,9 +213,9 @@ const IndicatorEdit: React.FC = () => {
             elementType: el.elementType,
             dataType: el.dataType,
             formula: el.formula,
-            toolId: el.toolId,
-            fieldId: el.fieldId,
-            fieldLabel: el.fieldLabel,
+            toolId: normalizeOptionalId(el.toolId),
+            fieldId: normalizeOptionalId(el.fieldId),
+            fieldLabel: normalizeOptionalText(el.fieldLabel),
           })),
         };
 
@@ -484,57 +500,83 @@ const IndicatorEdit: React.FC = () => {
     return null;
   };
 
-  // 自动关联要素到表单控件
-  const handleAutoLink = async () => {
-    if (!library) return;
+  // 打开自动关联弹窗
+  const handleAutoLink = () => {
+    setSelectedAutoLinkToolId(undefined);
+    setAutoLinkModalVisible(true);
+  };
 
-    // 收集所有需要的工具ID
-    const toolIds = new Set<string>();
-    library.elements.forEach(element => {
-      if (element.elementType === '基础要素' && element.toolId && !element.fieldId) {
-        toolIds.add(element.toolId);
-      }
-    });
+  // 确认自动关联（选择工具后执行）
+  const handleConfirmAutoLink = async () => {
+    if (!library || !selectedAutoLinkToolId) {
+      message.warning('请先选择采集工具');
+      return;
+    }
 
-    // 预加载所有需要的schema
-    const loadingMsg = message.loading('正在加载表单字段...');
+    setAutoLinking(true);
+
+    // 预加载选中工具的schema（loadToolSchema 返回加载的 schema）
+    let schema: FormField[] = [];
     try {
-      await Promise.all(Array.from(toolIds).map(toolId => loadToolSchema(toolId)));
+      schema = await loadToolSchema(selectedAutoLinkToolId);
     } catch (error) {
       console.error('加载schema失败:', error);
+      message.error('加载表单字段失败');
+      setAutoLinking(false);
+      return;
     }
-    loadingMsg();
+
+    if (!schema || schema.length === 0) {
+      message.warning('该采集工具暂无表单字段');
+      setAutoLinking(false);
+      return;
+    }
+
+    // 使用返回的 schema 而不是从 state 读取（避免异步更新问题）
+    const fields = flattenFormFields(schema);
+    console.log('[自动关联] schema:', schema);
+    console.log('[自动关联] 扁平化后的字段:', fields);
+    if (fields.length === 0) {
+      message.warning('该采集工具暂无可用的表单字段');
+      setAutoLinking(false);
+      return;
+    }
 
     let linkedCount = 0;
     let alreadyLinkedCount = 0;
     let noMatchCount = 0;
 
     const updatedElements = library.elements.map(element => {
-      // 只处理基础要素且有toolId的
-      if (element.elementType !== '基础要素' || !element.toolId) {
+      // 只处理基础要素
+      if (element.elementType !== '基础要素') {
         return element;
       }
 
-      // 已经关联的跳过
-      if (element.fieldId) {
+      // 已经关联到其他工具的字段（有 toolId 且不是当前工具，且有 fieldId），跳过
+      if (
+        normalizeOptionalId(element.toolId) &&
+        normalizeOptionalId(element.toolId) !== selectedAutoLinkToolId &&
+        normalizeOptionalId(element.fieldId)
+      ) {
         alreadyLinkedCount++;
         return element;
       }
 
-      // 获取该工具的表单字段
-      const schema = formSchemas[element.toolId];
-      if (!schema) {
-        noMatchCount++;
+      // 已关联到当前工具且有 fieldId，跳过
+      if (normalizeOptionalId(element.toolId) === selectedAutoLinkToolId && normalizeOptionalId(element.fieldId)) {
+        alreadyLinkedCount++;
         return element;
       }
 
-      const fields = flattenFormFields(schema);
+      // 尝试匹配字段（没有 fieldId 的都尝试匹配）
       const matchedField = matchElementToField(element.name, fields);
+      console.log(`[自动关联] 要素"${element.name}" 匹配结果:`, matchedField);
 
       if (matchedField) {
         linkedCount++;
         return {
           ...element,
+          toolId: selectedAutoLinkToolId,
           fieldId: matchedField.id,
           fieldLabel: matchedField.path,
         };
@@ -552,8 +594,12 @@ const IndicatorEdit: React.FC = () => {
       if (updated) setSelectedElement(updated);
     }
 
+    setAutoLinking(false);
+    setAutoLinkModalVisible(false);
+
+    const toolName = dataTools.find(t => t.id === selectedAutoLinkToolId)?.name || '采集工具';
     message.success(
-      `自动关联完成：成功关联 ${linkedCount} 个，已关联 ${alreadyLinkedCount} 个，未匹配 ${noMatchCount} 个`
+      `自动关联完成：成功关联 ${linkedCount} 个要素到"${toolName}"，已关联 ${alreadyLinkedCount} 个，未匹配 ${noMatchCount} 个`
     );
   };
 
@@ -697,7 +743,7 @@ const IndicatorEdit: React.FC = () => {
               >
                 <Radio.Button value="all">全部</Radio.Button>
                 <Radio.Button value="unlinked">
-                  未关联 {unlinkedCount > 0 && <span style={{ color: '#faad14' }}>({unlinkedCount})</span>}
+                  未关联 <span style={{ color: unlinkedCount > 0 ? '#faad14' : '#999' }}>({unlinkedCount})</span>
                 </Radio.Button>
                 <Radio.Button value="linked">已关联</Radio.Button>
               </Radio.Group>
@@ -717,8 +763,8 @@ const IndicatorEdit: React.FC = () => {
 
           <div className={styles.elementList}>
             {filteredElements.map(element => {
-              // 判断是否为未关联的基础要素
-              const isUnlinked = element.elementType === '基础要素' && element.toolId && !element.fieldId;
+              // 判断是否为未关联的基础要素（没有 fieldId）
+              const isUnlinked = element.elementType === '基础要素' && !normalizeOptionalId(element.fieldId);
               return (
               <div
                 key={element.id}
@@ -734,14 +780,14 @@ const IndicatorEdit: React.FC = () => {
                     {element.elementType}
                   </Tag>
                   <span className={styles.elementDataType}># {element.dataType}</span>
-                  {element.elementType === '基础要素' && element.toolId && (
+                  {element.elementType === '基础要素' && (
                     <LinkOutlined
-                      className={element.fieldId ? styles.linkedIcon : styles.unlinkedIcon}
-                      title={element.fieldId ? `已关联: ${element.fieldLabel}` : '未关联表单控件'}
+                      className={normalizeOptionalId(element.fieldId) ? styles.linkedIcon : styles.unlinkedIcon}
+                      title={normalizeOptionalId(element.fieldId) ? `已关联: ${element.fieldLabel || element.fieldId}` : '未关联表单控件'}
                     />
                   )}
                 </div>
-                {element.fieldLabel && (
+                {normalizeOptionalText(element.fieldLabel) && (
                   <div className={styles.elementFieldLink}>
                     <FormOutlined />
                     <span>{element.fieldLabel}</span>
@@ -820,25 +866,25 @@ const IndicatorEdit: React.FC = () => {
               )}
               <div className={styles.propertyItem}>
                 <label>关联采集工具</label>
-                {selectedElement.toolId ? (
+                {normalizeOptionalId(selectedElement.toolId) ? (
                   <div className={styles.toolLinkDisplay}>
                     <LinkOutlined className={styles.toolLinkIcon} />
                     <span className={styles.toolLinkName}>
-                      {dataTools.find(t => t.id === selectedElement.toolId)?.name || '未知工具'}
+                      {dataTools.find(t => t.id === normalizeOptionalId(selectedElement.toolId))?.name || '未知工具'}
                     </span>
                   </div>
                 ) : (
                   <span className={styles.noToolLink}>未关联</span>
                 )}
               </div>
-              {selectedElement.toolId && (
+              {normalizeOptionalId(selectedElement.toolId) && (
                 <div className={styles.propertyItem}>
                   <label>关联表单控件</label>
-                  {selectedElement.fieldId ? (
+                  {normalizeOptionalId(selectedElement.fieldId) ? (
                     <div className={styles.fieldLinkDisplay}>
                       <FormOutlined className={styles.fieldLinkIcon} />
                       <span className={styles.fieldLinkName}>
-                        {selectedElement.fieldLabel || selectedElement.fieldId}
+                        {normalizeOptionalText(selectedElement.fieldLabel) || normalizeOptionalId(selectedElement.fieldId)}
                       </span>
                     </div>
                   ) : (
@@ -1207,6 +1253,66 @@ const IndicatorEdit: React.FC = () => {
             disabled={!importData?.elements?.length}
           >
             确认导入
+          </Button>
+        </div>
+      </Modal>
+
+      {/* 自动关联弹窗 */}
+      <Modal
+        title="自动关联"
+        open={autoLinkModalVisible}
+        onCancel={() => setAutoLinkModalVisible(false)}
+        footer={null}
+        width={480}
+        className={styles.elementModal}
+      >
+        <p className={styles.modalSubtitle}>选择采集工具后，将自动匹配要素名称与表单字段进行关联</p>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 500 }}>选择采集工具</div>
+          <Select
+            placeholder="请选择要关联的采集工具"
+            value={selectedAutoLinkToolId}
+            onChange={setSelectedAutoLinkToolId}
+            style={{ width: '100%' }}
+            showSearch
+            filterOption={(input, option) =>
+              (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+          >
+            {dataTools.map(tool => (
+              <Select.Option key={tool.id} value={tool.id}>
+                {tool.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </div>
+
+        <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#666' }}>
+            <div style={{ marginBottom: 4 }}>
+              <ThunderboltOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+              自动关联将根据要素名称智能匹配表单字段
+            </div>
+            <div style={{ paddingLeft: 22, color: '#999', fontSize: 12 }}>
+              • 支持精确匹配和模糊匹配<br />
+              • 已关联的要素将被跳过<br />
+              • 关联后请点击"保存要素库"保存更改
+            </div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'right', marginTop: 24 }}>
+          <Button style={{ marginRight: 8 }} onClick={() => setAutoLinkModalVisible(false)}>
+            取消
+          </Button>
+          <Button
+            type="primary"
+            onClick={handleConfirmAutoLink}
+            loading={autoLinking}
+            disabled={!selectedAutoLinkToolId}
+          >
+            开始关联
           </Button>
         </div>
       </Modal>

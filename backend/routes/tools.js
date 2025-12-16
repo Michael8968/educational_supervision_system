@@ -13,6 +13,22 @@ const setDb = (database) => {
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 const now = () => new Date().toISOString().split('T')[0];
 
+// 将导入/前端传入的哨兵字符串("null"/"undefined"/空串)规范为真正的 NULL，避免前端误判为已关联
+const normalizeNullableText = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!v) return null;
+  const lower = v.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') return null;
+  return v;
+};
+
+const normalizeNullableOrUndefined = (value) => {
+  if (value === undefined) return undefined;
+  return normalizeNullableText(value);
+};
+
 // ==================== 采集工具 CRUD ====================
 
 // 获取采集工具列表
@@ -582,9 +598,9 @@ router.put('/element-libraries/:id', async (req, res) => {
         // 新库字段：tool/field/label（旧库无列时回退）
         const extendedRecord = {
           ...baseRecord,
-          tool_id: el.elementType === '基础要素' ? (el.toolId || null) : null,
-          field_id: el.elementType === '基础要素' ? (el.fieldId || null) : null,
-          field_label: el.elementType === '基础要素' ? (el.fieldLabel || null) : null,
+          tool_id: el.elementType === '基础要素' ? normalizeNullableText(el.toolId) : null,
+          field_id: el.elementType === '基础要素' ? normalizeNullableText(el.fieldId) : null,
+          field_label: el.elementType === '基础要素' ? normalizeNullableText(el.fieldLabel) : null,
         };
 
         processedElements.push({
@@ -830,9 +846,9 @@ router.post('/element-libraries/:id/elements', async (req, res) => {
           name,
           element_type: elementType,
           data_type: dataType,
-          tool_id: toolId || null,
-          field_id: fieldId || null,
-          field_label: fieldLabel || null,
+          tool_id: normalizeNullableText(toolId),
+          field_id: normalizeNullableText(fieldId),
+          field_label: normalizeNullableText(fieldLabel),
           formula: formula || null,
           sort_order: sortOrder,
           created_at: timestamp,
@@ -938,9 +954,9 @@ router.post('/element-libraries/:id/elements/import', async (req, res) => {
             name: element.name,
             element_type: element.elementType,
             data_type: element.dataType,
-            tool_id: element.toolId || null,
-            field_id: element.fieldId || null,
-            field_label: element.fieldLabel || null,
+            tool_id: normalizeNullableText(element.toolId),
+            field_id: normalizeNullableText(element.fieldId),
+            field_label: normalizeNullableText(element.fieldLabel),
             formula: element.formula || null,
             sort_order: sortOrder++,
             created_at: timestamp,
@@ -1008,9 +1024,9 @@ router.put('/elements/:id', async (req, res) => {
           name,
           element_type: elementType,
           data_type: dataType,
-          tool_id: toolId === undefined ? undefined : (toolId || null),
-          field_id: fieldId === undefined ? undefined : (fieldId || null),
-          field_label: fieldLabel === undefined ? undefined : (fieldLabel || null),
+          tool_id: normalizeNullableOrUndefined(toolId),
+          field_id: normalizeNullableOrUndefined(fieldId),
+          field_label: normalizeNullableOrUndefined(fieldLabel),
           formula: formula || null,
           updated_at: timestamp,
         })
