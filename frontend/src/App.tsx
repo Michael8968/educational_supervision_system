@@ -21,6 +21,7 @@ import CVAnalysis from './pages/CVAnalysis';
 import ComplianceStats from './pages/ComplianceStats';
 import CollectorDashboard from './pages/CollectorDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
+import UserManagement from './pages/UserManagement';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/global.css';
 
@@ -116,7 +117,7 @@ const App: React.FC = () => {
             } />
             <Route path="users" element={
               <ProtectedRoute requiredPermission="canManageSystem">
-                <div style={{ padding: 24 }}>用户管理页面（开发中）</div>
+                <UserManagement />
               </ProtectedRoute>
             } />
 

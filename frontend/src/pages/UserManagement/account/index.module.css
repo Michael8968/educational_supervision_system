@@ -1,0 +1,52 @@
+.accountManagement {
+  width: 100%;
+}
+
+.listSection {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid #e8e8e8;
+}
+
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.listHeader h3 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.accountManagement :global(.ant-table) {
+  border-radius: 8px;
+}
+
+.accountManagement :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 500;
+}
+
+.accountManagement :global(.ant-btn-link) {
+  padding: 0 4px;
+}

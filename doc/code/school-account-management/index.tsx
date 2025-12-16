@@ -17,7 +17,7 @@ const SchoolAccountManagement: React.FC = () => {
 
   return (
     <PageContainer
-      header={<PageBreadcrumb items={[{ title: "单位&账号管理" }]} />}
+      header={<PageBreadcrumb items={[{ title: "学校&账号管理" }]} />}
     >
       <div className={styles.tabContainer}>
         <Tabs
@@ -26,7 +26,7 @@ const SchoolAccountManagement: React.FC = () => {
           className={styles.mainTabs}
         >
           <TabPane
-            tab="单位管理"
+            tab="学校管理"
             key="school"
             className={styles.tabPane}
           ></TabPane>

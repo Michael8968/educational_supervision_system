@@ -1,0 +1,55 @@
+.container {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+  width: 100%;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.backBtn {
+  color: #1890ff;
+  cursor: pointer;
+  margin-right: 16px;
+  font-size: 14px;
+}
+
+.backBtn:hover {
+  color: #40a9ff;
+}
+
+.pageTitle {
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+}
+
+.tabContainer {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.mainTabs {
+  width: 100%;
+}
+
+.mainTabs :global(.ant-tabs-nav) {
+  margin-bottom: 0;
+}
+
+.mainTabs :global(.ant-tabs-tab) {
+  font-size: 15px;
+  padding: 12px 24px;
+}
+
+.tabContent {
+  width: 100%;
+}
+
+

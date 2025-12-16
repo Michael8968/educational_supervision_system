@@ -2,6 +2,23 @@
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
+function getAuthToken(): string | null {
+  // 兼容旧逻辑：如果存在单独的 token key，优先使用
+  const direct = localStorage.getItem('token');
+  if (direct) return direct;
+
+  // 兼容 Zustand persist：token 存在 auth-storage.state.token
+  const raw = localStorage.getItem('auth-storage');
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { state?: { token?: unknown } } | null;
+    const token = parsed?.state?.token;
+    return typeof token === 'string' ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 // 通用请求方法
 async function request<T>(
   endpoint: string,
@@ -14,7 +31,7 @@ async function request<T>(
   };
 
   // 添加认证token
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (token) {
     (defaultHeaders as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }

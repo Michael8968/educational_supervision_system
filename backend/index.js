@@ -19,7 +19,9 @@ const { router: statisticsRoutes, setDb: setStatisticsDb } = require('./routes/s
 const { router: complianceRoutes, setDb: setComplianceDb } = require('./routes/compliance');
 const { router: personnelRoutes, setDb: setPersonnelDb } = require('./routes/personnel');
 const { router: samplesRoutes, setDb: setSamplesDb } = require('./routes/samples');
+const { router: userRoutes } = require('./routes/users');
 const uploadsRouteFactory = require('./routes/uploads');
+const userStore = require('./services/userStore');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -72,31 +74,22 @@ app.use('/api', statisticsRoutes);
 app.use('/api', complianceRoutes);
 app.use('/api', personnelRoutes);
 app.use('/api', samplesRoutes);
+app.use('/api', userRoutes);
 // 文件上传路由
 app.use('/api', uploadsRouteFactory(db));
 
 // 登录接口
 app.post('/api/login', loginRules, (req, res) => {
   const { username, password } = req.body;
-
-  // 预设用户
-  const users = {
-    'AAA': { password: 'BBB', role: 'admin', roleName: '系统管理员' },
-    '111': { password: '222', role: 'project_manager', roleName: '项目管理员' },
-    '333': { password: '444', role: 'collector', roleName: '数据采集员' },
-    '555': { password: '666', role: 'expert', roleName: '项目评估专家' },
-    '777': { password: '888', role: 'decision_maker', roleName: '报告决策者' },
-  };
-
-  const user = users[username];
-  if (user && user.password === password) {
+  const user = userStore.verifyCredentials(username, password);
+  if (user) {
     res.json({
       code: 200,
       data: {
         username,
         role: user.role,
         roleName: user.roleName,
-        token: 'token-' + Date.now(),
+        token: 'token-' + Date.now() + '-' + user.role,
       },
     });
   } else {
@@ -213,6 +206,7 @@ async function startServer() {
     console.log('  GET  /api/submissions');
     console.log('  GET  /api/districts');
     console.log('  GET  /api/schools');
+    console.log('  GET  /api/users');
   });
 }
 

@@ -79,6 +79,13 @@ export const useAuthStore = create<AuthState>()(
 
           const { username, role, roleName, token } = data.data;
 
+          // 兼容旧请求层：部分接口会从 localStorage['token'] 读取
+          try {
+            localStorage.setItem('token', token);
+          } catch {
+            // ignore
+          }
+
           set({
             user: { username, role, roleName },
             token,
@@ -99,6 +106,11 @@ export const useAuthStore = create<AuthState>()(
 
       // 登出
       logout: () => {
+        try {
+          localStorage.removeItem('token');
+        } catch {
+          // ignore
+        }
         set({
           user: null,
           token: null,
