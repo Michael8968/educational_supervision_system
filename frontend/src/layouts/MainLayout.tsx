@@ -91,12 +91,22 @@ const MainLayout: React.FC = () => {
       });
     }
 
-    // 用户管理 - 仅管理员可见
+    // 用户管理 - 仅管理员可见（含子菜单）
     if (permissions.canManageSystem) {
       items.push({
         key: '/users',
         icon: <TeamOutlined />,
         label: '用户管理',
+        children: [
+          {
+            key: '/users/school-account',
+            label: '学校&账号管理',
+          },
+          {
+            key: '/users/expert-account',
+            label: '专家账号管理',
+          },
+        ],
       });
     }
 
@@ -143,8 +153,17 @@ const MainLayout: React.FC = () => {
     if (path.startsWith('/expert')) return '/expert';
     if (path.startsWith('/reports')) return '/reports';
     if (path.startsWith('/system')) return '/system';
-    if (path.startsWith('/users')) return '/users';
+    if (path.startsWith('/users/school-account')) return '/users/school-account';
+    if (path.startsWith('/users/expert-account')) return '/users/expert-account';
+    if (path.startsWith('/users')) return '/users/school-account';
     return menuItems[0]?.key || '/home';
+  };
+
+  // 获取展开的子菜单
+  const getOpenKeys = () => {
+    const path = location.pathname;
+    if (path.startsWith('/users')) return ['/users'];
+    return [];
   };
 
   return (
@@ -165,6 +184,7 @@ const MainLayout: React.FC = () => {
         <Menu
           mode="inline"
           selectedKeys={[getSelectedKey()]}
+          defaultOpenKeys={getOpenKeys()}
           items={menuItems}
           onClick={handleMenuClick}
         />

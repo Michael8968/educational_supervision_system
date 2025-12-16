@@ -127,6 +127,89 @@ async function testConnection() {
 }
 
 /**
+ * 查询列是否存在（用于启动时自检/补齐缺失字段）
+ * @param {string} tableName
+ * @param {string} columnName
+ * @param {string} schemaName
+ * @returns {Promise<boolean>}
+ */
+async function columnExists(tableName, columnName, schemaName = 'public') {
+  try {
+    const result = await query(
+      `
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = $1
+          AND table_name = $2
+          AND column_name = $3
+        LIMIT 1
+      `,
+      [schemaName, tableName, columnName]
+    );
+    return (result.rows || []).length > 0;
+  } catch (err) {
+    // 某些环境可能限制访问 information_schema；交给调用方走兜底策略
+    return false;
+  }
+}
+
+/**
+ * 查询表是否存在（用于启动时自检/缺表提示）
+ * @param {string} tableName
+ * @param {string} schemaName
+ * @returns {Promise<boolean>}
+ */
+async function tableExists(tableName, schemaName = 'public') {
+  try {
+    const result = await query(
+      `
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = $1
+          AND table_name = $2
+        LIMIT 1
+      `,
+      [schemaName, tableName]
+    );
+    return (result.rows || []).length > 0;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * 启动时确保关键表结构存在（避免因缺列导致 API 500）
+ * 注意：只做“安全且幂等”的修复（IF NOT EXISTS）。
+ * @returns {Promise<void>}
+ */
+async function ensureSchema() {
+  try {
+    // 注意：当前仓库提供的 exec_sql() 只支持 SELECT（见 backend/database/supabase-setup.sql）
+    // 因此这里仅做“检测 + 提示”，不在运行时执行 ALTER/DDL。
+    const requiredColumns = [
+      { table: 'projects', column: 'keywords' },
+      { table: 'projects', column: 'is_published' }
+    ];
+
+    const missing = [];
+    for (const c of requiredColumns) {
+      const exists = await columnExists(c.table, c.column);
+      if (!exists) missing.push(`${c.table}.${c.column}`);
+    }
+
+    if (missing.length > 0) {
+      console.warn(
+        `[db] Schema check: missing columns: ${missing.join(', ')}. ` +
+        `请在 Supabase SQL Editor 执行 backend/database/fix-missing-columns.sql（或升级 exec_sql 以支持 DDL）。`
+      );
+    }
+  } catch (err) {
+    // 不阻断服务启动，但给出提示方便排查权限/连接问题
+    console.warn('[db] ensureSchema failed:', err.message);
+  }
+}
+
+/**
  * 关闭连接（Supabase 客户端不需要显式关闭）
  * @returns {Promise<void>}
  */
@@ -273,6 +356,8 @@ module.exports = {
   query,
   transaction,
   testConnection,
+  ensureSchema,
+  tableExists,
   close,
 
   // Supabase 客户端

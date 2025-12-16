@@ -70,6 +70,15 @@ router.get('/projects/:projectId/personnel/:id', async (req, res) => {
 // 添加人员
 router.post('/projects/:projectId/personnel', async (req, res) => {
   try {
+    // 缺表时给出更清晰的提示（Supabase PostgREST 否则会报 schema cache）
+    const hasTable = await db.tableExists?.('project_personnel');
+    if (hasTable === false) {
+      return res.status(500).json({
+        code: 500,
+        message: "缺少数据表 public.project_personnel。请在 Supabase SQL Editor 执行 backend/database/create-personnel-samples-tables.sql（或重新执行 backend/database/supabase-setup.sql）后重试。"
+      });
+    }
+
     const { projectId } = req.params;
     const { name, organization, phone, idCard, role } = req.body;
 

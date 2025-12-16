@@ -20,9 +20,9 @@ router.get('/projects', async (req, res) => {
   try {
     const { status, year } = req.query;
     let sql = `
-      SELECT p.id, p.name, p.keywords, p.description, p.indicator_system_id as "indicatorSystemId",
+      SELECT p.id, p.name, (to_jsonb(p)->>'keywords') as keywords, p.description, p.indicator_system_id as "indicatorSystemId",
              p.start_date as "startDate", p.end_date as "endDate", p.status,
-             p.is_published as "isPublished",
+             COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as "isPublished",
              p.created_by as "createdBy", p.created_at as "createdAt", p.updated_at as "updatedAt",
              i.name as "indicatorSystemName"
       FROM projects p
@@ -60,9 +60,9 @@ router.get('/projects', async (req, res) => {
 router.get('/projects/:id', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT p.id, p.name, p.keywords, p.description, p.indicator_system_id as "indicatorSystemId",
+      SELECT p.id, p.name, (to_jsonb(p)->>'keywords') as keywords, p.description, p.indicator_system_id as "indicatorSystemId",
              p.start_date as "startDate", p.end_date as "endDate", p.status,
-             p.is_published as "isPublished",
+             COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as "isPublished",
              p.created_by as "createdBy", p.created_at as "createdAt", p.updated_at as "updatedAt",
              i.name as "indicatorSystemName"
       FROM projects p
@@ -179,7 +179,13 @@ router.put('/projects/:id', async (req, res) => {
 router.post('/projects/:id/start', async (req, res) => {
   try {
     // 检查项目当前状态
-    const projectResult = await db.query('SELECT status, is_published FROM projects WHERE id = $1', [req.params.id]);
+    const projectResult = await db.query(
+      `SELECT status,
+              COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as is_published
+         FROM projects p
+        WHERE id = $1`,
+      [req.params.id]
+    );
     const project = projectResult.rows[0];
     if (!project) {
       return res.status(404).json({ code: 404, message: '项目不存在' });
@@ -327,7 +333,13 @@ router.post('/projects/:id/restart', async (req, res) => {
 // 发布项目
 router.post('/projects/:id/publish', async (req, res) => {
   try {
-    const projectResult = await db.query('SELECT status, is_published FROM projects WHERE id = $1', [req.params.id]);
+    const projectResult = await db.query(
+      `SELECT status,
+              COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as is_published
+         FROM projects p
+        WHERE id = $1`,
+      [req.params.id]
+    );
     const project = projectResult.rows[0];
     if (!project) {
       return res.status(404).json({ code: 404, message: '项目不存在' });
@@ -356,7 +368,13 @@ router.post('/projects/:id/publish', async (req, res) => {
 // 取消发布项目
 router.post('/projects/:id/unpublish', async (req, res) => {
   try {
-    const projectResult = await db.query('SELECT status, is_published FROM projects WHERE id = $1', [req.params.id]);
+    const projectResult = await db.query(
+      `SELECT status,
+              COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as is_published
+         FROM projects p
+        WHERE id = $1`,
+      [req.params.id]
+    );
     const project = projectResult.rows[0];
     if (!project) {
       return res.status(404).json({ code: 404, message: '项目不存在' });

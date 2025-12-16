@@ -402,6 +402,12 @@
   font-size: 13px;
 }
 
+.roleTitleActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .personnelTable {
   margin: 0;
 }

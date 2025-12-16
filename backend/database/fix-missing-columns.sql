@@ -3,6 +3,9 @@
 -- 在 Supabase SQL Editor 中执行此脚本
 -- ============================================
 
+-- ==================== projects ====================
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false;
+
 -- ==================== indicator_systems ====================
 ALTER TABLE indicator_systems ADD COLUMN IF NOT EXISTS attachments TEXT;
 ALTER TABLE indicator_systems ADD COLUMN IF NOT EXISTS updated_by TEXT;

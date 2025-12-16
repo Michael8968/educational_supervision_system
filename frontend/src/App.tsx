@@ -22,6 +22,7 @@ import ComplianceStats from './pages/ComplianceStats';
 import CollectorDashboard from './pages/CollectorDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
 import UserManagement from './pages/UserManagement';
+import ExpertAccountManagement from './pages/ExpertAccountManagement';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/global.css';
 
@@ -115,9 +116,15 @@ const App: React.FC = () => {
                 <div style={{ padding: 24 }}>系统配置页面（开发中）</div>
               </ProtectedRoute>
             } />
-            <Route path="users" element={
+            <Route path="users" element={<Navigate to="/users/school-account" replace />} />
+            <Route path="users/school-account" element={
               <ProtectedRoute requiredPermission="canManageSystem">
                 <UserManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="users/expert-account" element={
+              <ProtectedRoute requiredPermission="canManageSystem">
+                <ExpertAccountManagement />
               </ProtectedRoute>
             } />
 

@@ -126,6 +126,23 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TEXT
 );
 
+-- 项目人员表（人员管理）
+CREATE TABLE IF NOT EXISTS project_personnel (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,          -- 关联 projects.id，由程序验证
+  name TEXT NOT NULL,
+  organization TEXT,
+  phone TEXT,
+  id_card TEXT,
+  role TEXT NOT NULL,                -- 枚举值由程序验证：leader | member | expert | observer
+  status TEXT DEFAULT 'active',       -- 枚举值由程序验证：active | inactive
+  created_at TEXT,
+  updated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_personnel_project ON project_personnel(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_personnel_role ON project_personnel(role);
+
 -- 填报记录表
 CREATE TABLE IF NOT EXISTS submissions (
   id TEXT PRIMARY KEY,

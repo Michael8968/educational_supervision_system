@@ -19,7 +19,7 @@ interface PersonnelTabProps {
   personnel: Record<string, Personnel[]>;
   personnelSearch: string;
   onSearchChange: (value: string) => void;
-  onAddPerson: () => void;
+  onAddPerson: (role?: string) => void;  // 支持传入预设角色
   onImport: () => void;
   onDeletePerson: (person: Personnel) => void;
   onOpenMore: (role: string) => void;
@@ -90,14 +90,6 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
             className={styles.searchInput}
           />
           <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onAddPerson}
-            disabled={disabled}
-          >
-            添加人员
-          </Button>
-          <Button
             icon={<UploadOutlined />}
             onClick={onImport}
             disabled={disabled}
@@ -120,7 +112,19 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
                 <span className={styles.roleName}>{roleInfo.name}</span>
                 <span className={styles.roleDesc}>— {roleInfo.desc}</span>
               </div>
-              <span className={styles.roleCount}>总人数：{rolePersonnel.length} 人</span>
+              <div className={styles.roleTitleActions}>
+                <span className={styles.roleCount}>总人数：{rolePersonnel.length} 人</span>
+                {!disabled && (
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={() => onAddPerson(role)}
+                  >
+                    添加
+                  </Button>
+                )}
+              </div>
             </div>
             <Table
               rowKey="id"

@@ -50,71 +50,282 @@ const getImportStatusInfo = (status: ImportStatus): ImportStatusInfo => {
 
 // ==================== 添加人员弹窗 ====================
 
+interface SystemUserOption {
+  username: string;
+  roles: string[];  // 支持多角色
+  status: string;
+}
+
 interface AddPersonModalProps {
   visible: boolean;
   onCancel: () => void;
   onSubmit: (values: PersonnelFormValues) => void;
+  onBatchSubmit?: (users: SystemUserOption[], role: string) => void;  // 批量添加
   form: FormInstance;
+  userList?: SystemUserOption[];
+  loadingUsers?: boolean;
+  presetRole?: string;  // 预设角色（从角色标题行点击时传入）
 }
+
+// 系统角色到人员角色的映射
+const systemRoleToPersonnelRole: Record<string, string> = {
+  admin: 'system_admin',
+  project_manager: 'project_manager',
+  collector: 'data_collector',
+  expert: 'expert',
+  decision_maker: 'project_manager',
+};
+
+// 人员角色到系统角色的映射（用于筛选）
+const personnelRoleToSystemRoles: Record<string, string[]> = {
+  system_admin: ['admin'],
+  project_manager: ['project_manager', 'admin', 'decision_maker'],
+  data_collector: ['collector'],
+  expert: ['expert'],
+};
+
+// 人员配置角色显示名称
+const roleDisplayNames: Record<string, string> = {
+  system_admin: '项目创建者/系统管理员',
+  project_manager: '项目管理员',
+  data_collector: '数据采集员',
+  expert: '评估专家',
+};
+
+// 系统角色显示名称（用于下拉选项）
+const systemRoleDisplayNames: Record<string, string> = {
+  admin: '系统管理员',
+  project_manager: '项目管理员',
+  collector: '数据采集员',
+  expert: '评估专家',
+  decision_maker: '报告决策者',
+};
+
+// 获取用户角色的显示文本
+const getUserRoleDisplay = (roles: string[]): string => {
+  if (!roles || roles.length === 0) return '';
+  return roles.map(r => systemRoleDisplayNames[r] || r).join('、');
+};
 
 export const AddPersonModal: React.FC<AddPersonModalProps> = ({
   visible,
   onCancel,
   onSubmit,
+  onBatchSubmit,
   form,
-}) => (
-  <Modal
-    title="添加人员"
-    open={visible}
-    onCancel={onCancel}
-    footer={null}
-    width={480}
-  >
-    <p className={styles.modalSubtitle}>填写人员信息或从账号库/专家库中选择</p>
-    <Form form={form} onFinish={onSubmit} layout="vertical">
-      <Form.Item
-        label="角色类型"
-        name="role"
-        rules={[{ required: true, message: '请选择角色类型' }]}
-      >
-        <Select placeholder="请选择角色类型">
-          <Select.Option value="project_manager">项目管理员</Select.Option>
-          <Select.Option value="data_collector">数据采集员</Select.Option>
-          <Select.Option value="expert">评估专家</Select.Option>
-        </Select>
-      </Form.Item>
-      <p className={styles.formHint}>将从账号库中选择或新建用户</p>
-      <Form.Item
-        label="姓名"
-        name="name"
-        rules={[{ required: true, message: '请输入姓名' }]}
-      >
-        <Input placeholder="输入姓名搜索" />
-      </Form.Item>
-      <Form.Item
-        label="单位"
-        name="organization"
-        rules={[{ required: true, message: '请输入单位' }]}
-      >
-        <Input placeholder="请输入单位" />
-      </Form.Item>
-      <Form.Item
-        label="电话号码（登录账号）"
-        name="phone"
-        rules={[{ required: true, message: '请输入电话号码' }]}
-      >
-        <Input placeholder="请输入电话号码" />
-      </Form.Item>
-      <Form.Item label="身份证件号码" name="idCard">
-        <Input placeholder="请输入身份证件号码" />
-      </Form.Item>
-      <Form.Item className={styles.formFooter}>
-        <Button onClick={onCancel}>取消</Button>
-        <Button type="primary" htmlType="submit">确定</Button>
-      </Form.Item>
-    </Form>
-  </Modal>
-);
+  userList = [],
+  loadingUsers = false,
+  presetRole,
+}) => {
+  const [selectMode, setSelectMode] = React.useState<'select' | 'manual'>('select');
+  const [selectedUsers, setSelectedUsers] = React.useState<string[]>([]);
+
+  // 重置状态
+  React.useEffect(() => {
+    if (visible) {
+      setSelectedUsers([]);
+      if (presetRole) {
+        setSelectMode('select');
+        form.setFieldsValue({ role: presetRole });
+      }
+    }
+  }, [visible, presetRole, form]);
+
+  // 过滤出可用的账号（状态为 active，且匹配角色）
+  const filteredUsers = React.useMemo(() => {
+    let users = userList.filter(u => u.status === 'active');
+
+    // 如果有预设角色，按角色筛选
+    if (presetRole) {
+      const allowedSystemRoles = personnelRoleToSystemRoles[presetRole] || [];
+      if (allowedSystemRoles.length > 0) {
+        // 检查用户的任意角色是否在允许的角色列表中
+        users = users.filter(u => (u.roles || []).some(r => allowedSystemRoles.includes(r)));
+      }
+    }
+
+    return users;
+  }, [userList, presetRole]);
+
+  // 处理批量选择确认
+  const handleBatchConfirm = () => {
+    if (selectedUsers.length === 0) {
+      return;
+    }
+    const selectedUserObjects = filteredUsers.filter(u => selectedUsers.includes(u.username));
+    if (onBatchSubmit && presetRole) {
+      onBatchSubmit(selectedUserObjects, presetRole);
+    }
+  };
+
+  // 重置表单和模式
+  const handleCancel = () => {
+    setSelectMode('select');
+    setSelectedUsers([]);
+    onCancel();
+  };
+
+  // 弹窗标题
+  const modalTitle = presetRole
+    ? `添加${roleDisplayNames[presetRole] || '人员'}`
+    : '添加人员';
+
+  return (
+    <Modal
+      title={modalTitle}
+      open={visible}
+      onCancel={handleCancel}
+      footer={presetRole ? [
+        <Button key="cancel" onClick={handleCancel}>取消</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          onClick={handleBatchConfirm}
+          disabled={selectedUsers.length === 0}
+        >
+          确定添加 {selectedUsers.length > 0 && `(${selectedUsers.length}人)`}
+        </Button>,
+      ] : null}
+      width={560}
+    >
+      {presetRole ? (
+        // 从角色标题行点击进入：直接显示多选账号列表
+        <>
+          <p className={styles.modalSubtitle}>
+            {presetRole === 'expert'
+              ? '从专家库中选择要添加的评估专家（支持多选）'
+              : `从已有账号中选择要添加的${roleDisplayNames[presetRole] || '人员'}（支持多选）`
+            }
+          </p>
+          <Select
+            mode="multiple"
+            placeholder={presetRole === 'expert' ? '请选择专家（可多选）' : '请选择账号（可多选）'}
+            showSearch
+            loading={loadingUsers}
+            filterOption={(input, option) =>
+              (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+            }
+            options={filteredUsers.map(u => ({
+              value: u.username,
+              // 专家直接显示用户名，其他角色显示用户名和角色
+              label: presetRole === 'expert'
+                ? u.username
+                : `${u.username}（${getUserRoleDisplay(u.roles)}）`,
+            }))}
+            value={selectedUsers}
+            onChange={setSelectedUsers}
+            style={{ width: '100%' }}
+            maxTagCount="responsive"
+          />
+          {filteredUsers.length === 0 && !loadingUsers && (
+            <p style={{ color: '#999', marginTop: 8, fontSize: 13 }}>
+              {presetRole === 'expert'
+                ? '暂无可用的专家账号，请先在专家账号管理中创建专家'
+                : '暂无符合该角色的可用账号，请先在用户管理中创建对应角色的账号'
+              }
+            </p>
+          )}
+        </>
+      ) : (
+        // 从顶部添加人员按钮进入：显示完整表单
+        <>
+          <p className={styles.modalSubtitle}>从已有账号中选择或手动填写人员信息</p>
+
+          {/* 切换模式 */}
+          <div style={{ marginBottom: 16 }}>
+            <Space>
+              <Button
+                type={selectMode === 'select' ? 'primary' : 'default'}
+                onClick={() => setSelectMode('select')}
+              >
+                从账号选择
+              </Button>
+              <Button
+                type={selectMode === 'manual' ? 'primary' : 'default'}
+                onClick={() => setSelectMode('manual')}
+              >
+                手动填写
+              </Button>
+            </Space>
+          </div>
+
+          <Form form={form} onFinish={onSubmit} layout="vertical">
+            {selectMode === 'select' && (
+              <Form.Item label="选择已有账号">
+                <Select
+                  placeholder="请选择账号"
+                  showSearch
+                  loading={loadingUsers}
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={filteredUsers.map(u => ({
+                    value: u.username,
+                    label: `${u.username}（${getUserRoleDisplay(u.roles)}）`,
+                  }))}
+                  onChange={(username: string) => {
+                    const user = userList.find(u => u.username === username);
+                    if (user) {
+                      // 使用用户的第一个角色来映射人员角色
+                      const firstRole = (user.roles || [])[0];
+                      const personnelRole = systemRoleToPersonnelRole[firstRole] || 'data_collector';
+                      form.setFieldsValue({
+                        name: user.username,
+                        role: personnelRole,
+                      });
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            )}
+
+            <Form.Item
+              label="角色类型"
+              name="role"
+              rules={[{ required: true, message: '请选择角色类型' }]}
+            >
+              <Select placeholder="请选择角色类型">
+                <Select.Option value="project_manager">项目管理员</Select.Option>
+                <Select.Option value="data_collector">数据采集员</Select.Option>
+                <Select.Option value="expert">评估专家</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="姓名"
+              name="name"
+              rules={[{ required: true, message: '请输入姓名' }]}
+            >
+              <Input placeholder="请输入姓名" />
+            </Form.Item>
+            <Form.Item
+              label="单位"
+              name="organization"
+              rules={[{ required: true, message: '请输入单位' }]}
+            >
+              <Input placeholder="请输入单位" />
+            </Form.Item>
+            <Form.Item
+              label="电话号码（登录账号）"
+              name="phone"
+              rules={[{ required: true, message: '请输入电话号码' }]}
+            >
+              <Input placeholder="请输入电话号码" />
+            </Form.Item>
+            <Form.Item label="身份证件号码" name="idCard">
+              <Input placeholder="请输入身份证件号码" />
+            </Form.Item>
+            <Form.Item className={styles.formFooter}>
+              <Button onClick={handleCancel}>取消</Button>
+              <Button type="primary" htmlType="submit">确定</Button>
+            </Form.Item>
+          </Form>
+        </>
+      )}
+    </Modal>
+  );
+};
 
 // ==================== 导入人员弹窗 ====================
 

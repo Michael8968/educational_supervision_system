@@ -13,8 +13,7 @@ router.get('/users', (req, res) => {
     const { keyword, role, status } = req.query;
     const users = userStore.listUsers({ keyword, role, status }).map(u => ({
       username: u.username,
-      role: u.role,
-      roleName: u.roleName,
+      roles: u.roles || [],
       status: u.status,
       scopes: u.scopes || [],
       createdAt: u.createdAt,
@@ -29,14 +28,13 @@ router.get('/users', (req, res) => {
 // 创建用户
 router.post('/users', (req, res) => {
   try {
-    const { username, password, role, roleName, status, scopes } = req.body || {};
-    const created = userStore.createUser({ username, password, role, roleName, status, scopes });
+    const { username, password, roles, status, scopes } = req.body || {};
+    const created = userStore.createUser({ username, password, roles, status, scopes });
     res.json({
       code: 200,
       data: {
         username: created.username,
-        role: created.role,
-        roleName: created.roleName,
+        roles: created.roles || [],
         status: created.status,
         scopes: created.scopes || [],
         createdAt: created.createdAt,
@@ -53,14 +51,13 @@ router.post('/users', (req, res) => {
 router.put('/users/:username', (req, res) => {
   try {
     const { username } = req.params;
-    const { password, role, roleName, status, scopes } = req.body || {};
-    const updated = userStore.updateUser(username, { password, role, roleName, status, scopes });
+    const { password, roles, status, scopes } = req.body || {};
+    const updated = userStore.updateUser(username, { password, roles, status, scopes });
     res.json({
       code: 200,
       data: {
         username: updated.username,
-        role: updated.role,
-        roleName: updated.roleName,
+        roles: updated.roles || [],
         status: updated.status,
         scopes: updated.scopes || [],
         createdAt: updated.createdAt,

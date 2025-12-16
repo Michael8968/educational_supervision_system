@@ -41,6 +41,10 @@ async function initDatabase() {
     if (dbConnected) {
       console.log('Database connected successfully');
 
+      // 启动时自检/补齐关键字段，避免因缺列导致 API 500
+      // 例如：projects.is_published 在部分库里缺失
+      await db.ensureSchema();
+
       // 注入数据库模块到路由（兼容旧路由模式）
       // 注意：路由文件需要逐步修改为直接使用 db 模块
       setIndicatorDb(db);

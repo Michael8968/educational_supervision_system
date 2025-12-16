@@ -32,6 +32,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import * as projectService from '../../services/projectService';
 import type { Project } from '../../services/projectService';
+import { getUsers, SystemUser } from '../../services/userService';
 import styles from './index.module.css';
 
 // 组件导入
@@ -107,6 +108,7 @@ const ProjectConfig: React.FC = () => {
 
   // 弹窗状态
   const [addPersonModalVisible, setAddPersonModalVisible] = useState(false);
+  const [addPersonPresetRole, setAddPersonPresetRole] = useState<string | undefined>(undefined);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importStep, setImportStep] = useState<'upload' | 'preview'>('upload');
   const [morePersonModalVisible, setMorePersonModalVisible] = useState(false);
@@ -120,6 +122,10 @@ const ProjectConfig: React.FC = () => {
   const [addPersonForm] = Form.useForm();
   const [addSampleForm] = Form.useForm();
   const [addTeacherForm] = Form.useForm();
+
+  // 用户列表（用于人员配置选择）
+  const [userList, setUserList] = useState<SystemUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   // 加载项目信息
   const loadProject = useCallback(async () => {
@@ -148,10 +154,47 @@ const ProjectConfig: React.FC = () => {
 
   // ==================== 人员配置处理 ====================
 
+  // 加载用户列表
+  const loadUserList = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const users = await getUsers();
+      setUserList(users);
+    } catch (error) {
+      console.error('加载用户列表失败:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  // 打开添加人员弹窗时加载用户列表
+  const handleOpenAddPerson = (role?: string) => {
+    loadUserList();
+    setAddPersonPresetRole(role);
+    setAddPersonModalVisible(true);
+  };
+
   const handleAddPerson = (values: any) => {
     addPerson(values);
     setAddPersonModalVisible(false);
+    setAddPersonPresetRole(undefined);
     addPersonForm.resetFields();
+  };
+
+  // 批量添加人员（从多选账号）
+  const handleBatchAddPerson = (users: Array<{ username: string; roles: string[] }>, role: string) => {
+    // 逐个添加选中的用户
+    users.forEach(user => {
+      addPerson({
+        role,
+        name: user.username,
+        organization: '',
+        phone: '',
+        idCard: '',
+      });
+    });
+    setAddPersonModalVisible(false);
+    setAddPersonPresetRole(undefined);
   };
 
   const handleLoadSampleData = () => {
@@ -523,7 +566,7 @@ const ProjectConfig: React.FC = () => {
                   personnel={personnel}
                   personnelSearch={personnelSearch}
                   onSearchChange={setPersonnelSearch}
-                  onAddPerson={() => setAddPersonModalVisible(true)}
+                  onAddPerson={handleOpenAddPerson}
                   onImport={() => setImportModalVisible(true)}
                   onDeletePerson={deletePerson}
                   onOpenMore={(role) => {
@@ -542,9 +585,16 @@ const ProjectConfig: React.FC = () => {
       {/* 弹窗组件 */}
       <AddPersonModal
         visible={addPersonModalVisible}
-        onCancel={() => setAddPersonModalVisible(false)}
+        onCancel={() => {
+          setAddPersonModalVisible(false);
+          setAddPersonPresetRole(undefined);
+        }}
         onSubmit={handleAddPerson}
+        onBatchSubmit={handleBatchAddPerson}
         form={addPersonForm}
+        userList={userList}
+        loadingUsers={loadingUsers}
+        presetRole={addPersonPresetRole}
       />
 
       <ImportModal
