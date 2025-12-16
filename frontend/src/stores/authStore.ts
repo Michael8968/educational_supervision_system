@@ -9,11 +9,22 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 // 用户角色类型
 export type UserRole = 'admin' | 'project_manager' | 'collector' | 'expert' | 'decision_maker';
 
+const roleNameMap: Record<UserRole, string> = {
+  admin: '系统管理员',
+  project_manager: '项目管理员',
+  collector: '数据采集员',
+  expert: '评估专家',
+  decision_maker: '报告决策者',
+};
+
 // 用户信息接口
 export interface User {
   username: string;
   role: UserRole;
-  roleName: string;
+  /** 当前选中的角色显示名（兼容后端返回） */
+  roleName?: string;
+  /** 当前用户拥有的角色列表 */
+  roles?: UserRole[];
 }
 
 // 登录凭证
@@ -34,6 +45,7 @@ interface AuthState {
   // 操作
   login: (credentials: LoginCredentials) => Promise<boolean>;
   logout: () => void;
+  switchRole: (nextRole: UserRole) => void;
   clearError: () => void;
   checkAuth: () => boolean;
 }
@@ -77,7 +89,14 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          const { username, role, roleName, token } = data.data;
+          const { username, role, roleName, roles, token } = data.data || {};
+
+          const rolesArr: UserRole[] = Array.isArray(roles)
+            ? roles
+            : role
+              ? [role]
+              : [];
+          const currentRole: UserRole | undefined = role || rolesArr[0];
 
           // 兼容旧请求层：部分接口会从 localStorage['token'] 读取
           try {
@@ -87,14 +106,21 @@ export const useAuthStore = create<AuthState>()(
           }
 
           set({
-            user: { username, role, roleName },
+            user: currentRole
+              ? {
+                  username,
+                  role: currentRole,
+                  roleName: roleName || roleNameMap[currentRole],
+                  roles: rolesArr.length > 0 ? rolesArr : [currentRole],
+                }
+              : null,
             token,
-            isAuthenticated: true,
+            isAuthenticated: Boolean(currentRole && token),
             isLoading: false,
             error: null,
           });
 
-          return true;
+          return Boolean(currentRole && token);
         } catch (error) {
           set({
             isLoading: false,
@@ -116,6 +142,41 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           isAuthenticated: false,
           error: null,
+        });
+      },
+
+      // 切换角色（本地切换：更新 user.role 与 token 中的 role 段）
+      switchRole: (nextRole: UserRole) => {
+        const state = get();
+        const user = state.user;
+        if (!user) return;
+        if (user.role === nextRole) return;
+
+        const availableRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]) as UserRole[];
+        if (!availableRoles.includes(nextRole)) return;
+
+        // token 格式: token-{timestamp}-{role}
+        const prevToken = state.token || '';
+        const parts = prevToken.split('-');
+        const ts = parts.length >= 2 && !Number.isNaN(parseInt(parts[1], 10))
+          ? parts[1]
+          : String(Date.now());
+        const nextToken = `token-${ts}-${nextRole}`;
+
+        try {
+          localStorage.setItem('token', nextToken);
+        } catch {
+          // ignore
+        }
+
+        set({
+          user: {
+            ...user,
+            role: nextRole,
+            roleName: roleNameMap[nextRole],
+            roles: availableRoles,
+          },
+          token: nextToken,
         });
       },
 

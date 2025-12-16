@@ -87,13 +87,24 @@ app.post('/api/login', loginRules, (req, res) => {
   const { username, password } = req.body;
   const user = userStore.verifyCredentials(username, password);
   if (user) {
+    // 支持多角色：优先使用 user.roles[0] 作为当前角色
+    const roles = Array.isArray(user.roles) ? user.roles : [];
+    const role = user.role || roles[0] || null;
+    const roleNameMap = {
+      admin: '系统管理员',
+      project_manager: '项目管理员',
+      collector: '数据采集员',
+      expert: '评估专家',
+      decision_maker: '报告决策者',
+    };
     res.json({
       code: 200,
       data: {
         username,
-        role: user.role,
-        roleName: user.roleName,
-        token: 'token-' + Date.now() + '-' + user.role,
+        role,
+        roles,
+        roleName: (role && roleNameMap[role]) || user.roleName || '',
+        token: 'token-' + Date.now() + '-' + (role || 'anonymous'),
       },
     });
   } else {

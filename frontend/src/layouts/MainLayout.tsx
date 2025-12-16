@@ -3,15 +3,15 @@ import { Layout, Menu, Dropdown, Space, Tag } from 'antd';
 import {
   HomeOutlined,
   SettingOutlined,
-  UserOutlined,
   LogoutOutlined,
   FormOutlined,
   AuditOutlined,
   FileTextOutlined,
   TeamOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet, Navigate } from 'react-router-dom';
-import { useAuthStore, useUserPermissions } from '../stores/authStore';
+import { useAuthStore, useUserPermissions, UserRole } from '../stores/authStore';
 import styles from './MainLayout.module.css';
 
 const { Header, Sider, Content } = Layout;
@@ -39,7 +39,7 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, switchRole } = useAuthStore();
   const permissions = useUserPermissions();
 
   // 根据角色生成菜单项
@@ -123,12 +123,22 @@ const MainLayout: React.FC = () => {
   };
 
   // 获取默认路由（根据角色）
-  const getDefaultRoute = () => {
-    if (permissions.canManageProjects) return '/home';
-    if (permissions.isCollector) return '/collector';
-    if (permissions.isExpert) return '/expert';
-    if (permissions.isDecisionMaker) return '/reports';
+  const getDefaultRouteByRole = (role: UserRole) => {
+    if (role === 'admin' || role === 'project_manager') return '/home';
+    if (role === 'collector') return '/collector';
+    if (role === 'expert') return '/expert';
+    if (role === 'decision_maker') return '/reports';
     return '/home';
+  };
+
+  const getDefaultRoute = () => getDefaultRouteByRole(user!.role);
+
+  const handleSwitchRole = (nextRole: UserRole) => {
+    if (!user) return;
+    if (nextRole === user.role) return;
+    switchRole(nextRole);
+    // 角色切换后，为避免落到无权限页面，直接跳转到该角色默认入口
+    navigate(getDefaultRouteByRole(nextRole));
   };
 
   // 未登录重定向到登录页
@@ -136,14 +146,30 @@ const MainLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userMenuItems = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: handleLogout,
-    },
-  ];
+  const userMenuItems = (() => {
+    const roles = (user?.roles && user.roles.length > 0 ? user.roles : user?.role ? [user.role] : []) as UserRole[];
+    const roleItems = roles.map((r) => ({
+      key: `role:${r}`,
+      label: (
+        <Space>
+          <span>{roleNameMap[r] || r}</span>
+          {user?.role === r ? <Tag color={roleColorMap[r] || 'default'}>当前</Tag> : null}
+        </Space>
+      ),
+      onClick: () => handleSwitchRole(r),
+    }));
+
+    return [
+      ...roleItems,
+      ...(roleItems.length > 0 ? [{ type: 'divider' as const }] : []),
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: '退出登录',
+        onClick: handleLogout,
+      },
+    ];
+  })();
 
   // 获取当前选中的菜单项
   const getSelectedKey = () => {
@@ -196,9 +222,11 @@ const MainLayout: React.FC = () => {
               <Tag color={roleColorMap[user.role] || 'default'}>
                 {user.roleName || roleNameMap[user.role] || user.role}
               </Tag>
-              <span>{user.username}</span>
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <LogoutOutlined style={{ cursor: 'pointer', marginLeft: 8 }} />
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+                <Space style={{ cursor: 'pointer' }}>
+                  <span>{user.username}</span>
+                  <DownOutlined />
+                </Space>
               </Dropdown>
             </Space>
           </div>

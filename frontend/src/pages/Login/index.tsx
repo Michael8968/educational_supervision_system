@@ -26,14 +26,22 @@ const Login: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<string>('');
 
   // 使用 Zustand auth store
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, isLoading, error, clearError, user } = useAuthStore();
+
+  const getDefaultRouteByRole = (role?: string) => {
+    if (role === 'admin' || role === 'project_manager') return '/home';
+    if (role === 'collector') return '/collector';
+    if (role === 'expert') return '/expert';
+    if (role === 'decision_maker') return '/reports';
+    return '/home';
+  };
 
   // 如果已登录，重定向到首页
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/home');
+      navigate(getDefaultRouteByRole(user?.role), { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user?.role, navigate]);
 
   // 显示错误信息
   useEffect(() => {
@@ -55,7 +63,8 @@ const Login: React.FC = () => {
     const success = await login(values);
     if (success) {
       message.success('登录成功');
-      navigate('/home');
+      // 按当前角色跳转到默认入口
+      navigate(getDefaultRouteByRole(useAuthStore.getState().user?.role), { replace: true });
     }
   };
 
