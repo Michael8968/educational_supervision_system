@@ -1431,11 +1431,21 @@ router.get('/tools/:id/full-schema', async (req, res) => {
       }
     });
 
-    // 将映射信息合并到schema中
-    const enrichedSchema = schema.map(field => ({
-      ...field,
-      mapping: mappingMap[field.id] || null
-    }));
+    // 递归处理嵌套字段（如 group 内的 children）
+    const enrichField = (field) => {
+      const enriched = {
+        ...field,
+        mapping: mappingMap[field.id] || null
+      };
+      // 如果有 children，递归处理
+      if (Array.isArray(field.children)) {
+        enriched.children = field.children.map(enrichField);
+      }
+      return enriched;
+    };
+
+    // 将映射信息合并到schema中（支持嵌套）
+    const enrichedSchema = schema.map(enrichField);
 
     res.json({
       code: 200,

@@ -22,6 +22,7 @@ import {
   Select,
   Tooltip,
   List,
+  Modal,
 } from 'antd';
 import {
   FormOutlined,
@@ -37,13 +38,16 @@ import {
   InfoCircleOutlined,
   ArrowLeftOutlined,
   ProjectOutlined,
+  EyeOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { useAuthStore } from '../../stores/authStore';
 import * as taskService from '../../services/taskService';
-import type { Task, TaskStatus, MyProject } from '../../services/taskService';
-import { getSchoolCompliance, SchoolCompliance } from '../../services/schoolService';
+import type { Task, TaskStatus, MyProject, ToolFullSchema } from '../../services/taskService';
+import { getSchoolCompliance, getSchoolIndicatorData, SchoolCompliance, SchoolIndicatorData, SchoolIndicatorItem } from '../../services/schoolService';
+import { getSubmissions, Submission } from '../../services/submissionService';
 import styles from './index.module.css';
 
 const CollectorDashboard: React.FC = () => {
@@ -67,6 +71,14 @@ const CollectorDashboard: React.FC = () => {
   // 达标情况状态
   const [complianceLoading, setComplianceLoading] = useState(false);
   const [complianceData, setComplianceData] = useState<SchoolCompliance | null>(null);
+
+  // 指标查看状态
+  const [indicatorModalOpen, setIndicatorModalOpen] = useState(false);
+  const [indicatorLoading, setIndicatorLoading] = useState(false);
+  const [currentToolSchema, setCurrentToolSchema] = useState<ToolFullSchema | null>(null);
+  const [currentTaskForIndicator, setCurrentTaskForIndicator] = useState<Task | null>(null);
+  const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null);
+  const [schoolIndicatorData, setSchoolIndicatorData] = useState<SchoolIndicatorData | null>(null);
 
   // 采集员/学校填报员可能绑定多个范围
   const resolvedScope = useMemo(() => {
@@ -149,6 +161,60 @@ const CollectorDashboard: React.FC = () => {
       loadCompliance();
     }
   }, [currentView, tasks, loadCompliance]);
+
+  // 查看任务指标
+  const handleViewIndicators = useCallback(async (task: Task) => {
+    setCurrentTaskForIndicator(task);
+    setIndicatorModalOpen(true);
+    setIndicatorLoading(true);
+    setCurrentSubmission(null);
+    setSchoolIndicatorData(null);
+    try {
+      // 并行加载工具schema、提交数据、以及学校指标数据（如果是学校范围）
+      const promises: [Promise<ToolFullSchema>, Promise<Submission[]>, Promise<SchoolIndicatorData> | null] = [
+        taskService.getToolFullSchema(task.toolId),
+        getSubmissions({
+          projectId: task.projectId,
+          formId: task.toolId,
+          submitterOrg: resolvedScope?.name || undefined,
+        }),
+        resolvedScope?.type === 'school' && selectedProject
+          ? getSchoolIndicatorData(resolvedScope.id, selectedProject.id)
+          : null,
+      ];
+
+      const [schema, submissions, indicatorData] = await Promise.all([
+        promises[0],
+        promises[1],
+        promises[2] || Promise.resolve(null),
+      ]);
+
+      setCurrentToolSchema(schema);
+      setSchoolIndicatorData(indicatorData);
+
+      // 找到当前范围的提交记录（优先已提交的，其次是草稿）
+      if (submissions.length > 0) {
+        const submitted = submissions.find(s => s.status === 'submitted' || s.status === 'approved');
+        const draft = submissions.find(s => s.status === 'draft');
+        setCurrentSubmission(submitted || draft || submissions[0]);
+      }
+    } catch (error) {
+      console.error('加载指标数据失败:', error);
+      message.error('加载指标数据失败');
+      setCurrentToolSchema(null);
+    } finally {
+      setIndicatorLoading(false);
+    }
+  }, [resolvedScope, selectedProject]);
+
+  // 关闭指标查看弹窗
+  const handleCloseIndicatorModal = useCallback(() => {
+    setIndicatorModalOpen(false);
+    setCurrentToolSchema(null);
+    setCurrentTaskForIndicator(null);
+    setCurrentSubmission(null);
+    setSchoolIndicatorData(null);
+  }, []);
 
   // 进入项目填报
   const handleEnterProject = (project: MyProject) => {
@@ -251,26 +317,33 @@ const CollectorDashboard: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 120,
-      render: (_, record) => {
-        if (record.status === 'completed') {
-          return (
+      width: 200,
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewIndicators(record)}
+          >
+            查看指标
+          </Button>
+          {record.status === 'completed' ? (
             <Button type="link" size="small" onClick={() => handleStartTask(record)}>
               查看
             </Button>
-          );
-        }
-        return (
-          <Button
-            type="primary"
-            size="small"
-            icon={<FormOutlined />}
-            onClick={() => handleStartTask(record)}
-          >
-            {record.status === 'pending' ? '开始填报' : '继续填报'}
-          </Button>
-        );
-      },
+          ) : (
+            <Button
+              type="primary"
+              size="small"
+              icon={<FormOutlined />}
+              onClick={() => handleStartTask(record)}
+            >
+              {record.status === 'pending' ? '开始填报' : '继续填报'}
+            </Button>
+          )}
+        </Space>
+      ),
     },
   ];
 
@@ -699,9 +772,326 @@ const CollectorDashboard: React.FC = () => {
     </>
   );
 
+  // 提取指标数据（递归处理嵌套字段）
+  const indicatorsList = useMemo(() => {
+    if (!currentToolSchema?.schema) return [];
+
+    const extractMappings = (fields: typeof currentToolSchema.schema): Array<{
+      fieldId: string;
+      fieldLabel: string;
+      fieldUnit?: string;
+      mappingType: 'data_indicator' | 'element';
+      targetInfo: NonNullable<NonNullable<typeof fields[0]['mapping']>['targetInfo']>;
+    }> => {
+      const results: Array<{
+        fieldId: string;
+        fieldLabel: string;
+        fieldUnit?: string;
+        mappingType: 'data_indicator' | 'element';
+        targetInfo: NonNullable<NonNullable<typeof fields[0]['mapping']>['targetInfo']>;
+      }> = [];
+
+      for (const field of fields) {
+        // 如果当前字段有映射，添加到结果
+        if (field.mapping?.targetInfo) {
+          results.push({
+            fieldId: field.id,
+            fieldLabel: field.label,
+            fieldUnit: (field as any).unit,
+            mappingType: field.mapping.mappingType,
+            targetInfo: field.mapping.targetInfo,
+          });
+        }
+        // 递归处理子字段
+        if ((field as any).children && Array.isArray((field as any).children)) {
+          results.push(...extractMappings((field as any).children));
+        }
+      }
+      return results;
+    };
+
+    return extractMappings(currentToolSchema.schema);
+  }, [currentToolSchema]);
+
+  // 获取提交数据中的字段值
+  const getSubmittedValue = useCallback((fieldId: string) => {
+    if (!currentSubmission?.data) return undefined;
+    return currentSubmission.data[fieldId];
+  }, [currentSubmission]);
+
+  // 格式化显示提交的值
+  const formatSubmittedValue = (value: unknown, unit?: string): string => {
+    if (value === undefined || value === null || value === '') return '未填写';
+    if (typeof value === 'boolean') return value ? '是' : '否';
+    if (typeof value === 'number') return unit ? `${value} ${unit}` : String(value);
+    if (typeof value === 'string') {
+      // 处理选择类型的值
+      if (value === 'yes') return '是';
+      if (value === 'no') return '否';
+      return unit ? `${value} ${unit}` : value;
+    }
+    if (Array.isArray(value)) return value.join(', ') || '未填写';
+    return String(value);
+  };
+
+  // 渲染指标弹窗内容
+  const renderIndicatorContent = () => {
+    if (indicatorLoading) {
+      return (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Spin tip="加载中..." />
+        </div>
+      );
+    }
+
+    if (!currentToolSchema) {
+      return (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="暂无指标数据"
+        />
+      );
+    }
+
+    const dataIndicators = indicatorsList.filter(i => i.mappingType === 'data_indicator');
+    const elements = indicatorsList.filter(i => i.mappingType === 'element');
+
+    return (
+      <div>
+        {/* 工具基本信息 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Tag color="blue">{currentToolSchema.type}</Tag>
+            <Tag color="cyan">目标: {currentToolSchema.target}</Tag>
+            <Tag color={currentToolSchema.status === 'published' ? 'green' : 'default'}>
+              {currentToolSchema.status === 'published' ? '已发布' : currentToolSchema.status}
+            </Tag>
+          </Space>
+          {currentToolSchema.description && (
+            <p style={{ color: '#666', marginTop: 8 }}>{currentToolSchema.description}</p>
+          )}
+        </div>
+
+        {/* 提交状态提示 */}
+        {currentSubmission && (
+          <div style={{ marginBottom: 16, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+            <Space>
+              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              <span>
+                已有填报数据 ({currentSubmission.status === 'submitted' ? '已提交' : currentSubmission.status === 'approved' ? '已通过' : '草稿'})
+              </span>
+              {currentSubmission.submitterOrg && (
+                <Tag>{currentSubmission.submitterOrg}</Tag>
+              )}
+            </Space>
+          </div>
+        )}
+
+        {/* 已评估指标详情（学校端显示） */}
+        {resolvedScope?.type === 'school' && schoolIndicatorData?.indicators && schoolIndicatorData.indicators.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h4 style={{ marginBottom: 12 }}>
+              <SafetyCertificateOutlined style={{ marginRight: 8 }} />
+              已评估指标详情 ({schoolIndicatorData.indicators.length})
+              {schoolIndicatorData.statistics && (
+                <span style={{ fontWeight: 'normal', fontSize: 12, color: '#666', marginLeft: 12 }}>
+                  达标 {schoolIndicatorData.statistics.compliant} / 未达标 {schoolIndicatorData.statistics.nonCompliant} / 待评估 {schoolIndicatorData.statistics.pending}
+                </span>
+              )}
+            </h4>
+            <List
+              size="small"
+              bordered
+              dataSource={schoolIndicatorData.indicators}
+              renderItem={(item: SchoolIndicatorItem) => {
+                const isCompliant = item.isCompliant === 1;
+                const isPending = item.isCompliant === null;
+                return (
+                  <List.Item>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Space>
+                          <Tag color={isCompliant ? 'success' : isPending ? 'default' : 'error'}>
+                            {item.indicatorCode}
+                          </Tag>
+                          <span style={{ fontWeight: 500 }}>{item.indicatorName}</span>
+                        </Space>
+                        <Space>
+                          {isPending ? (
+                            <Tag color="default">待评估</Tag>
+                          ) : isCompliant ? (
+                            <Tag color="success" icon={<CheckCircleOutlined />}>达标</Tag>
+                          ) : (
+                            <Tag color="error" icon={<CloseCircleOutlined />}>未达标</Tag>
+                          )}
+                        </Space>
+                      </div>
+                      {item.indicatorDescription && (
+                        <div style={{ marginTop: 4, color: '#999', fontSize: 12 }}>
+                          {item.indicatorDescription}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, display: 'flex', gap: 24, color: '#666', fontSize: 12 }}>
+                        <span>
+                          实际值: <strong style={{ color: isCompliant ? '#52c41a' : isPending ? '#999' : '#ff4d4f' }}>
+                            {item.value !== null ? item.value : (item.textValue || '未填写')}
+                          </strong>
+                        </span>
+                        <span>
+                          阈值: <strong>{item.threshold || '-'}</strong>
+                        </span>
+                        {item.collectedAt && (
+                          <span>采集时间: {new Date(item.collectedAt).toLocaleString('zh-CN')}</span>
+                        )}
+                      </div>
+                    </div>
+                  </List.Item>
+                );
+              }}
+            />
+          </div>
+        )}
+
+        {/* 数据指标列表 */}
+        {dataIndicators.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h4 style={{ marginBottom: 12 }}>
+              <DatabaseOutlined style={{ marginRight: 8 }} />
+              数据指标 ({dataIndicators.length})
+            </h4>
+            <List
+              size="small"
+              bordered
+              dataSource={dataIndicators}
+              renderItem={(item) => {
+                const submittedValue = getSubmittedValue(item.fieldId);
+                const hasValue = submittedValue !== undefined && submittedValue !== null && submittedValue !== '';
+                return (
+                  <List.Item>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Space>
+                          <Tag color="blue">{item.targetInfo.code}</Tag>
+                          <span style={{ fontWeight: 500 }}>{item.targetInfo.name}</span>
+                        </Space>
+                        {item.targetInfo.threshold && (
+                          <Tag color="orange">阈值: {item.targetInfo.threshold}</Tag>
+                        )}
+                      </div>
+                      {item.targetInfo.indicatorName && (
+                        <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                          所属指标: {item.targetInfo.indicatorCode} - {item.targetInfo.indicatorName}
+                        </div>
+                      )}
+                      {item.targetInfo.description && (
+                        <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                          {item.targetInfo.description}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: hasValue ? '#f0f5ff' : '#fafafa', borderRadius: 4 }}>
+                        <span style={{ color: '#666', fontSize: 12 }}>填报值: </span>
+                        <span style={{ fontWeight: 500, color: hasValue ? '#1890ff' : '#999' }}>
+                          {formatSubmittedValue(submittedValue, item.fieldUnit)}
+                        </span>
+                        <span style={{ color: '#999', fontSize: 12, marginLeft: 12 }}>
+                          (字段: {item.fieldLabel})
+                        </span>
+                      </div>
+                    </div>
+                  </List.Item>
+                );
+              }}
+            />
+          </div>
+        )}
+
+        {/* 要素列表 */}
+        {elements.length > 0 && (
+          <div>
+            <h4 style={{ marginBottom: 12 }}>
+              <FileTextOutlined style={{ marginRight: 8 }} />
+              采集要素 ({elements.length})
+            </h4>
+            <List
+              size="small"
+              bordered
+              dataSource={elements}
+              renderItem={(item) => {
+                const submittedValue = getSubmittedValue(item.fieldId);
+                const hasValue = submittedValue !== undefined && submittedValue !== null && submittedValue !== '';
+                return (
+                  <List.Item>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Space>
+                          <Tag color="green">{item.targetInfo.code}</Tag>
+                          <span style={{ fontWeight: 500 }}>{item.targetInfo.name}</span>
+                        </Space>
+                        <Space>
+                          {item.targetInfo.elementType && (
+                            <Tag>{item.targetInfo.elementType}</Tag>
+                          )}
+                          {item.targetInfo.dataType && (
+                            <Tag color="default">{item.targetInfo.dataType}</Tag>
+                          )}
+                        </Space>
+                      </div>
+                      {item.targetInfo.formula && (
+                        <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                          计算公式: {item.targetInfo.formula}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: hasValue ? '#f6ffed' : '#fafafa', borderRadius: 4 }}>
+                        <span style={{ color: '#666', fontSize: 12 }}>填报值: </span>
+                        <span style={{ fontWeight: 500, color: hasValue ? '#52c41a' : '#999' }}>
+                          {formatSubmittedValue(submittedValue, item.fieldUnit)}
+                        </span>
+                        <span style={{ color: '#999', fontSize: 12, marginLeft: 12 }}>
+                          (字段: {item.fieldLabel})
+                        </span>
+                      </div>
+                    </div>
+                  </List.Item>
+                );
+              }}
+            />
+          </div>
+        )}
+
+        {/* 无映射提示 */}
+        {indicatorsList.length === 0 && (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="该采集工具暂未配置指标映射"
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={styles.collectorDashboard}>
       {currentView === 'projects' ? renderProjectList() : renderTaskList()}
+
+      {/* 指标查看弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <EyeOutlined />
+            {currentTaskForIndicator?.toolName || '采集工具'} - 指标详情
+          </Space>
+        }
+        open={indicatorModalOpen}
+        onCancel={handleCloseIndicatorModal}
+        footer={[
+          <Button key="close" onClick={handleCloseIndicatorModal}>
+            关闭
+          </Button>,
+        ]}
+        width={700}
+      >
+        {renderIndicatorContent()}
+      </Modal>
     </div>
   );
 };

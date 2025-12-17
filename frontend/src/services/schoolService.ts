@@ -29,7 +29,7 @@ export interface SchoolListResponse {
   pageSize: number;
 }
 
-export interface SchoolIndicatorData {
+export interface SchoolIndicatorItem {
   id: string;
   dataIndicatorId: string;
   value: number | null;
@@ -38,7 +38,30 @@ export interface SchoolIndicatorData {
   collectedAt: string;
   indicatorCode: string;
   indicatorName: string;
+  indicatorDescription?: string;
   threshold: string;
+  submissionId?: string;
+}
+
+export interface SchoolIndicatorData {
+  school: {
+    id: string;
+    code: string;
+    name: string;
+    districtId: string;
+    schoolType: string;
+    districtName: string;
+    studentCount: number;
+    teacherCount: number;
+  };
+  statistics: {
+    total: number;
+    compliant: number;
+    nonCompliant: number;
+    pending: number;
+  };
+  complianceRate: number | null;
+  indicators: SchoolIndicatorItem[];
 }
 
 export interface SchoolCompliance {
@@ -161,8 +184,8 @@ export async function importSchools(schools: Array<{
 export async function getSchoolIndicatorData(
   schoolId: string,
   projectId: string
-): Promise<SchoolIndicatorData[]> {
-  return get<SchoolIndicatorData[]>(`/schools/${schoolId}/indicator-data`, { projectId });
+): Promise<SchoolIndicatorData> {
+  return get<SchoolIndicatorData>(`/schools/${schoolId}/indicator-data`, { projectId });
 }
 
 // 获取学校的达标情况

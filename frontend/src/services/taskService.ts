@@ -165,3 +165,46 @@ export const targetTypeConfig: Record<string, string> = {
   school: '学校',
   all: '全部',
 };
+
+// 工具字段映射信息
+export interface FieldMapping {
+  mappingType: 'data_indicator' | 'element';
+  targetId: string;
+  targetInfo?: {
+    code: string;
+    name: string;
+    threshold?: string;
+    description?: string;
+    indicatorName?: string;
+    indicatorCode?: string;
+    elementType?: string;
+    dataType?: string;
+    formula?: string;
+  };
+}
+
+// 工具完整Schema类型
+export interface ToolFullSchema {
+  id: string;
+  name: string;
+  type: string;
+  target: string;
+  description?: string;
+  status: string;
+  schema: Array<{
+    id: string;
+    label: string;
+    type: string;
+    mapping?: FieldMapping | null;
+  }>;
+  mappings: Array<{
+    fieldId: string;
+    mappingType: string;
+    targetId: string;
+  }>;
+}
+
+// 获取工具完整schema（含字段映射信息）
+export async function getToolFullSchema(toolId: string): Promise<ToolFullSchema> {
+  return get<ToolFullSchema>(`/tools/${toolId}/full-schema`);
+}
