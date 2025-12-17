@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
   TeamOutlined,
   DownOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore, useUserPermissions, UserRole, ScopeItem } from '../stores/authStore';
@@ -58,6 +59,15 @@ const MainLayout: React.FC = () => {
         key: '/home',
         icon: <HomeOutlined />,
         label: '教育督导',
+      });
+    }
+
+    // 区县工作台 - 区县管理员专用入口
+    if (permissions.isDistrictAdmin && !permissions.isAdmin) {
+      items.push({
+        key: '/district',
+        icon: <BankOutlined />,
+        label: '区县工作台',
       });
     }
 
@@ -131,7 +141,8 @@ const MainLayout: React.FC = () => {
   // 获取默认路由（根据角色）
   const getDefaultRouteByRole = (role: UserRole) => {
     if (role === 'admin' || role === 'project_manager') return '/home';
-    if (role === 'city_admin' || role === 'district_admin') return '/home';
+    if (role === 'city_admin') return '/home';
+    if (role === 'district_admin') return '/district';
     if (role === 'collector' || role === 'school_reporter') return '/collector';
     if (role === 'expert') return '/expert';
     if (role === 'decision_maker') return '/reports';
@@ -265,6 +276,7 @@ const MainLayout: React.FC = () => {
   const getSelectedKey = () => {
     const path = location.pathname;
     if (path.startsWith('/home')) return '/home';
+    if (path.startsWith('/district')) return '/district';
     if (path.startsWith('/collector')) return '/collector';
     if (path.startsWith('/expert')) return '/expert';
     if (path.startsWith('/reports')) return '/reports';

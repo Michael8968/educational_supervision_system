@@ -1,0 +1,174 @@
+.container {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.districtTag {
+  margin-left: 12px;
+}
+
+.filterBar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.statsCards {
+  margin-bottom: 24px;
+}
+
+.statsCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid #e8e8e8;
+}
+
+.statsCard h4 {
+  margin: 0 0 8px 0;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.statsCard .value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.statsCard .value.success {
+  color: #10b981;
+}
+
+.statsCard .value.warning {
+  color: #f59e0b;
+}
+
+.statsCard .value.danger {
+  color: #ef4444;
+}
+
+.tabContent {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid #e8e8e8;
+}
+
+.schoolTable {
+  margin-top: 16px;
+}
+
+.expandedRow {
+  background: #fafafa;
+  padding: 16px;
+}
+
+.indicatorList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.complianceBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.complianceRate {
+  font-weight: 500;
+  min-width: 50px;
+}
+
+.noData {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+}
+
+.projectSelector {
+  min-width: 200px;
+}
+
+.summarySection {
+  margin-bottom: 24px;
+}
+
+.cvIndicators {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.cvCard {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+}
+
+.cvCard .label {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.cvCard .value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.categoryCompliance {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.categoryItem {
+  text-align: center;
+}
+
+.categoryItem .name {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1200px) {
+  .cvIndicators,
+  .categoryCompliance {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .cvIndicators,
+  .categoryCompliance {
+    grid-template-columns: 1fr;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

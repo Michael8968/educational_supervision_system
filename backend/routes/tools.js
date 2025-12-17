@@ -13,6 +13,26 @@ const setDb = (database) => {
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 const now = () => new Date().toISOString().split('T')[0];
 
+// 缓存列探测结果，避免每次请求都额外打 1-2 次 DB（PostgREST）调用
+const _columnSupportCache = new Map(); // key -> { ok: boolean, ts: number }
+const COLUMN_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const canSelectColumnsCached = async (table, cols) => {
+  const key = `${table}:${cols.join(',')}`;
+  const cached = _columnSupportCache.get(key);
+  if (cached && (Date.now() - cached.ts) < COLUMN_CACHE_TTL_MS) return cached.ok;
+
+  try {
+    const { error } = await db.from(table).select(cols.join(',')).limit(1);
+    const ok = !error;
+    _columnSupportCache.set(key, { ok, ts: Date.now() });
+    return ok;
+  } catch (e) {
+    _columnSupportCache.set(key, { ok: false, ts: Date.now() });
+    return false;
+  }
+};
+
 // 将导入/前端传入的哨兵字符串("null"/"undefined"/空串)规范为真正的 NULL，避免前端误判为已关联
 const normalizeNullableText = (value) => {
   if (value === undefined || value === null) return null;
@@ -478,12 +498,30 @@ router.put('/element-libraries/:id', async (req, res) => {
     }
 
     const timestamp = now();
+    const perfStart = Date.now();
+    const perf = [];
+    const perfMark = (name) => {
+      if (process.env.DEBUG_PERF !== '1') return;
+      perf.push({ name, ms: Date.now() - perfStart });
+    };
+
+    async function batchExec(records, batchSize, handler) {
+      for (let i = 0; i < records.length; i += batchSize) {
+        const chunk = records.slice(i, i + batchSize);
+        // eslint-disable-next-line no-await-in-loop
+        await handler(chunk);
+      }
+    }
 
     // elements 全量覆盖（可选）：先做参数校验与删除可行性检查，避免中途更新导致状态不一致
     if (elements !== undefined) {
       if (!Array.isArray(elements)) {
         return res.status(400).json({ code: 400, message: 'elements 必须为数组' });
       }
+
+      const hasElementExtendedCols = await canSelectColumnsCached('elements', ['tool_id', 'field_id', 'field_label']);
+      const hasMappingFieldLabel = await canSelectColumnsCached('field_mappings', ['field_label']);
+      perfMark('detect-columns');
 
       // 确认要素库存在
       const { data: lib, error: libErr } = await db
@@ -495,6 +533,7 @@ router.put('/element-libraries/:id', async (req, res) => {
       if (!lib) {
         return res.status(404).json({ code: 404, message: '要素库不存在' });
       }
+      perfMark('check-library-exists');
 
       // 查出当前库下要素ID
       const { data: existingElements, error: exErr } = await db
@@ -503,6 +542,7 @@ router.put('/element-libraries/:id', async (req, res) => {
         .eq('library_id', req.params.id);
       if (exErr) throw exErr;
       const existingIds = new Set((existingElements || []).map(e => e.id));
+      perfMark('load-existing-ids');
 
       // 计算需要删除的要素（差集）
       const incomingIds = new Set(
@@ -524,6 +564,7 @@ router.put('/element-libraries/:id', async (req, res) => {
           });
         }
       }
+      perfMark('check-delete-references');
 
       // 先更新要素库基础信息（若传入）
       const libUpdates = {
@@ -543,6 +584,7 @@ router.put('/element-libraries/:id', async (req, res) => {
       if (!libUpd || libUpd.length === 0) {
         return res.status(404).json({ code: 404, message: '要素库不存在' });
       }
+      perfMark('update-library-base');
 
       // 删除差集要素 + 清理 field_mappings/compliance_rules
       if (toDeleteIds.length > 0) {
@@ -568,9 +610,11 @@ router.put('/element-libraries/:id', async (req, res) => {
           .in('id', toDeleteIds);
         if (delErr) throw delErr;
       }
+      perfMark('delete-diff-elements');
 
-      // 全量写入（按顺序设置 sort_order）
+      // 全量写入（按顺序设置 sort_order）：批量 insert + 批量 upsert，避免 N+1
       const processedElements = [];
+      const prepared = [];
       for (let index = 0; index < elements.length; index++) {
         const el = elements[index] || {};
         const elId = el.id || generateId();
@@ -586,6 +630,8 @@ router.put('/element-libraries/:id', async (req, res) => {
         }
 
         const baseRecord = {
+          id: elId,
+          library_id: req.params.id,
           code: el.code,
           name: el.name,
           element_type: el.elementType,
@@ -595,7 +641,6 @@ router.put('/element-libraries/:id', async (req, res) => {
           updated_at: timestamp,
         };
 
-        // 新库字段：tool/field/label（旧库无列时回退）
         const extendedRecord = {
           ...baseRecord,
           tool_id: el.elementType === '基础要素' ? normalizeNullableText(el.toolId) : null,
@@ -611,47 +656,35 @@ router.put('/element-libraries/:id', async (req, res) => {
           fieldLabel: el.fieldLabel,
         });
 
-        if (existingIds.has(elId)) {
-          // update
-          try {
-            const { error } = await db
-              .from('elements')
-              .update(extendedRecord)
-              .eq('id', elId);
-            if (error) throw error;
-          } catch (e) {
-            const { error } = await db
-              .from('elements')
-              .update(baseRecord)
-              .eq('id', elId);
-            if (error) throw error;
-          }
-        } else {
-          // insert
-          try {
-            const { error } = await db
-              .from('elements')
-              .insert({
-                id: elId,
-                library_id: req.params.id,
-                created_at: timestamp,
-                ...extendedRecord,
-              });
-            if (error) throw error;
-          } catch (e) {
-            const { error } = await db
-              .from('elements')
-              .insert({
-                id: elId,
-                library_id: req.params.id,
-                created_at: timestamp,
-                ...baseRecord,
-              });
-            if (error) throw error;
-          }
-          existingIds.add(elId);
-        }
+        prepared.push({
+          id: elId,
+          baseRecord,
+          extendedRecord,
+          isExisting: existingIds.has(elId),
+        });
       }
+
+      const toInsert = prepared.filter(p => !p.isExisting);
+      const toUpsert = prepared.filter(p => p.isExisting);
+
+      const insertRecords = (hasElementExtendedCols ? toInsert.map(p => ({ ...p.extendedRecord, created_at: timestamp })) : toInsert.map(p => ({ ...p.baseRecord, created_at: timestamp })));
+      const upsertRecords = (hasElementExtendedCols ? toUpsert.map(p => p.extendedRecord) : toUpsert.map(p => p.baseRecord));
+
+      const BATCH_SIZE = 200;
+      if (insertRecords.length > 0) {
+        await batchExec(insertRecords, BATCH_SIZE, async (chunk) => {
+          const { error } = await db.from('elements').insert(chunk);
+          if (error) throw error;
+        });
+      }
+      perfMark('batch-insert-elements');
+      if (upsertRecords.length > 0) {
+        await batchExec(upsertRecords, BATCH_SIZE, async (chunk) => {
+          const { error } = await db.from('elements').upsert(chunk, { onConflict: 'id' });
+          if (error) throw error;
+        });
+      }
+      perfMark('batch-upsert-elements');
 
       // 兼容旧库：同步维护 field_mappings（mapping_type='element'），用于 GET 回显 toolId/fieldId/fieldLabel
       // 先清理本次最终列表对应的旧映射（target_id 维度）
@@ -664,6 +697,7 @@ router.put('/element-libraries/:id', async (req, res) => {
           .in('target_id', finalIds);
         if (delMapErr) throw delMapErr;
       }
+      perfMark('delete-field-mappings');
 
       const mappingRecords = processedElements
         .filter(p => p.elementType === '基础要素' && p.toolId && p.fieldId)
@@ -679,12 +713,9 @@ router.put('/element-libraries/:id', async (req, res) => {
         }));
 
       if (mappingRecords.length > 0) {
-        // 如果 field_label 列不存在，回退只插入必要字段（tool_id/field_id/mapping_type/target_id）
-        try {
-          const { error: insMapErr } = await db.from('field_mappings').insert(mappingRecords);
-          if (insMapErr) throw insMapErr;
-        } catch (e) {
-          const fallbackRecords = mappingRecords.map(r => ({
+        const recordsToInsert = hasMappingFieldLabel
+          ? mappingRecords
+          : mappingRecords.map(r => ({
             id: r.id,
             tool_id: r.tool_id,
             field_id: r.field_id,
@@ -693,10 +724,13 @@ router.put('/element-libraries/:id', async (req, res) => {
             created_at: r.created_at,
             updated_at: r.updated_at,
           }));
-          const { error: insMapErr } = await db.from('field_mappings').insert(fallbackRecords);
+
+        await batchExec(recordsToInsert, BATCH_SIZE, async (chunk) => {
+          const { error: insMapErr } = await db.from('field_mappings').insert(chunk);
           if (insMapErr) throw insMapErr;
-        }
+        });
       }
+      perfMark('insert-field-mappings');
 
       // 重置 element_count
       const { error: updCountErr } = await db
@@ -704,6 +738,12 @@ router.put('/element-libraries/:id', async (req, res) => {
         .update({ element_count: elements.length, updated_at: timestamp })
         .eq('id', req.params.id);
       if (updCountErr) throw updCountErr;
+      perfMark('update-element-count');
+
+      const cost = Date.now() - perfStart;
+      if (process.env.DEBUG_PERF === '1') {
+        console.log(`[perf] PUT /element-libraries/${req.params.id} (with elements): ${cost}ms`, perf);
+      }
 
       return res.json({ code: 200, message: '更新成功' });
     }

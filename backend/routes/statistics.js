@@ -657,6 +657,191 @@ router.get('/projects/:projectId/district-statistics', async (req, res) => {
   }
 });
 
+// ==================== 区县学校指标汇总（区县管理员专用） ====================
+
+// 获取区县下所有学校的指标汇总
+router.get('/districts/:districtId/schools-indicator-summary', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId, schoolType } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取区县信息
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    // 获取该区县的学校列表
+    let schoolQuery = `
+      SELECT s.id, s.code, s.name, s.school_type as "schoolType",
+             s.school_category as "schoolCategory", s.urban_rural as "urbanRural",
+             s.student_count as "studentCount", s.teacher_count as "teacherCount"
+      FROM schools s
+      WHERE s.district_id = $1 AND s.status = 'active'
+    `;
+    const params = [districtId];
+
+    if (schoolType) {
+      if (schoolType === '小学') {
+        schoolQuery += " AND (s.school_type = '小学' OR s.school_type = '九年一贯制')";
+      } else if (schoolType === '初中') {
+        schoolQuery += " AND (s.school_type = '初中' OR s.school_type = '九年一贯制' OR s.school_type = '完全中学')";
+      } else {
+        schoolQuery += " AND s.school_type = $2";
+        params.push(schoolType);
+      }
+    }
+
+    schoolQuery += ' ORDER BY s.name';
+
+    const schoolsResult = await db.query(schoolQuery, params);
+    const schools = schoolsResult.rows;
+
+    // 获取每个学校的指标数据和达标统计
+    const schoolSummaries = [];
+    for (const school of schools) {
+      // 获取该学校的指标数据统计
+      const statsResult = await db.query(`
+        SELECT
+          COUNT(*) as total,
+          SUM(CASE WHEN is_compliant = 1 THEN 1 ELSE 0 END) as compliant,
+          SUM(CASE WHEN is_compliant = 0 THEN 1 ELSE 0 END) as "nonCompliant",
+          SUM(CASE WHEN is_compliant IS NULL THEN 1 ELSE 0 END) as pending
+        FROM school_indicator_data
+        WHERE project_id = $1 AND school_id = $2
+      `, [projectId, school.id]);
+
+      const stats = statsResult.rows[0];
+      const total = parseInt(stats.total) || 0;
+      const compliant = parseInt(stats.compliant) || 0;
+
+      // 获取未达标指标列表
+      const nonCompliantResult = await db.query(`
+        SELECT sid.data_indicator_id, sid.value, sid.text_value,
+               di.code as "indicatorCode", di.name as "indicatorName", di.threshold
+        FROM school_indicator_data sid
+        JOIN data_indicators di ON sid.data_indicator_id = di.id
+        WHERE sid.project_id = $1 AND sid.school_id = $2 AND sid.is_compliant = 0
+        ORDER BY di.code
+      `, [projectId, school.id]);
+
+      schoolSummaries.push({
+        school: {
+          id: school.id,
+          code: school.code,
+          name: school.name,
+          schoolType: school.schoolType,
+          schoolCategory: school.schoolCategory,
+          urbanRural: school.urbanRural,
+          studentCount: school.studentCount,
+          teacherCount: school.teacherCount,
+          studentTeacherRatio: school.teacherCount > 0
+            ? Math.round((school.studentCount / school.teacherCount) * 100) / 100
+            : null
+        },
+        statistics: {
+          total,
+          compliant,
+          nonCompliant: parseInt(stats.nonCompliant) || 0,
+          pending: parseInt(stats.pending) || 0
+        },
+        complianceRate: total > 0 ? Math.round((compliant / total) * 10000) / 100 : null,
+        nonCompliantIndicators: nonCompliantResult.rows
+      });
+    }
+
+    // 汇总统计
+    const summary = {
+      schoolCount: schools.length,
+      totalIndicators: schoolSummaries.reduce((sum, s) => sum + s.statistics.total, 0),
+      totalCompliant: schoolSummaries.reduce((sum, s) => sum + s.statistics.compliant, 0),
+      totalNonCompliant: schoolSummaries.reduce((sum, s) => sum + s.statistics.nonCompliant, 0),
+      avgComplianceRate: schoolSummaries.length > 0
+        ? Math.round((schoolSummaries.reduce((sum, s) => sum + (s.complianceRate || 0), 0) / schoolSummaries.length) * 100) / 100
+        : null
+    };
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        summary,
+        schools: schoolSummaries
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 获取单个学校的详细指标数据
+router.get('/schools/:schoolId/indicator-data', async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取学校信息
+    const schoolResult = await db.query(`
+      SELECT s.id, s.code, s.name, s.school_type as "schoolType",
+             s.student_count as "studentCount", s.teacher_count as "teacherCount",
+             d.id as "districtId", d.name as "districtName"
+      FROM schools s
+      LEFT JOIN districts d ON s.district_id = d.id
+      WHERE s.id = $1
+    `, [schoolId]);
+
+    const school = schoolResult.rows[0];
+    if (!school) {
+      return res.status(404).json({ code: 404, message: '学校不存在' });
+    }
+
+    // 获取该学校的所有指标数据
+    const indicatorDataResult = await db.query(`
+      SELECT sid.id, sid.data_indicator_id as "dataIndicatorId",
+             sid.value, sid.text_value as "textValue",
+             sid.is_compliant as "isCompliant",
+             sid.collected_at as "collectedAt",
+             sid.submission_id as "submissionId",
+             di.code as "indicatorCode", di.name as "indicatorName",
+             di.threshold, di.description as "indicatorDescription"
+      FROM school_indicator_data sid
+      JOIN data_indicators di ON sid.data_indicator_id = di.id
+      WHERE sid.project_id = $1 AND sid.school_id = $2
+      ORDER BY di.code
+    `, [projectId, schoolId]);
+
+    // 统计
+    const data = indicatorDataResult.rows;
+    const stats = {
+      total: data.length,
+      compliant: data.filter(d => d.isCompliant === 1).length,
+      nonCompliant: data.filter(d => d.isCompliant === 0).length,
+      pending: data.filter(d => d.isCompliant === null).length
+    };
+
+    res.json({
+      code: 200,
+      data: {
+        school,
+        statistics: stats,
+        complianceRate: stats.total > 0 ? Math.round((stats.compliant / stats.total) * 10000) / 100 : null,
+        indicators: data
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 // ==================== 城乡对比 ====================
 
 // 获取城乡对比数据

@@ -24,6 +24,7 @@ export interface Submission {
   id: string;
   projectId: string;
   projectName?: string;
+  schoolId?: string;
   formId: string;
   formName?: string;
   submitterId?: string;

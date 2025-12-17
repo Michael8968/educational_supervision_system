@@ -41,6 +41,7 @@ import * as toolService from '../../services/toolService';
 import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
 import type { Submission } from '../../services/submissionService';
+import { useAuthStore } from '../../stores/authStore';
 import { parseThreshold, validateThreshold, calculate, parseVariables } from '../../utils/formulaCalculator';
 import { sampleDataList } from '../../mock/sample-data-index';
 import styles from './index.module.css';
@@ -161,6 +162,7 @@ const DataEntryForm: React.FC = () => {
   const navigate = useNavigate();
   const { projectId, formId } = useParams<{ projectId: string; formId: string }>();
   const [form] = Form.useForm();
+  const user = useAuthStore((s) => s.user);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -176,6 +178,16 @@ const DataEntryForm: React.FC = () => {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [selectedSampleType, setSelectedSampleType] = useState<string | undefined>();
   const [importFileData, setImportFileData] = useState<Record<string, any> | null>(null);
+
+  const resolvedSchoolScope = useMemo(() => {
+    if (!user) return null;
+    // 优先使用当前 scope（从右上角“角色/学校范围”菜单选择）
+    if (user.currentScope?.type === 'school') return user.currentScope;
+    // 如果只有一个学校 scope，允许自动选中
+    const schoolScopes = Array.isArray(user.scopes) ? user.scopes.filter((s) => s.type === 'school') : [];
+    if (schoolScopes.length === 1) return schoolScopes[0];
+    return null;
+  }, [user]);
 
   // 加载数据
   useEffect(() => {
@@ -202,21 +214,22 @@ const DataEntryForm: React.FC = () => {
 
         // 尝试获取已有的填报记录
         const submissions = await submissionService.getByProject(projectId);
-        const existingSubmission = submissions.find(
-          (s: Submission) => s.formId === formId && s.status !== 'approved'
+        const schoolIdForMatch = resolvedSchoolScope?.id;
+        const existingSubmission = submissions.find((s: Submission) =>
+          s.formId === formId
+          && s.status !== 'approved'
+          && (schoolIdForMatch ? s.schoolId === schoolIdForMatch : true)
         );
 
         if (existingSubmission) {
-          setSubmission(existingSubmission);
-          if (existingSubmission.data) {
-            const parsedData = typeof existingSubmission.data === 'string'
-              ? JSON.parse(existingSubmission.data)
-              : existingSubmission.data;
-            const normalized = normalizeValuesForPickers(schemaFields, parsedData);
-            setFormData(normalized);
-            setCurrentFormValues(normalized);
-            form.setFieldsValue(normalized);
-          }
+          // 列表接口不包含 data，需再拉取详情以便回显
+          const full = await submissionService.getSubmission(existingSubmission.id);
+          setSubmission(full);
+          const parsedData = (full && full.data) ? full.data : {};
+          const normalized = normalizeValuesForPickers(schemaFields, parsedData as Record<string, any>);
+          setFormData(normalized);
+          setCurrentFormValues(normalized);
+          form.setFieldsValue(normalized);
         }
       } catch (error) {
         console.error('加载数据失败:', error);
@@ -235,6 +248,10 @@ const DataEntryForm: React.FC = () => {
 
     setSaving(true);
     try {
+      if (!submission && !resolvedSchoolScope) {
+        message.error('缺少学校信息：请先在右上角选择学校范围后再保存');
+        return;
+      }
       const values = form.getFieldsValue();
       const payloadValues = serializeValuesForSubmit(formFields, values);
 
@@ -249,8 +266,9 @@ const DataEntryForm: React.FC = () => {
         const newSubmission = await submissionService.create({
           projectId,
           formId,
-          submitterName: '当前用户', // 实际应从用户会话获取
-          submitterOrg: '当前单位',
+          schoolId: resolvedSchoolScope?.id,
+          submitterName: user?.username || '当前用户',
+          submitterOrg: resolvedSchoolScope?.name || '当前单位',
           data: payloadValues,
         });
         setSubmission(newSubmission);
@@ -319,12 +337,17 @@ const DataEntryForm: React.FC = () => {
         await submissionService.update(submission.id, { data: payloadValues });
         await submissionService.submit(submission.id);
       } else {
+        if (!resolvedSchoolScope) {
+          message.error('缺少学校信息：请先在右上角选择学校范围后再提交');
+          return;
+        }
         // 创建并提交
         const newSubmission = await submissionService.create({
           projectId,
           formId,
-          submitterName: '当前用户',
-          submitterOrg: '当前单位',
+          schoolId: resolvedSchoolScope.id,
+          submitterName: user?.username || '当前用户',
+          submitterOrg: resolvedSchoolScope.name,
           data: payloadValues,
         });
         await submissionService.submit(newSubmission.id);

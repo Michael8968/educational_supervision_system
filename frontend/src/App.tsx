@@ -23,6 +23,7 @@ import CollectorDashboard from './pages/CollectorDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
 import UserManagement from './pages/UserManagement';
 import ExpertAccountManagement from './pages/ExpertAccountManagement';
+import DistrictDashboard from './pages/DistrictDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/global.css';
 
@@ -125,6 +126,13 @@ const App: React.FC = () => {
             <Route path="users/expert-account" element={
               <ProtectedRoute requiredPermission="canManageSystem">
                 <ExpertAccountManagement />
+              </ProtectedRoute>
+            } />
+
+            {/* 区县管理员专用路由 */}
+            <Route path="district" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <DistrictDashboard />
               </ProtectedRoute>
             } />
 

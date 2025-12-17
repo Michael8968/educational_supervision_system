@@ -27,15 +27,18 @@ const supabase = createClient(supabaseUrl, supabaseKey || '');
  * @returns {Promise<{rows: Array, rowCount: number}>}
  */
 async function query(sql, params = []) {
-  // 将 $1, $2 等占位符替换为实际参数
+  // 将 $1, $2... 占位符替换为实际参数
+  // 注意：同一个占位符在 SQL 中可能出现多次，必须全量替换；
+  // 同时要避免把 $1 误替换到 $10 / $11 中（使用 (?!\\d) 负向前瞻）。
   let processedSql = sql;
-  if (params && params.length > 0) {
-    params.forEach((param, index) => {
-      const placeholder = `$${index + 1}`;
-      const value = formatValue(param);
-      // 使用函数作为替换值，避免 $& $' $` $n 等特殊模式被解释
-      processedSql = processedSql.replace(placeholder, () => value);
-    });
+  if (Array.isArray(params) && params.length > 0) {
+    // 先从大到小替换，双保险避免 $1 影响 $10（即使 regex 已避免）
+    for (let i = params.length; i >= 1; i--) {
+      const value = formatValue(params[i - 1]);
+      // 匹配字面量 $n（例如 $1），并确保后面不是数字，避免误伤 $10
+      const re = new RegExp(`\\$${i}(?!\\d)`, 'g');
+      processedSql = processedSql.replace(re, () => value);
+    }
   }
 
   // Debug: 打印生成的 SQL

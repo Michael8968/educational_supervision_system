@@ -139,3 +139,157 @@ interface School {
   createdAt: string;
   updatedAt: string;
 }
+
+// 学校指标汇总
+export interface SchoolIndicatorSummary {
+  school: {
+    id: string;
+    code: string;
+    name: string;
+    schoolType: string;
+    schoolCategory: string;
+    urbanRural: string;
+    studentCount: number;
+    teacherCount: number;
+    studentTeacherRatio: number | null;
+  };
+  statistics: {
+    total: number;
+    compliant: number;
+    nonCompliant: number;
+    pending: number;
+  };
+  complianceRate: number | null;
+  nonCompliantIndicators: Array<{
+    data_indicator_id: string;
+    value: number | null;
+    text_value: string | null;
+    indicatorCode: string;
+    indicatorName: string;
+    threshold: string;
+  }>;
+}
+
+// 区县学校指标汇总响应
+export interface DistrictSchoolsIndicatorSummary {
+  district: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  summary: {
+    schoolCount: number;
+    totalIndicators: number;
+    totalCompliant: number;
+    totalNonCompliant: number;
+    avgComplianceRate: number | null;
+  };
+  schools: SchoolIndicatorSummary[];
+}
+
+// 学校详细指标数据
+export interface SchoolIndicatorDetail {
+  school: {
+    id: string;
+    code: string;
+    name: string;
+    schoolType: string;
+    studentCount: number;
+    teacherCount: number;
+    districtId: string;
+    districtName: string;
+  };
+  statistics: {
+    total: number;
+    compliant: number;
+    nonCompliant: number;
+    pending: number;
+  };
+  complianceRate: number | null;
+  indicators: Array<{
+    id: string;
+    dataIndicatorId: string;
+    value: number | null;
+    textValue: string | null;
+    isCompliant: number | null;
+    collectedAt: string;
+    submissionId: string | null;
+    indicatorCode: string;
+    indicatorName: string;
+    threshold: string;
+    indicatorDescription: string;
+  }>;
+}
+
+// 区县填报记录
+export interface DistrictSubmission {
+  id: string;
+  projectId: string;
+  formId: string;
+  schoolId: string;
+  submitterId: string;
+  submitterName: string;
+  submitterOrg: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  formName: string;
+  schoolName: string;
+  schoolCode: string;
+  schoolType: string;
+}
+
+// 区县填报记录响应
+export interface DistrictSubmissionsResponse {
+  district: {
+    id: string;
+    name: string;
+  };
+  stats: {
+    total: number;
+    draft: number;
+    submitted: number;
+    approved: number;
+    rejected: number;
+  };
+  submissions: DistrictSubmission[];
+}
+
+// 获取区县下所有学校的指标汇总
+export async function getDistrictSchoolsIndicatorSummary(
+  districtId: string,
+  projectId: string,
+  schoolType?: string
+): Promise<DistrictSchoolsIndicatorSummary> {
+  const params: Record<string, string> = { projectId };
+  if (schoolType) params.schoolType = schoolType;
+  return get<DistrictSchoolsIndicatorSummary>(`/districts/${districtId}/schools-indicator-summary`, params);
+}
+
+// 获取单个学校的详细指标数据
+export async function getSchoolIndicatorDetail(
+  schoolId: string,
+  projectId: string
+): Promise<SchoolIndicatorDetail> {
+  return get<SchoolIndicatorDetail>(`/schools/${schoolId}/indicator-data`, { projectId });
+}
+
+// 获取区县下所有学校的填报记录
+export async function getDistrictSubmissions(
+  districtId: string,
+  projectId: string,
+  filters?: {
+    schoolId?: string;
+    formId?: string;
+    status?: string;
+  }
+): Promise<DistrictSubmissionsResponse> {
+  const params: Record<string, string> = { projectId };
+  if (filters?.schoolId) params.schoolId = filters.schoolId;
+  if (filters?.formId) params.formId = filters.formId;
+  if (filters?.status) params.status = filters.status;
+  return get<DistrictSubmissionsResponse>(`/districts/${districtId}/submissions`, params);
+}

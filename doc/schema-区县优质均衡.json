@@ -717,7 +717,7 @@
       {
         "id": "has_unfilled_positions",
         "type": "select",
-        "label": "存在"有编不补"或长期聘用编外教师的情况",
+        "label": "存在“有编不补”或长期聘用编外教师的情况",
         "width": "50%",
         "required": true,
         "options": [

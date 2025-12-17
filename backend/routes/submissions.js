@@ -3,6 +3,7 @@ const router = express.Router();
 const { projectRules, submissionRules, idParamRules } = require('../middleware/validate');
 const { validateEnum } = require('../constants/enums');
 const { deleteProject } = require('../services/cascadeService');
+const { checkCompliance } = require('../services/statisticsService');
 
 let db = null;
 
@@ -12,6 +13,147 @@ const setDb = (database) => {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 const now = () => new Date().toISOString();
+
+function getValueByFieldId(dataObj, fieldId) {
+  if (!dataObj || typeof dataObj !== 'object' || !fieldId) return undefined;
+
+  // 优先尝试“原样 key”（很多表单会用带点号的 key 直接存储，而不是嵌套对象）
+  if (Object.prototype.hasOwnProperty.call(dataObj, fieldId)) return dataObj[fieldId];
+
+  // 再尝试 a.b.c 这种路径读取
+  if (typeof fieldId !== 'string' || !fieldId.includes('.')) return undefined;
+  const parts = fieldId.split('.').filter(Boolean);
+  let cur = dataObj;
+  for (const p of parts) {
+    if (cur === null || cur === undefined) return undefined;
+    const isIndex = /^\d+$/.test(p);
+    const key = isIndex ? Number(p) : p;
+    cur = cur[key];
+  }
+  return cur;
+}
+
+function toIndicatorValue(raw) {
+  if (raw === null || raw === undefined) return { value: null, textValue: null };
+
+  if (typeof raw === 'number') {
+    return { value: Number.isFinite(raw) ? raw : null, textValue: null };
+  }
+
+  if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s) return { value: null, textValue: null };
+    if (/^-?\d+(\.\d+)?$/.test(s)) return { value: parseFloat(s), textValue: null };
+    return { value: null, textValue: s };
+  }
+
+  if (typeof raw === 'boolean') {
+    return { value: null, textValue: raw ? 'true' : 'false' };
+  }
+
+  try {
+    return { value: null, textValue: JSON.stringify(raw) };
+  } catch {
+    return { value: null, textValue: String(raw) };
+  }
+}
+
+async function syncSubmissionIndicators(submissionId) {
+  const today = new Date().toISOString().split('T')[0];
+
+  const subResult = await db.query(
+    `
+      SELECT id,
+             project_id as "projectId",
+             school_id as "schoolId",
+             COALESCE(form_id, tool_id) as "toolId",
+             data,
+             COALESCE(approved_at, submitted_at, updated_at, created_at) as "collectedAt"
+      FROM submissions
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [submissionId]
+  );
+  const submission = subResult.rows[0];
+  if (!submission?.projectId || !submission?.schoolId || !submission?.toolId) {
+    return { written: 0, reason: 'submission缺少 projectId/schoolId/toolId' };
+  }
+
+  let dataObj = {};
+  try {
+    dataObj = submission.data ? JSON.parse(submission.data) : {};
+  } catch {
+    dataObj = {};
+  }
+
+  const mappingsResult = await db.query(
+    `
+      SELECT field_id as "fieldId", target_id as "dataIndicatorId"
+      FROM field_mappings
+      WHERE tool_id = $1 AND mapping_type = 'data_indicator'
+    `,
+    [submission.toolId]
+  );
+  const mappings = (mappingsResult.rows || []).filter(m => m.fieldId && m.dataIndicatorId);
+  if (mappings.length === 0) return { written: 0, reason: '该工具未配置 data_indicator 映射' };
+
+  const extracted = mappings.map(m => {
+    const raw = getValueByFieldId(dataObj, m.fieldId);
+    const { value, textValue } = toIndicatorValue(raw);
+    return { ...m, value, textValue };
+  });
+
+  const toWrite = extracted.filter(x => x.value !== null || (x.textValue !== null && x.textValue !== ''));
+  if (toWrite.length === 0) return { written: 0, reason: '映射字段在 submission.data 中均未取到值' };
+
+  const dataIndicatorIds = Array.from(new Set(toWrite.map(x => x.dataIndicatorId)));
+
+  const thresholdsResult = await db.query(
+    `SELECT id, threshold FROM data_indicators WHERE id = ANY($1)`,
+    [dataIndicatorIds]
+  );
+  const thresholdById = new Map((thresholdsResult.rows || []).map(r => [r.id, r.threshold]));
+
+  const existingResult = await db.query(
+    `
+      SELECT id, data_indicator_id as "dataIndicatorId"
+      FROM school_indicator_data
+      WHERE project_id = $1 AND school_id = $2 AND data_indicator_id = ANY($3)
+    `,
+    [submission.projectId, submission.schoolId, dataIndicatorIds]
+  );
+  const existingIdByIndicator = new Map((existingResult.rows || []).map(r => [r.dataIndicatorId, r.id]));
+
+  const records = toWrite.map(x => {
+    const threshold = thresholdById.get(x.dataIndicatorId) || null;
+    const compliant = threshold && x.value !== null ? checkCompliance(x.value, threshold) : null;
+    return {
+      id: existingIdByIndicator.get(x.dataIndicatorId) || ('sid-' + generateId()),
+      project_id: submission.projectId,
+      school_id: submission.schoolId,
+      data_indicator_id: x.dataIndicatorId,
+      value: x.value,
+      text_value: x.textValue,
+      is_compliant: compliant === null ? null : (compliant ? 1 : 0),
+      submission_id: submission.id,
+      collected_at: submission.collectedAt || today,
+      created_at: today,
+      updated_at: today,
+    };
+  });
+
+  const BATCH_SIZE = 200;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    // eslint-disable-next-line no-await-in-loop
+    const { error } = await db
+      .from('school_indicator_data')
+      .upsert(records.slice(i, i + BATCH_SIZE), { onConflict: 'project_id,school_id,data_indicator_id' });
+    if (error) throw error;
+  }
+
+  return { written: records.length, reason: null };
+}
 
 // ==================== 项目 CRUD ====================
 
@@ -449,7 +591,9 @@ router.get('/submissions', async (req, res) => {
   try {
     const { projectId, formId, status, submitterOrg } = req.query;
     let sql = `
-      SELECT s.id, s.project_id as "projectId", s.form_id as "formId",
+      SELECT s.id, s.project_id as "projectId",
+             COALESCE(s.form_id, s.tool_id) as "formId",
+             s.school_id as "schoolId",
              s.submitter_id as "submitterId", s.submitter_name as "submitterName",
              s.submitter_org as "submitterOrg", s.status, s.reject_reason as "rejectReason",
              s.created_at as "createdAt", s.updated_at as "updatedAt",
@@ -457,7 +601,7 @@ router.get('/submissions', async (req, res) => {
              p.name as "projectName", t.name as "formName"
       FROM submissions s
       LEFT JOIN projects p ON s.project_id = p.id
-      LEFT JOIN data_tools t ON s.form_id = t.id
+      LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
       WHERE 1=1
     `;
     const params = [];
@@ -468,7 +612,7 @@ router.get('/submissions', async (req, res) => {
       params.push(projectId);
     }
     if (formId) {
-      sql += ` AND s.form_id = $${paramIndex++}`;
+      sql += ` AND COALESCE(s.form_id, s.tool_id) = $${paramIndex++}`;
       params.push(formId);
     }
     if (status) {
@@ -492,20 +636,135 @@ router.get('/submissions', async (req, res) => {
 // 获取项目下的填报记录
 router.get('/projects/:projectId/submissions', async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT s.id, s.project_id as "projectId", s.form_id as "formId",
+    const { districtId, schoolId, formId, status } = req.query;
+
+    let sql = `
+      SELECT s.id, s.project_id as "projectId",
+             COALESCE(s.form_id, s.tool_id) as "formId",
+             s.school_id as "schoolId",
              s.submitter_id as "submitterId", s.submitter_name as "submitterName",
              s.submitter_org as "submitterOrg", s.status, s.reject_reason as "rejectReason",
              s.created_at as "createdAt", s.updated_at as "updatedAt",
              s.submitted_at as "submittedAt", s.approved_at as "approvedAt",
-             t.name as "formName"
+             t.name as "formName",
+             sc.name as "schoolName",
+             d.name as "districtName"
       FROM submissions s
-      LEFT JOIN data_tools t ON s.form_id = t.id
+      LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
+      LEFT JOIN schools sc ON s.school_id = sc.id
+      LEFT JOIN districts d ON sc.district_id = d.id
       WHERE s.project_id = $1
-      ORDER BY s.updated_at DESC
-    `, [req.params.projectId]);
+    `;
+    const params = [req.params.projectId];
+    let paramIndex = 2;
 
+    // 按区县过滤
+    if (districtId) {
+      sql += ` AND sc.district_id = $${paramIndex++}`;
+      params.push(districtId);
+    }
+
+    // 按学校过滤
+    if (schoolId) {
+      sql += ` AND s.school_id = $${paramIndex++}`;
+      params.push(schoolId);
+    }
+
+    // 按表单过滤
+    if (formId) {
+      sql += ` AND COALESCE(s.form_id, s.tool_id) = $${paramIndex++}`;
+      params.push(formId);
+    }
+
+    // 按状态过滤
+    if (status) {
+      sql += ` AND s.status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    sql += ' ORDER BY s.updated_at DESC';
+
+    const result = await db.query(sql, params);
     res.json({ code: 200, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 获取区县下所有学校的填报记录（区县管理员专用）
+router.get('/districts/:districtId/submissions', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId, schoolId, formId, status } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 验证区县存在
+    const districtResult = await db.query('SELECT id, name FROM districts WHERE id = $1', [districtId]);
+    if (!districtResult.rows[0]) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    let sql = `
+      SELECT s.id, s.project_id as "projectId",
+             COALESCE(s.form_id, s.tool_id) as "formId",
+             s.school_id as "schoolId",
+             s.submitter_id as "submitterId", s.submitter_name as "submitterName",
+             s.submitter_org as "submitterOrg", s.status, s.reject_reason as "rejectReason",
+             s.created_at as "createdAt", s.updated_at as "updatedAt",
+             s.submitted_at as "submittedAt", s.approved_at as "approvedAt",
+             t.name as "formName",
+             sc.name as "schoolName", sc.code as "schoolCode",
+             sc.school_type as "schoolType"
+      FROM submissions s
+      LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
+      JOIN schools sc ON s.school_id = sc.id
+      WHERE s.project_id = $1 AND sc.district_id = $2
+    `;
+    const params = [projectId, districtId];
+    let paramIndex = 3;
+
+    // 按学校过滤
+    if (schoolId) {
+      sql += ` AND s.school_id = $${paramIndex++}`;
+      params.push(schoolId);
+    }
+
+    // 按表单过滤
+    if (formId) {
+      sql += ` AND COALESCE(s.form_id, s.tool_id) = $${paramIndex++}`;
+      params.push(formId);
+    }
+
+    // 按状态过滤
+    if (status) {
+      sql += ` AND s.status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    sql += ' ORDER BY sc.name, s.updated_at DESC';
+
+    const result = await db.query(sql, params);
+
+    // 统计
+    const stats = {
+      total: result.rows.length,
+      draft: result.rows.filter(r => r.status === 'draft').length,
+      submitted: result.rows.filter(r => r.status === 'submitted').length,
+      approved: result.rows.filter(r => r.status === 'approved').length,
+      rejected: result.rows.filter(r => r.status === 'rejected').length
+    };
+
+    res.json({
+      code: 200,
+      data: {
+        district: districtResult.rows[0],
+        stats,
+        submissions: result.rows
+      }
+    });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
   }
@@ -515,7 +774,9 @@ router.get('/projects/:projectId/submissions', async (req, res) => {
 router.get('/submissions/:id', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT s.id, s.project_id as "projectId", s.form_id as "formId",
+      SELECT s.id, s.project_id as "projectId",
+             COALESCE(s.form_id, s.tool_id) as "formId",
+             s.school_id as "schoolId",
              s.submitter_id as "submitterId", s.submitter_name as "submitterName",
              s.submitter_org as "submitterOrg", s.status, s.data, s.reject_reason as "rejectReason",
              s.created_at as "createdAt", s.updated_at as "updatedAt",
@@ -523,7 +784,7 @@ router.get('/submissions/:id', async (req, res) => {
              p.name as "projectName", t.name as "formName", t.schema
       FROM submissions s
       LEFT JOIN projects p ON s.project_id = p.id
-      LEFT JOIN data_tools t ON s.form_id = t.id
+      LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
       WHERE s.id = $1
     `, [req.params.id]);
 
@@ -578,7 +839,7 @@ router.post('/submissions', async (req, res) => {
     if (!resolvedSchoolId) {
       return res.status(400).json({
         code: 400,
-        message: '缺少 schoolId：请在创建填报时传入 schoolId（schools.id），或将 submitterOrg 设置为唯一的学校名称以便自动匹配',
+        message: '缺少 schoolId：请在创建填报时传入 schoolId（schools.id，可先调用 GET /api/schools 查询），或将 submitterOrg 设置为唯一的学校名称以便自动匹配',
       });
     }
 
@@ -587,6 +848,9 @@ router.post('/submissions', async (req, res) => {
       .insert({
         id,
         project_id: projectId,
+        // 兼容不同库结构：部分库以 tool_id 作为“表单/采集工具”外键且为 NOT NULL
+        // 约定：formId 即 data_tools.id，与 tool_id 同义
+        tool_id: formId,
         form_id: formId,
         school_id: resolvedSchoolId,
         submitter_id: submitterId,
@@ -651,6 +915,14 @@ router.post('/submissions/:id/submit', async (req, res) => {
       return res.status(400).json({ code: 400, message: '只能提交草稿状态的填报记录' });
     }
 
+    // 提交后同步一次指标数据（有映射则写入 school_indicator_data）
+    try {
+      await syncSubmissionIndicators(req.params.id);
+    } catch (e) {
+      // 不阻断提交，但输出日志方便排查
+      console.warn('[submission] sync indicators on submit failed:', e.message);
+    }
+
     return res.json({ code: 200, message: '提交成功' });
   } catch (error) {
     return res.status(500).json({ code: 500, message: error.message });
@@ -673,7 +945,24 @@ router.post('/submissions/:id/approve', async (req, res) => {
       return res.status(400).json({ code: 400, message: '只能审核已提交状态的填报记录' });
     }
 
+    // 审核通过后同步指标数据（写入 school_indicator_data，用于后续达标统计与详情回显）
+    try {
+      await syncSubmissionIndicators(req.params.id);
+    } catch (e) {
+      console.warn('[submission] sync indicators on approve failed:', e.message);
+    }
+
     return res.json({ code: 200, message: '审核通过' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 手动同步：将某条填报记录的数据按 field_mappings 回填到 school_indicator_data
+router.post('/submissions/:id/sync-indicators', async (req, res) => {
+  try {
+    const out = await syncSubmissionIndicators(req.params.id);
+    return res.json({ code: 200, data: out, message: '同步完成' });
   } catch (error) {
     return res.status(500).json({ code: 500, message: error.message });
   }
