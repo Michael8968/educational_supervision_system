@@ -111,14 +111,14 @@ function seedIfEmpty() {
 
 seedIfEmpty();
 
-const validRoles = new Set(['admin', 'city_admin', 'district_admin', 'school_reporter']);
-validRoles.add('expert');
+const validRoles = new Set(['admin', 'city_admin', 'district_admin', 'district_reporter', 'school_reporter', 'expert']);
 
 // 角色显示名称映射
 const roleDisplayNames = {
   admin: '系统管理员',
   city_admin: '市级管理员',
   district_admin: '区县管理员',
+  district_reporter: '区县填报员',
   school_reporter: '学校填报员',
   expert: '评估专家',
 };

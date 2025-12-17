@@ -18,6 +18,7 @@ const roleTagColor: Record<UserRole, string> = {
   admin: 'red',
   city_admin: 'purple',
   district_admin: 'blue',
+  district_reporter: 'cyan',
   school_reporter: 'green',
   expert: 'gold',
 };

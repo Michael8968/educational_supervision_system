@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2025-12-17T05:06:07.509Z",
+  "updatedAt": "2025-12-17T13:09:13.472Z",
   "users": [
     {
       "username": "AAA",
@@ -8,7 +8,8 @@
         "admin",
         "city_admin",
         "school_reporter",
-        "district_admin"
+        "district_admin",
+        "district_reporter"
       ],
       "scopes": [
         {

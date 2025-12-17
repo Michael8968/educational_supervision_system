@@ -4,9 +4,10 @@ import { get, post, put, del } from './api';
 // - admin: 系统管理员（省级/国家级）- 创建/维护工具模板、项目全局配置
 // - city_admin: 市级管理员 - 查看区县进度，不可编辑数据
 // - district_admin: 区县管理员 - 审核本区县所有学校数据、退回修改
+// - district_reporter: 区县填报员 - 填报区县级采集工具数据
 // - school_reporter: 学校填报员 - 仅编辑本校原始要素
 // - expert: 评估专家 - 参与评审/评估相关工作（用于专家账号管理）
-export type UserRole = 'admin' | 'city_admin' | 'district_admin' | 'school_reporter' | 'expert';
+export type UserRole = 'admin' | 'city_admin' | 'district_admin' | 'district_reporter' | 'school_reporter' | 'expert';
 export type UserStatus = 'active' | 'inactive';
 
 export interface ScopeItem {
@@ -67,6 +68,7 @@ export const roleDisplayNames: Record<UserRole, string> = {
   admin: '系统管理员',
   city_admin: '市级管理员',
   district_admin: '区县管理员',
+  district_reporter: '区县填报员',
   school_reporter: '学校填报员',
   expert: '评估专家',
 };
@@ -76,6 +78,7 @@ export const roleOptions: Array<{ label: string; value: UserRole }> = [
   { label: '系统管理员（省级/国家级）', value: 'admin' },
   { label: '市级管理员', value: 'city_admin' },
   { label: '区县管理员', value: 'district_admin' },
+  { label: '区县填报员', value: 'district_reporter' },
   { label: '学校填报员', value: 'school_reporter' },
   { label: '评估专家', value: 'expert' },
 ];
@@ -85,6 +88,7 @@ export const allRoleOptions: Array<{ label: string; value: UserRole }> = [
   { label: '系统管理员', value: 'admin' },
   { label: '市级管理员', value: 'city_admin' },
   { label: '区县管理员', value: 'district_admin' },
+  { label: '区县填报员', value: 'district_reporter' },
   { label: '学校填报员', value: 'school_reporter' },
   { label: '评估专家', value: 'expert' },
 ];

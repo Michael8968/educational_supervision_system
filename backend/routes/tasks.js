@@ -542,6 +542,9 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
     if (scopeType && scopeId) {
       // 优先使用 target_type/target_id（若任务创建时带上），否则回退到 assignee 的 organization 匹配 scope.name
       const scopeConds = [];
+      const st = String(scopeType);
+      const sid = String(scopeId);
+      
       if (schoolIds.length > 0) {
         scopeConds.push(`(t.target_type = 'school' AND t.target_id = ANY($${paramIndex++}))`);
         params.push(schoolIds);
@@ -558,12 +561,73 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
         scopeConds.push(`(pp.organization = ANY($${paramIndex++}))`);
         params.push(districtNames);
       }
+      
+      // 如果没有匹配的 scope，但用户明确指定了 scopeType 和 scopeId，则尝试查询对应的名称
+      // 这样可以兼容服务重启后旧 token 的情况，同时支持通过 organization 匹配
+      if (scopeConds.length === 0) {
+        try {
+          if (st === 'school') {
+            // 查询学校名称
+            const schoolResult = await db.query('SELECT name FROM schools WHERE id = $1', [sid]);
+            const schoolName = schoolResult?.rows?.[0]?.name;
+            
+            // 同时通过 target_id 和 organization 匹配
+            if (schoolName) {
+              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+              scopeConds.push(`(pp.organization = $${paramIndex++})`);
+              params.push(schoolName);
+            } else {
+              // 如果查询不到学校名称，至少通过 target_id 匹配
+              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+            }
+          } else if (st === 'district') {
+            // 查询区县名称
+            const districtResult = await db.query('SELECT name FROM districts WHERE id = $1', [sid]);
+            const districtName = districtResult?.rows?.[0]?.name;
+            
+            // 同时通过 target_id 和 organization 匹配
+            if (districtName) {
+              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+              scopeConds.push(`(pp.organization = $${paramIndex++})`);
+              params.push(districtName);
+            } else {
+              // 如果查询不到区县名称，至少通过 target_id 匹配
+              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+            }
+          }
+        } catch (err) {
+          // 如果查询失败，至少通过 target_id 匹配
+          console.warn('查询学校/区县名称失败:', err);
+          if (st === 'school') {
+            scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+            params.push(sid);
+          } else if (st === 'district') {
+            scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+            params.push(sid);
+          }
+        }
+      }
+
+      // 添加兜底条件：如果任务没有关联到具体学校/区县（target_type 为空且 organization 为空），
+      // 也返回这些任务，但需要根据 scopeType 过滤对应的工具类型（dt.target）
+      if (st === 'school') {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '学校')`);
+      } else if (st === 'district') {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '区县')`);
+      } else {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = ''))`);
+      }
+
       if (scopeConds.length > 0) {
         sql += ` AND (${scopeConds.join(' OR ')})`;
       }
     }
 
-    // DISTINCT ON 要求 ORDER BY 以 distinct key 作为前缀（并优先返回“更紧急”的那条）
+    // DISTINCT ON 要求 ORDER BY 以 distinct key 作为前缀（并优先返回"更紧急"的那条）
     sql += `
       ORDER BY
         t.project_id,
@@ -630,6 +694,7 @@ router.get('/my/projects', verifyToken, roles.collector, async (req, res) => {
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN project_personnel pp ON t.assignee_id = pp.id
       LEFT JOIN indicator_systems isys ON p.indicator_system_id = isys.id
+      LEFT JOIN data_tools dt ON t.tool_id = dt.id
       WHERE p.is_published = true
     `;
     const params = [];
@@ -638,6 +703,10 @@ router.get('/my/projects', verifyToken, roles.collector, async (req, res) => {
     // 可选：按范围过滤
     if (scopeType && scopeId) {
       const scopeConds = [];
+      const st = String(scopeType);
+      const sid = String(scopeId);
+      
+      // 如果找到了匹配的 scope，使用 scope 中的 id 和 name
       if (schoolIds.length > 0) {
         scopeConds.push(`(t.target_type = 'school' AND t.target_id = ANY($${paramIndex++}))`);
         params.push(schoolIds);
@@ -654,6 +723,67 @@ router.get('/my/projects', verifyToken, roles.collector, async (req, res) => {
         scopeConds.push(`(pp.organization = ANY($${paramIndex++}))`);
         params.push(districtNames);
       }
+      
+      // 如果没有匹配的 scope，但用户明确指定了 scopeType 和 scopeId，则尝试查询对应的名称
+      // 这样可以兼容服务重启后旧 token 的情况，同时支持通过 organization 匹配
+      if (scopeConds.length === 0) {
+        try {
+          if (st === 'school') {
+            // 查询学校名称
+            const schoolResult = await db.query('SELECT name FROM schools WHERE id = $1', [sid]);
+            const schoolName = schoolResult?.rows?.[0]?.name;
+            
+            // 同时通过 target_id 和 organization 匹配
+            if (schoolName) {
+              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+              scopeConds.push(`(pp.organization = $${paramIndex++})`);
+              params.push(schoolName);
+            } else {
+              // 如果查询不到学校名称，至少通过 target_id 匹配
+              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+            }
+          } else if (st === 'district') {
+            // 查询区县名称
+            const districtResult = await db.query('SELECT name FROM districts WHERE id = $1', [sid]);
+            const districtName = districtResult?.rows?.[0]?.name;
+            
+            // 同时通过 target_id 和 organization 匹配
+            if (districtName) {
+              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+              scopeConds.push(`(pp.organization = $${paramIndex++})`);
+              params.push(districtName);
+            } else {
+              // 如果查询不到区县名称，至少通过 target_id 匹配
+              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+              params.push(sid);
+            }
+          }
+        } catch (err) {
+          // 如果查询失败，至少通过 target_id 匹配
+          console.warn('查询学校/区县名称失败:', err);
+          if (st === 'school') {
+            scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
+            params.push(sid);
+          } else if (st === 'district') {
+            scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
+            params.push(sid);
+          }
+        }
+      }
+
+      // 添加兜底条件：如果任务没有关联到具体学校/区县（target_type 为空且 organization 为空），
+      // 也返回这些项目，但需要根据 scopeType 过滤对应的工具类型（dt.target）
+      if (st === 'school') {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '学校')`);
+      } else if (st === 'district') {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '区县')`);
+      } else {
+        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = ''))`);
+      }
+
       if (scopeConds.length > 0) {
         sql += ` AND (${scopeConds.join(' OR ')})`;
       }

@@ -11,6 +11,7 @@ export type UserRole =
   | 'admin'
   | 'city_admin'
   | 'district_admin'
+  | 'district_reporter'
   | 'school_reporter'
   | 'project_manager'
   | 'collector'
@@ -21,6 +22,7 @@ const roleNameMap: Record<UserRole, string> = {
   admin: '系统管理员',
   city_admin: '市级管理员',
   district_admin: '区县管理员',
+  district_reporter: '区县填报员',
   school_reporter: '学校填报员',
   project_manager: '项目管理员',
   collector: '数据采集员',
@@ -282,8 +284,9 @@ export const useUserPermissions = () => {
   const isProjectManager = role === 'project_manager';
   const isCityAdmin = role === 'city_admin';
   const isDistrictAdmin = role === 'district_admin';
-  // school_reporter（学校填报员）在当前前端路由体系中按“数据填报”口径处理
-  const isCollector = role === 'collector' || role === 'school_reporter';
+  const isDistrictReporter = role === 'district_reporter';
+  // school_reporter（学校填报员）和 district_reporter（区县填报员）在当前前端路由体系中按"数据填报"口径处理
+  const isCollector = role === 'collector' || role === 'school_reporter' || role === 'district_reporter';
   const isExpert = role === 'expert';
   const isDecisionMaker = role === 'decision_maker';
 
@@ -294,6 +297,7 @@ export const useUserPermissions = () => {
     isProjectManager,
     isCityAdmin,
     isDistrictAdmin,
+    isDistrictReporter,
     isCollector,
     isExpert,
     isDecisionMaker,

@@ -179,15 +179,38 @@ const DataEntryForm: React.FC = () => {
   const [selectedSampleType, setSelectedSampleType] = useState<string | undefined>();
   const [importFileData, setImportFileData] = useState<Record<string, any> | null>(null);
 
+  // 解析当前范围（支持学校和区县）
   const resolvedSchoolScope = useMemo(() => {
     if (!user) return null;
-    // 优先使用当前 scope（从右上角“角色/学校范围”菜单选择）
+    // 优先使用当前 scope（从右上角"角色/学校范围"菜单选择）
     if (user.currentScope?.type === 'school') return user.currentScope;
     // 如果只有一个学校 scope，允许自动选中
     const schoolScopes = Array.isArray(user.scopes) ? user.scopes.filter((s) => s.type === 'school') : [];
     if (schoolScopes.length === 1) return schoolScopes[0];
     return null;
   }, [user]);
+
+  const resolvedDistrictScope = useMemo(() => {
+    if (!user) return null;
+    // 优先使用当前 scope（从右上角"角色/区县范围"菜单选择）
+    if (user.currentScope?.type === 'district') return user.currentScope;
+    // 如果只有一个区县 scope，允许自动选中
+    const districtScopes = Array.isArray(user.scopes) ? user.scopes.filter((s) => s.type === 'district') : [];
+    if (districtScopes.length === 1) return districtScopes[0];
+    return null;
+  }, [user]);
+
+  // 根据工具目标类型获取对应的范围
+  const resolvedScope = useMemo(() => {
+    if (!toolInfo) return resolvedSchoolScope || resolvedDistrictScope;
+    // 如果工具目标是区县，使用区县范围
+    if (toolInfo.target === '区县') return resolvedDistrictScope;
+    // 否则默认使用学校范围
+    return resolvedSchoolScope;
+  }, [toolInfo, resolvedSchoolScope, resolvedDistrictScope]);
+
+  // 判断是否为区县级表单
+  const isDistrictForm = toolInfo?.target === '区县';
 
   // 加载数据
   useEffect(() => {
@@ -214,11 +237,12 @@ const DataEntryForm: React.FC = () => {
 
         // 尝试获取已有的填报记录
         const submissions = await submissionService.getByProject(projectId);
-        const schoolIdForMatch = resolvedSchoolScope?.id;
+        // 使用当前选择的范围（学校或区县）来匹配
+        const scopeIdForMatch = user?.currentScope?.id || resolvedSchoolScope?.id || resolvedDistrictScope?.id;
         const existingSubmission = submissions.find((s: Submission) =>
           s.formId === formId
           && s.status !== 'approved'
-          && (schoolIdForMatch ? s.schoolId === schoolIdForMatch : true)
+          && (scopeIdForMatch ? s.schoolId === scopeIdForMatch : true)
         );
 
         if (existingSubmission) {
@@ -248,8 +272,10 @@ const DataEntryForm: React.FC = () => {
 
     setSaving(true);
     try {
-      if (!submission && !resolvedSchoolScope) {
-        message.error('缺少学校信息：请先在右上角选择学校范围后再保存');
+      if (!submission && !resolvedScope) {
+        message.error(isDistrictForm
+          ? '缺少区县信息：请先在右上角选择区县范围后再保存'
+          : '缺少学校信息：请先在右上角选择学校范围后再保存');
         return;
       }
       const values = form.getFieldsValue();
@@ -266,9 +292,9 @@ const DataEntryForm: React.FC = () => {
         const newSubmission = await submissionService.create({
           projectId,
           formId,
-          schoolId: resolvedSchoolScope?.id,
+          schoolId: resolvedScope?.id,
           submitterName: user?.username || '当前用户',
-          submitterOrg: resolvedSchoolScope?.name || '当前单位',
+          submitterOrg: resolvedScope?.name || '当前单位',
           data: payloadValues,
         });
         setSubmission(newSubmission);
@@ -337,17 +363,19 @@ const DataEntryForm: React.FC = () => {
         await submissionService.update(submission.id, { data: payloadValues });
         await submissionService.submit(submission.id);
       } else {
-        if (!resolvedSchoolScope) {
-          message.error('缺少学校信息：请先在右上角选择学校范围后再提交');
+        if (!resolvedScope) {
+          message.error(isDistrictForm
+            ? '缺少区县信息：请先在右上角选择区县范围后再提交'
+            : '缺少学校信息：请先在右上角选择学校范围后再提交');
           return;
         }
         // 创建并提交
         const newSubmission = await submissionService.create({
           projectId,
           formId,
-          schoolId: resolvedSchoolScope.id,
+          schoolId: resolvedScope.id,
           submitterName: user?.username || '当前用户',
-          submitterOrg: resolvedSchoolScope.name,
+          submitterOrg: resolvedScope.name,
           data: payloadValues,
         });
         await submissionService.submit(newSubmission.id);

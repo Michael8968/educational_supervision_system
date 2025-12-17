@@ -129,7 +129,7 @@ const roles = {
   projectManager: requireRole(['admin', 'project_manager', 'city_admin', 'district_admin']),
 
   // 数据采集员及以上
-  collector: requireRole(['admin', 'project_manager', 'city_admin', 'district_admin', 'collector', 'school_reporter']),
+  collector: requireRole(['admin', 'project_manager', 'city_admin', 'district_admin', 'district_reporter', 'collector', 'school_reporter']),
 
   // 专家及以上
   expert: requireRole(['admin', 'project_manager', 'expert']),
@@ -140,6 +140,7 @@ const roles = {
     'project_manager',
     'city_admin',
     'district_admin',
+    'district_reporter',
     'collector',
     'school_reporter',
     'expert',

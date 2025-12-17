@@ -22,6 +22,7 @@ const roleNameMap: Record<string, string> = {
   admin: '系统管理员',
   city_admin: '市级管理员',
   district_admin: '区县管理员',
+  district_reporter: '区县填报员',
   school_reporter: '学校填报员',
   project_manager: '项目管理员',
   collector: '数据采集员',
@@ -34,6 +35,7 @@ const roleColorMap: Record<string, string> = {
   admin: 'red',
   city_admin: 'purple',
   district_admin: 'blue',
+  district_reporter: 'cyan',
   school_reporter: 'green',
   project_manager: 'blue',
   collector: 'green',
@@ -143,6 +145,7 @@ const MainLayout: React.FC = () => {
     if (role === 'admin' || role === 'project_manager') return '/home';
     if (role === 'city_admin') return '/home';
     if (role === 'district_admin') return '/district';
+    if (role === 'district_reporter') return '/collector';
     if (role === 'collector' || role === 'school_reporter') return '/collector';
     if (role === 'expert') return '/expert';
     if (role === 'decision_maker') return '/reports';
@@ -240,6 +243,39 @@ const MainLayout: React.FC = () => {
             key: `role:${r}:empty`,
             disabled: true,
             label: '未配置学校范围',
+          }],
+        };
+      }
+
+      // 区县填报员：二级子菜单展示区县
+      if (r === 'district_reporter') {
+        const children = (districtScopes.length > 0 ? districtScopes : []).map((s) => ({
+          key: `role:${r}:district:${s.id}`,
+          label: (
+            <Space>
+              <span>{s.name}</span>
+              {user?.role === r && user?.currentScope?.type === 'district' && user?.currentScope?.id === s.id
+                ? <Tag color="cyan">当前</Tag>
+                : null}
+            </Space>
+          ),
+          onClick: () => handleSwitchRoleWithScope(r, s),
+        }));
+
+        return {
+          key: `role:${r}`,
+          label: (
+            <Space>
+              <span>{roleNameMap[r] || r}</span>
+              {user?.role === r && user?.currentScope?.type === 'district'
+                ? <span style={{ color: '#999' }}>（{user.currentScope.name}）</span>
+                : null}
+            </Space>
+          ),
+          children: children.length > 0 ? children : [{
+            key: `role:${r}:empty`,
+            disabled: true,
+            label: '未配置区县范围',
           }],
         };
       }
