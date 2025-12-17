@@ -44,6 +44,14 @@ Educational Supervision System - 教育督导管理平台
 
 ## 快速开始
 
+## 数据库（Supabase）初始化/修复
+
+本后端默认通过 `@supabase/supabase-js` 连接 Supabase。首次使用或遇到“缺字段/Schema cache”报错时，需要在 **Supabase SQL Editor** 执行仓库内 SQL 脚本。
+
+- **创建表结构**：执行 `backend/database/supabase-setup.sql`
+- **修复缺失字段（推荐）**：执行 `backend/database/fix-missing-columns.sql`
+  - 若你在接口里看到类似 `Could not find the 'xxx' column ... in the schema cache`，执行该脚本后通常即可恢复（脚本末尾包含 `NOTIFY pgrst, 'reload schema'` 用于刷新 PostgREST schema cache）。
+
 ### 启动前端
 
 ```bash

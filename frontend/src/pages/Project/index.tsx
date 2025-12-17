@@ -321,9 +321,18 @@ const ProjectPage: React.FC = () => {
                     )}
                   </>
                 )}
-                {/* 已发布状态：取消发布 + 详情 + 差异系数 + 达标率 */}
+                {/* 已发布状态：配置 + 取消发布 + 详情 + 差异系数 + 达标率 */}
                 {project.isPublished && (
                   <>
+                    {permissions.canConfigProject && (
+                      <Button
+                        type="primary"
+                        icon={<SettingOutlined />}
+                        onClick={() => navigate(`/home/balanced/project/${project.id}/config`)}
+                      >
+                        配置
+                      </Button>
+                    )}
                     {permissions.canConfigProject && project.status === '配置中' && (
                       <Popconfirm
                         title="确认取消发布"

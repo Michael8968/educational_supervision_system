@@ -448,3 +448,30 @@ CREATE INDEX IF NOT EXISTS idx_results_rule ON compliance_results(rule_id);
 CREATE INDEX IF NOT EXISTS idx_validation_target ON validation_configs(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_threshold_indicator ON threshold_standards(indicator_id);
 CREATE INDEX IF NOT EXISTS idx_threshold_institution ON threshold_standards(institution_type);
+
+-- ============================================================================
+-- 任务分配表
+-- ============================================================================
+
+-- 任务分配表 (数据采集任务分配)
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,               -- 关联 projects.id，由程序验证
+  tool_id TEXT NOT NULL,                  -- 关联 data_tools.id，由程序验证
+  assignee_id TEXT NOT NULL,              -- 关联 project_personnel.id，由程序验证
+  target_type TEXT,                       -- 目标类型: district | school | all
+  target_id TEXT,                         -- 目标ID (区县ID或学校ID)
+  status TEXT DEFAULT 'pending',          -- 状态: pending | in_progress | completed | overdue
+  due_date TEXT,                          -- 截止日期
+  submission_id TEXT,                     -- 关联的填报记录ID
+  completed_at TEXT,                      -- 完成时间
+  created_at TEXT,
+  updated_at TEXT
+);
+
+-- 任务表索引
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_tool ON tasks(tool_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

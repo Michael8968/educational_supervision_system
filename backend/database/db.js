@@ -200,7 +200,8 @@ async function ensureSchema() {
     if (missing.length > 0) {
       console.warn(
         `[db] Schema check: missing columns: ${missing.join(', ')}. ` +
-        `请在 Supabase SQL Editor 执行 backend/database/fix-missing-columns.sql（或升级 exec_sql 以支持 DDL）。`
+        `请在 Supabase SQL Editor 执行 backend/database/fix-missing-columns.sql（脚本会尝试 NOTIFY pgrst, 'reload schema' 刷新 schema cache）。` +
+        `若仍报 "schema cache" 相关错误，可手动执行：NOTIFY pgrst, 'reload schema';`
       );
     }
   } catch (err) {

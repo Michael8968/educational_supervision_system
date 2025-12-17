@@ -111,7 +111,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_school_indicator_data_unique
 CREATE UNIQUE INDEX IF NOT EXISTS idx_district_statistics_unique
   ON district_statistics(project_id, district_id, school_type);
 
+-- ==================== tasks ====================
+-- 任务分配表
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  tool_id TEXT NOT NULL,
+  assignee_id TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  status TEXT DEFAULT 'pending',
+  due_date TEXT,
+  submission_id TEXT,
+  completed_at TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_tool ON tasks(tool_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+
 -- ============================================
 -- 执行完成提示
 -- ============================================
+-- 刷新 PostgREST schema cache（Supabase API 需要重载才能识别新列）
+NOTIFY pgrst, 'reload schema';
+
 SELECT '缺失字段修复脚本执行完成！' as message;

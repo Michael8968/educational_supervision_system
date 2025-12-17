@@ -361,7 +361,17 @@ router.post('/projects/:id/publish', async (req, res) => {
 
     return res.json({ code: 200, message: '项目已发布' });
   } catch (error) {
-    return res.status(500).json({ code: 500, message: error.message });
+    // Supabase/PostgREST：当数据库缺少列或 schema cache 未刷新时，会抛出类似：
+    // "Could not find the 'is_published' column of 'projects' in the schema cache"
+    const msg = String(error?.message || '');
+    if (msg.includes("is_published") && msg.includes('projects') && msg.includes('schema cache')) {
+      return res.status(500).json({
+        code: 500,
+        message:
+          "数据库表 projects 缺少字段 is_published（或 PostgREST schema cache 未刷新）。请在 Supabase SQL Editor 执行 backend/database/fix-missing-columns.sql（至少包含：ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false;），然后执行：NOTIFY pgrst, 'reload schema'; 再重试。",
+      });
+    }
+    return res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -400,7 +410,15 @@ router.post('/projects/:id/unpublish', async (req, res) => {
 
     return res.json({ code: 200, message: '项目已取消发布' });
   } catch (error) {
-    return res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes("is_published") && msg.includes('projects') && msg.includes('schema cache')) {
+      return res.status(500).json({
+        code: 500,
+        message:
+          "数据库表 projects 缺少字段 is_published（或 PostgREST schema cache 未刷新）。请在 Supabase SQL Editor 执行 backend/database/fix-missing-columns.sql（至少包含：ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT false;），然后执行：NOTIFY pgrst, 'reload schema'; 再重试。",
+      });
+    }
+    return res.status(500).json({ code: 500, message: msg });
   }
 });
 

@@ -19,6 +19,7 @@ const { router: statisticsRoutes, setDb: setStatisticsDb } = require('./routes/s
 const { router: complianceRoutes, setDb: setComplianceDb } = require('./routes/compliance');
 const { router: personnelRoutes, setDb: setPersonnelDb } = require('./routes/personnel');
 const { router: samplesRoutes, setDb: setSamplesDb } = require('./routes/samples');
+const { router: taskRoutes, setDb: setTaskDb } = require('./routes/tasks');
 const { router: userRoutes } = require('./routes/users');
 const uploadsRouteFactory = require('./routes/uploads');
 const userStore = require('./services/userStore');
@@ -57,6 +58,7 @@ async function initDatabase() {
       setComplianceDb(db);
       setPersonnelDb(db);
       setSamplesDb(db);
+      setTaskDb(db);
     } else {
       console.error('Database connection failed');
     }
@@ -78,6 +80,7 @@ app.use('/api', statisticsRoutes);
 app.use('/api', complianceRoutes);
 app.use('/api', personnelRoutes);
 app.use('/api', samplesRoutes);
+app.use('/api', taskRoutes);
 app.use('/api', userRoutes);
 // 文件上传路由
 app.use('/api', uploadsRouteFactory(db));
