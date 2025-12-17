@@ -1,44 +1,63 @@
 /**
- * 人员配置 Tab 组件
+ * 填报账号配置 Tab 组件
+ * 配置填报账号，并根据采集工具的填报对象匹配自动分配任务
  */
 
-import React from 'react';
-import { Table, Button, Input, Tag, Space } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Table, Button, Input, Tag, Space, Select, message, Modal, Tooltip, Card, Row, Col, Statistic } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
   UploadOutlined,
   SearchOutlined,
   RightOutlined,
+  ThunderboltOutlined,
+  UserOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { Personnel, RoleInfo, ImportStatus } from '../types';
+import type { Personnel, RoleInfo } from '../types';
+import * as projectToolService from '../../../services/projectToolService';
+import * as taskService from '../../../services/taskService';
+import type { ProjectTool } from '../../../services/projectToolService';
 import styles from '../index.module.css';
 
 interface PersonnelTabProps {
+  projectId?: string;
   personnel: Record<string, Personnel[]>;
   personnelSearch: string;
   onSearchChange: (value: string) => void;
-  onAddPerson: (role?: string) => void;  // 支持传入预设角色
+  onAddPerson: (role?: string) => void;
   onImport: () => void;
   onDeletePerson: (person: Personnel) => void;
   onOpenMore: (role: string) => void;
   filterPersonnel: (role: string) => Personnel[];
-  disabled?: boolean; // 是否禁用编辑（只读模式）
+  disabled?: boolean;
 }
+
+// 填报对象类型
+const TARGET_TYPES = [
+  { label: '区县', value: '区县' },
+  { label: '学校', value: '学校' },
+  { label: '教师', value: '教师' },
+  { label: '学生', value: '学生' },
+  { label: '班级', value: '班级' },
+  { label: '家长', value: '家长' },
+];
 
 // 获取角色显示名和描述
 const getRoleInfo = (role: string): RoleInfo => {
   const roleMap: Record<string, RoleInfo> = {
-    'system_admin': { name: '项目创建者/系统管理员', desc: '项目创建者，拥有本项目的所有权限' },
-    'project_manager': { name: '项目管理员', desc: '项目管理者，拥有本项目的所有权限' },
-    'data_collector': { name: '数据采集员', desc: '负责项目数据填报和采集' },
-    'expert': { name: '评估专家', desc: '负责项目评审和评估' },
+    'system_admin': { name: '系统管理员', desc: '拥有所有权限' },
+    'project_manager': { name: '项目管理员', desc: '管理项目配置' },
+    'data_collector': { name: '数据采集员', desc: '负责数据填报' },
+    'expert': { name: '评估专家', desc: '负责评审评估' },
   };
   return roleMap[role] || { name: role, desc: '' };
 };
 
 const PersonnelTab: React.FC<PersonnelTabProps> = ({
+  projectId,
   personnel,
   personnelSearch,
   onSearchChange,
@@ -49,6 +68,115 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
   filterPersonnel,
   disabled = false,
 }) => {
+  const [tools, setTools] = useState<ProjectTool[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const [selectedTargetType, setSelectedTargetType] = useState<string>('');
+
+  // 加载项目采集工具
+  const loadTools = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await projectToolService.getProjectTools(projectId);
+      setTools(data);
+    } catch (error) {
+      console.error('加载采集工具失败:', error);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    loadTools();
+  }, [loadTools]);
+
+  // 按填报对象分组的工具
+  const toolsByTarget = tools.reduce((acc, tool) => {
+    const targets = tool.toolTarget ? tool.toolTarget.split(',') : ['未分类'];
+    targets.forEach(target => {
+      const t = target.trim();
+      if (!acc[t]) acc[t] = [];
+      acc[t].push(tool);
+    });
+    return acc;
+  }, {} as Record<string, ProjectTool[]>);
+
+  // 获取数据采集员列表
+  const collectors = personnel['data_collector'] || [];
+  const filteredCollectors = filterPersonnel('data_collector');
+
+  // 自动分配采集工具
+  const handleAutoAssign = async () => {
+    if (!projectId) {
+      message.warning('项目ID不存在');
+      return;
+    }
+
+    if (collectors.length === 0) {
+      message.warning('暂无数据采集员，请先添加人员');
+      return;
+    }
+
+    if (tools.length === 0) {
+      message.warning('暂无采集工具，请先配置采集工具');
+      return;
+    }
+
+    // 筛选要分配的工具
+    const toolsToAssign = selectedTargetType
+      ? tools.filter(t => t.toolTarget?.includes(selectedTargetType))
+      : tools;
+
+    if (toolsToAssign.length === 0) {
+      message.warning('没有匹配的采集工具');
+      return;
+    }
+
+    Modal.confirm({
+      title: '自动分配采集工具',
+      content: (
+        <div>
+          <p>将为 <strong>{collectors.length}</strong> 名数据采集员分配 <strong>{toolsToAssign.length}</strong> 个采集工具的任务。</p>
+          {selectedTargetType && <p>筛选条件：填报对象 = {selectedTargetType}</p>}
+          <p style={{ color: '#999', marginTop: 8 }}>每名采集员将被分配所有匹配的工具任务。</p>
+        </div>
+      ),
+      okText: '确认分配',
+      cancelText: '取消',
+      onOk: async () => {
+        setAutoAssigning(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+          // 为每个工具分配给所有采集员
+          for (const tool of toolsToAssign) {
+            try {
+              await taskService.batchCreateTasks({
+                projectId,
+                toolId: tool.toolId,
+                assigneeIds: collectors.map(c => c.id),
+              });
+              successCount++;
+            } catch (err) {
+              failCount++;
+              console.error(`分配工具 ${tool.toolName} 失败:`, err);
+            }
+          }
+
+          if (successCount > 0) {
+            message.success(`成功分配 ${successCount} 个工具的任务`);
+          }
+          if (failCount > 0) {
+            message.warning(`${failCount} 个工具分配失败（可能已存在相同任务）`);
+          }
+        } catch (error) {
+          message.error('自动分配失败');
+        } finally {
+          setAutoAssigning(false);
+        }
+      },
+    });
+  };
+
   // 人员表格列定义
   const personnelColumns: ColumnsType<Personnel> = [
     {
@@ -56,11 +184,15 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
       dataIndex: 'name',
       key: 'name',
       width: 100,
-      render: (name) => <span className={styles.personName}>{name}</span>
+      render: (name) => (
+        <Space>
+          <UserOutlined />
+          <span className={styles.personName}>{name}</span>
+        </Space>
+      )
     },
     { title: '单位', dataIndex: 'organization', key: 'organization', width: 180 },
     { title: '电话号码', dataIndex: 'phone', key: 'phone', width: 140 },
-    { title: '身份证件号码', dataIndex: 'idCard', key: 'idCard', width: 180 },
     ...(!disabled ? [{
       title: '操作',
       key: 'action',
@@ -78,9 +210,89 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
 
   return (
     <div className={styles.personnelTab}>
+      {/* 统计卡片 */}
+      <Card size="small" className={styles.statsCard} style={{ marginBottom: 16 }}>
+        <Row gutter={24}>
+          <Col span={6}>
+            <Statistic
+              title="数据采集员"
+              value={collectors.length}
+              suffix="人"
+              prefix={<UserOutlined />}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="采集工具"
+              value={tools.length}
+              suffix="个"
+            />
+          </Col>
+          <Col span={12}>
+            <div style={{ paddingTop: 8 }}>
+              <div style={{ marginBottom: 8, color: '#666' }}>按填报对象筛选</div>
+              <Space>
+                <Select
+                  placeholder="全部对象"
+                  style={{ width: 120 }}
+                  allowClear
+                  value={selectedTargetType || undefined}
+                  onChange={setSelectedTargetType}
+                >
+                  {TARGET_TYPES.map(t => (
+                    <Select.Option key={t.value} value={t.value}>
+                      {t.label}
+                      {toolsByTarget[t.value] && (
+                        <Tag style={{ marginLeft: 8 }}>{toolsByTarget[t.value].length}</Tag>
+                      )}
+                    </Select.Option>
+                  ))}
+                </Select>
+                {!disabled && (
+                  <Tooltip title="为所有数据采集员自动分配匹配的采集工具任务">
+                    <Button
+                      type="primary"
+                      icon={<ThunderboltOutlined />}
+                      onClick={handleAutoAssign}
+                      loading={autoAssigning}
+                      disabled={collectors.length === 0 || tools.length === 0}
+                    >
+                      自动分配任务
+                    </Button>
+                  </Tooltip>
+                )}
+              </Space>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* 采集工具概览 */}
+      {tools.length > 0 && (
+        <Card size="small" title="已配置的采集工具" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {tools.map(tool => (
+              <Tag
+                key={tool.id}
+                color={
+                  !selectedTargetType || tool.toolTarget?.includes(selectedTargetType)
+                    ? 'blue'
+                    : 'default'
+                }
+              >
+                {tool.toolName}
+                <span style={{ marginLeft: 4, opacity: 0.7 }}>
+                  ({tool.toolTarget || '未设置'})
+                </span>
+              </Tag>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* 人员配置标题行 */}
       <div className={styles.personnelHeader}>
-        <h3 className={styles.sectionTitle}>人员配置</h3>
+        <h3 className={styles.sectionTitle}>数据采集员</h3>
         <div className={styles.personnelActions}>
           <Input
             placeholder="搜索人员"
@@ -88,6 +300,7 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
             value={personnelSearch}
             onChange={e => onSearchChange(e.target.value)}
             className={styles.searchInput}
+            style={{ width: 200 }}
           />
           <Button
             icon={<UploadOutlined />}
@@ -96,54 +309,80 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
           >
             导入人员
           </Button>
+          {!disabled && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => onAddPerson('data_collector')}
+            >
+              添加采集员
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* 各角色人员列表 */}
-      {['system_admin', 'project_manager', 'data_collector', 'expert'].map(role => {
-        const roleInfo = getRoleInfo(role);
-        const rolePersonnel = personnel[role] || [];
-        const filteredPersonnel = filterPersonnel(role);
+      {/* 数据采集员列表 */}
+      <Table
+        rowKey="id"
+        columns={personnelColumns}
+        dataSource={filteredCollectors}
+        pagination={{
+          pageSize: 10,
+          showTotal: (total) => `共 ${total} 人`,
+          showSizeChanger: true,
+        }}
+        size="small"
+        className={styles.personnelTable}
+      />
 
-        return (
-          <div key={role} className={styles.roleSection}>
-            <div className={styles.roleTitleRow}>
-              <div className={styles.roleTitle}>
-                <span className={styles.roleName}>{roleInfo.name}</span>
-                <span className={styles.roleDesc}>— {roleInfo.desc}</span>
+      {/* 其他角色折叠显示 */}
+      <div style={{ marginTop: 24 }}>
+        {['project_manager', 'expert'].map(role => {
+          const roleInfo = getRoleInfo(role);
+          const rolePersonnel = personnel[role] || [];
+
+          if (rolePersonnel.length === 0) return null;
+
+          return (
+            <div key={role} className={styles.roleSection} style={{ marginBottom: 16 }}>
+              <div className={styles.roleTitleRow}>
+                <div className={styles.roleTitle}>
+                  <span className={styles.roleName}>{roleInfo.name}</span>
+                  <span className={styles.roleDesc}>— {roleInfo.desc}</span>
+                </div>
+                <div className={styles.roleTitleActions}>
+                  <span className={styles.roleCount}>{rolePersonnel.length} 人</span>
+                  {!disabled && (
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => onAddPerson(role)}
+                    >
+                      添加
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className={styles.roleTitleActions}>
-                <span className={styles.roleCount}>总人数：{rolePersonnel.length} 人</span>
-                {!disabled && (
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => onAddPerson(role)}
-                  >
-                    添加
+              <Table
+                rowKey="id"
+                columns={personnelColumns}
+                dataSource={rolePersonnel.slice(0, 3)}
+                pagination={false}
+                size="small"
+                className={styles.personnelTable}
+              />
+              {rolePersonnel.length > 3 && (
+                <div className={styles.moreLink}>
+                  <Button type="link" onClick={() => onOpenMore(role)}>
+                    更多 <RightOutlined />
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-            <Table
-              rowKey="id"
-              columns={personnelColumns}
-              dataSource={filteredPersonnel.slice(0, 3)}
-              pagination={false}
-              size="small"
-              className={styles.personnelTable}
-            />
-            {rolePersonnel.length > 3 && (
-              <div className={styles.moreLink}>
-                <Button type="link" onClick={() => onOpenMore(role)}>
-                  更多 <RightOutlined />
-                </Button>
-              </div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };

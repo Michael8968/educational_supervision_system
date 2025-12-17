@@ -70,7 +70,7 @@ const ProjectConfig: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
-  const [activeTab, setActiveTab] = useState('sample');
+  const [activeTab, setActiveTab] = useState('indicator');
 
   // 人员配置 Hook
   const {
@@ -496,25 +496,6 @@ const ProjectConfig: React.FC = () => {
           className={styles.mainTabs}
           items={[
             {
-              key: 'sample',
-              label: '评估样本',
-              children: (
-                <SampleTab
-                  samples={samples}
-                  sampleDataConfig={sampleDataConfig}
-                  expandedDistricts={expandedDistricts}
-                  onToggleExpand={toggleDistrictExpand}
-                  onConfigSample={() => setConfigSampleModalVisible(true)}
-                  onAddSample={() => setAddSampleModalVisible(true)}
-                  onDeleteSample={deleteSample}
-                  onDeleteTeacher={deleteTeacher}
-                  onAddTeacher={handleOpenAddTeacher}
-                  onTeacherModeChange={updateTeacherMode}
-                  disabled={!isEditable}
-                />
-              ),
-            },
-            {
               key: 'indicator',
               label: '指标体系',
               children: (
@@ -528,7 +509,7 @@ const ProjectConfig: React.FC = () => {
             },
             {
               key: 'data',
-              label: '数据填报',
+              label: '采集工具',
               children: (
                 <DataEntryTab
                   projectId={projectId || ''}
@@ -537,32 +518,11 @@ const ProjectConfig: React.FC = () => {
               ),
             },
             {
-              key: 'task',
-              label: '任务分配',
-              children: (
-                <TaskAssignmentTab
-                  projectId={projectId || ''}
-                  projectStatus={project.status}
-                  personnel={personnel}
-                  disabled={isReadOnly}
-                />
-              ),
-            },
-            {
-              key: 'review',
-              label: '专家评审',
-              children: (
-                <ExpertReviewTab
-                  projectId={projectId || ''}
-                  projectStatus={project.status}
-                />
-              ),
-            },
-            {
               key: 'personnel',
-              label: '人员配置',
+              label: '填报账号',
               children: (
                 <PersonnelTab
+                  projectId={projectId || ''}
                   personnel={personnel}
                   personnelSearch={personnelSearch}
                   onSearchChange={setPersonnelSearch}
@@ -578,6 +538,48 @@ const ProjectConfig: React.FC = () => {
                 />
               ),
             },
+            // 以下 Tab 暂时隐藏
+            // {
+            //   key: 'task',
+            //   label: '任务分配',
+            //   children: (
+            //     <TaskAssignmentTab
+            //       projectId={projectId || ''}
+            //       projectStatus={project.status}
+            //       personnel={personnel}
+            //       disabled={isReadOnly}
+            //     />
+            //   ),
+            // },
+            // {
+            //   key: 'sample',
+            //   label: '评估样本',
+            //   children: (
+            //     <SampleTab
+            //       samples={samples}
+            //       sampleDataConfig={sampleDataConfig}
+            //       expandedDistricts={expandedDistricts}
+            //       onToggleExpand={toggleDistrictExpand}
+            //       onConfigSample={() => setConfigSampleModalVisible(true)}
+            //       onAddSample={() => setAddSampleModalVisible(true)}
+            //       onDeleteSample={deleteSample}
+            //       onDeleteTeacher={deleteTeacher}
+            //       onAddTeacher={handleOpenAddTeacher}
+            //       onTeacherModeChange={updateTeacherMode}
+            //       disabled={!isEditable}
+            //     />
+            //   ),
+            // },
+            // {
+            //   key: 'review',
+            //   label: '专家评审',
+            //   children: (
+            //     <ExpertReviewTab
+            //       projectId={projectId || ''}
+            //       projectStatus={project.status}
+            //     />
+            //   ),
+            // },
           ]}
         />
       </Card>
