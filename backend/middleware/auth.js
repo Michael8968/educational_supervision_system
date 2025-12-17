@@ -121,16 +121,25 @@ const roles = {
   admin: requireRole(['admin']),
 
   // 项目管理员及以上
-  projectManager: requireRole(['admin', 'project_manager']),
+  projectManager: requireRole(['admin', 'project_manager', 'city_admin', 'district_admin']),
 
   // 数据采集员及以上
-  collector: requireRole(['admin', 'project_manager', 'collector']),
+  collector: requireRole(['admin', 'project_manager', 'city_admin', 'district_admin', 'collector', 'school_reporter']),
 
   // 专家及以上
   expert: requireRole(['admin', 'project_manager', 'expert']),
 
   // 所有登录用户
-  authenticated: requireRole(['admin', 'project_manager', 'collector', 'expert', 'decision_maker'])
+  authenticated: requireRole([
+    'admin',
+    'project_manager',
+    'city_admin',
+    'district_admin',
+    'collector',
+    'school_reporter',
+    'expert',
+    'decision_maker'
+  ])
 };
 
 module.exports = {

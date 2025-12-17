@@ -1,0 +1,126 @@
+{
+  "updatedAt": "2025-12-17T05:06:07.509Z",
+  "users": [
+    {
+      "username": "AAA",
+      "password": "BBB",
+      "roles": [
+        "admin",
+        "city_admin",
+        "school_reporter",
+        "district_admin"
+      ],
+      "scopes": [
+        {
+          "type": "city",
+          "id": "shenyang",
+          "name": "沈阳市"
+        },
+        {
+          "type": "district",
+          "id": "d-001",
+          "name": "和平区"
+        },
+        {
+          "type": "school",
+          "id": "s-001",
+          "name": "沈阳市和平区南京街第一小学"
+        },
+        {
+          "type": "school",
+          "id": "s-002",
+          "name": "沈阳市和平区望湖路小学"
+        },
+        {
+          "type": "district",
+          "id": "d-012",
+          "name": "法库县"
+        },
+        {
+          "type": "school",
+          "id": "s-010",
+          "name": "沈阳市辽中区城郊九年一贯制学校"
+        },
+        {
+          "type": "district",
+          "id": "d-010",
+          "name": "辽中区"
+        }
+      ],
+      "status": "active",
+      "createdAt": "2025-12-17",
+      "updatedAt": "2025-12-17"
+    },
+    {
+      "username": "111",
+      "password": "222",
+      "roles": [
+        "city_admin"
+      ],
+      "scopes": [
+        {
+          "type": "city",
+          "id": "shenyang",
+          "name": "沈阳市"
+        }
+      ],
+      "status": "active",
+      "createdAt": "2025-12-17",
+      "updatedAt": "2025-12-17"
+    },
+    {
+      "username": "333",
+      "password": "444",
+      "roles": [
+        "district_admin"
+      ],
+      "scopes": [
+        {
+          "type": "district",
+          "id": "heping",
+          "name": "和平区"
+        }
+      ],
+      "status": "active",
+      "createdAt": "2025-12-17",
+      "updatedAt": "2025-12-17"
+    },
+    {
+      "username": "555",
+      "password": "666",
+      "roles": [
+        "school_reporter"
+      ],
+      "scopes": [
+        {
+          "type": "school",
+          "id": "school1",
+          "name": ""
+        },
+        {
+          "type": "school",
+          "id": "s-002",
+          "name": "沈阳市和平区望湖路小学"
+        },
+        {
+          "type": "school",
+          "id": "s-010",
+          "name": "沈阳市辽中区城郊九年一贯制学校"
+        },
+        {
+          "type": "school",
+          "id": "s-009",
+          "name": "沈阳市辽中区第一初级中学"
+        },
+        {
+          "type": "school",
+          "id": "s-005",
+          "name": "沈阳市第七中学"
+        }
+      ],
+      "status": "active",
+      "createdAt": "2025-12-17",
+      "updatedAt": "2025-12-17"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ import {
   Form,
   InputNumber,
   Tooltip,
+  Modal,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -30,6 +31,8 @@ import {
   ExclamationCircleFilled,
   WarningOutlined,
   InfoCircleOutlined,
+  ImportOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as toolService from '../../services/toolService';
@@ -37,6 +40,7 @@ import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
 import type { Submission } from '../../services/submissionService';
 import { parseThreshold, validateThreshold, calculate, parseVariables } from '../../utils/formulaCalculator';
+import { sampleDataList } from '../../mock/sample-data-index';
 import styles from './index.module.css';
 
 // 映射目标信息
@@ -48,6 +52,13 @@ interface MappingTargetInfo {
   formula?: string;
 }
 
+// 条件显示配置
+interface ShowWhenCondition {
+  field: string;
+  value?: string | string[];
+  condition?: 'filled' | 'empty';
+}
+
 // 扩展 FormField 类型以包含更多属性
 interface ExtendedFormField extends FormField {
   minValue?: string;
@@ -56,6 +67,7 @@ interface ExtendedFormField extends FormField {
   decimalPlaces?: '整数' | '1位小数' | '2位小数';
   optionLayout?: 'horizontal' | 'vertical';
   children?: ExtendedFormField[];
+  showWhen?: ShowWhenCondition;
   mapping?: {
     mappingType: 'data_indicator' | 'element';
     targetId: string;
@@ -94,7 +106,13 @@ const DataEntryForm: React.FC = () => {
   const [formFields, setFormFields] = useState<ExtendedFormField[]>([]);
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [currentFormValues, setCurrentFormValues] = useState<Record<string, any>>({});
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
+
+  // 导入示例数据相关状态
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [selectedSampleType, setSelectedSampleType] = useState<string | undefined>();
+  const [importFileData, setImportFileData] = useState<Record<string, any> | null>(null);
 
   // 加载数据
   useEffect(() => {
@@ -133,6 +151,7 @@ const DataEntryForm: React.FC = () => {
               ? JSON.parse(existingSubmission.data)
               : existingSubmission.data;
             setFormData(parsedData);
+            setCurrentFormValues(parsedData);
             form.setFieldsValue(parsedData);
           }
         }
@@ -258,6 +277,63 @@ const DataEntryForm: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // 打开导入弹窗
+  const handleOpenImport = () => {
+    setSelectedSampleType(undefined);
+    setImportFileData(null);
+    setImportModalVisible(true);
+  };
+
+  // 处理文件上传
+  const handleFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+        setImportFileData(data);
+        setSelectedSampleType(undefined); // 清除预设选择
+        message.success('文件解析成功');
+      } catch {
+        message.error('JSON 文件解析失败，请检查格式');
+      }
+    };
+    reader.readAsText(file);
+    return false; // 阻止默认上传
+  };
+
+  // 确认导入
+  const handleConfirmImport = () => {
+    let dataToImport: Record<string, any> | null = null;
+
+    if (importFileData) {
+      // 优先使用上传的文件
+      dataToImport = importFileData;
+    } else if (selectedSampleType) {
+      // 使用预设的示例数据
+      const sample = sampleDataList.find(s => s.type === selectedSampleType);
+      if (sample) {
+        dataToImport = sample.data as Record<string, any>;
+      }
+    }
+
+    if (!dataToImport) {
+      message.warning('请选择示例数据或上传 JSON 文件');
+      return;
+    }
+
+    // 移除描述字段
+    const { _description, ...formValues } = dataToImport;
+
+    // 设置表单值
+    form.setFieldsValue(formValues);
+    setCurrentFormValues(formValues);
+    setFormData(formValues);
+
+    message.success('数据导入成功');
+    setImportModalVisible(false);
   };
 
   // 获取状态标签
@@ -395,8 +471,39 @@ const DataEntryForm: React.FC = () => {
   };
 
 
+  // 评估 showWhen 条件
+  const evaluateShowWhen = (showWhen: ShowWhenCondition | undefined, currentValues: Record<string, any>): boolean => {
+    if (!showWhen) return true;
+
+    const { field: fieldName, value, condition } = showWhen;
+    const fieldValue = currentValues[fieldName];
+
+    // 条件模式: 'filled' 或 'empty'
+    if (condition === 'filled') {
+      return fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+    }
+    if (condition === 'empty') {
+      return fieldValue === undefined || fieldValue === null || fieldValue === '';
+    }
+
+    // 值匹配模式
+    if (value !== undefined) {
+      if (Array.isArray(value)) {
+        return value.includes(fieldValue);
+      }
+      return fieldValue === value;
+    }
+
+    return true;
+  };
+
   // 渲染表单字段
-  const renderFormField = (field: ExtendedFormField) => {
+  const renderFormField = (field: ExtendedFormField, currentValues?: Record<string, any>) => {
+    // 检查 showWhen 条件
+    const values = currentValues || form.getFieldsValue();
+    if (!evaluateShowWhen(field.showWhen, values)) {
+      return null;
+    }
     const commonRules = field.required
       ? [{ required: true, message: `请填写${field.label}` }]
       : [];
@@ -660,7 +767,7 @@ const DataEntryForm: React.FC = () => {
             style={{ width: field.width }}
           >
             <div className={styles.formFieldsContainer}>
-              {field.children?.map((childField) => renderFormField(childField))}
+              {field.children?.map((childField) => renderFormField(childField, values))}
             </div>
           </Card>
         );
@@ -680,35 +787,71 @@ const DataEntryForm: React.FC = () => {
                   </Button>
                 }
               >
-                {fields.map(({ key, name, ...restField }) => (
-                  <div key={key} className={styles.dynamicListItem}>
-                    <div className={styles.dynamicListFields}>
-                      {field.children?.map((childField) => (
-                        <Form.Item
-                          {...restField}
-                          key={childField.id}
-                          name={[name, childField.id]}
-                          label={childField.label}
-                          rules={
-                            childField.required
-                              ? [{ required: true, message: `请填写${childField.label}` }]
-                              : []
-                          }
-                        >
-                          <Input placeholder={childField.placeholder || '请输入'} />
-                        </Form.Item>
+                {(() => {
+                  // 兼容 dynamicList 的子字段结构：children / dynamicListFields / fields
+                  const listFields: ExtendedFormField[] =
+                    ((field as any).dynamicListFields as ExtendedFormField[] | undefined) ||
+                    ((field as any).fields as ExtendedFormField[] | undefined) ||
+                    (field.children as ExtendedFormField[] | undefined) ||
+                    [];
+
+                  if (listFields.length === 0) {
+                    return (
+                      <div className={styles.emptyDynamicList}>
+                        该动态列表未配置子字段，请在“工具表单设计”中为「{field.label}」添加子字段后再填报
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* 表头（列名） */}
+                      <div className={styles.dynamicListHeaderRow}>
+                        <div className={styles.dynamicListHeaderCells}>
+                          {listFields.map((cf) => (
+                            <div key={cf.id} className={styles.dynamicListHeaderCell}>
+                              {cf.label}
+                            </div>
+                          ))}
+                        </div>
+                        <div className={styles.dynamicListHeaderAction}>操作</div>
+                      </div>
+
+                      {fields.map(({ key, name, ...restField }) => (
+                        <div key={key} className={styles.dynamicListItem}>
+                          <div className={styles.dynamicListFields}>
+                            {listFields.map((childField) => (
+                              <Form.Item
+                                {...restField}
+                                key={childField.id}
+                                name={[name, childField.id]}
+                                // 表格样式：列名由表头统一渲染，这里不重复显示 label
+                                label={null}
+                                rules={
+                                  childField.required
+                                    ? [{ required: true, message: `请填写${childField.label}` }]
+                                    : []
+                                }
+                              >
+                                {/* 先按输入框渲染：后续如需可按 childField.type 细分控件 */}
+                                <Input placeholder={childField.placeholder || childField.label || '请输入'} />
+                              </Form.Item>
+                            ))}
+                          </div>
+                          <Button type="link" danger onClick={() => remove(name)}>
+                            删除
+                          </Button>
+                        </div>
                       ))}
-                    </div>
-                    <Button type="link" danger onClick={() => remove(name)}>
-                      删除
-                    </Button>
-                  </div>
-                ))}
-                {fields.length === 0 && (
-                  <div className={styles.emptyDynamicList}>
-                    点击上方"添加"按钮添加数据
-                  </div>
-                )}
+
+                      {fields.length === 0 && (
+                        <div className={styles.emptyDynamicList}>
+                          点击上方"添加"按钮添加数据
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </Card>
             )}
           </Form.List>
@@ -740,6 +883,13 @@ const DataEntryForm: React.FC = () => {
           <h1 className={styles.pageTitle}>数据填报</h1>
         </div>
         <div className={styles.headerActions}>
+          <Button
+            icon={<ImportOutlined />}
+            onClick={handleOpenImport}
+            disabled={submission?.status === 'submitted'}
+          >
+            导入数据
+          </Button>
           <Button
             icon={<SaveOutlined />}
             onClick={handleSaveDraft}
@@ -838,6 +988,9 @@ const DataEntryForm: React.FC = () => {
             initialValues={formData}
             disabled={submission?.status === 'submitted'}
             onValuesChange={(_, allValues) => {
+              // 更新当前表单值状态（用于 showWhen 条件评估）
+              setCurrentFormValues(allValues);
+
               // 当有派生字段时，计算并更新派生字段值
               if (calculateDerivedFields.length > 0) {
                 const derivedValues = computeDerivedValues(allValues);
@@ -851,7 +1004,7 @@ const DataEntryForm: React.FC = () => {
             }}
           >
             <div className={styles.formFieldsContainer}>
-              {formFields.map((field) => renderFormField(field))}
+              {formFields.map((field) => renderFormField(field, currentFormValues))}
             </div>
           </Form>
         )}
@@ -887,6 +1040,58 @@ const DataEntryForm: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* 导入数据弹窗 */}
+      <Modal
+        title="导入填报数据"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        onOk={handleConfirmImport}
+        okText="确认导入"
+        cancelText="取消"
+        width={560}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 500 }}>选择预设示例数据：</div>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="请选择学校类型的示例数据"
+            value={selectedSampleType}
+            onChange={(value) => {
+              setSelectedSampleType(value);
+              setImportFileData(null); // 清除上传的文件
+            }}
+            options={sampleDataList.map(s => ({
+              value: s.type,
+              label: `${s.label} - ${s.description}`,
+            }))}
+            allowClear
+          />
+        </div>
+
+        <Divider>或</Divider>
+
+        <div>
+          <div style={{ marginBottom: 8, fontWeight: 500 }}>上传 JSON 文件：</div>
+          <Upload.Dragger
+            accept=".json"
+            showUploadList={false}
+            beforeUpload={handleFileUpload}
+          >
+            <p className="ant-upload-drag-icon">
+              <UploadOutlined />
+            </p>
+            <p className="ant-upload-text">点击或拖拽 JSON 文件到此区域</p>
+            <p className="ant-upload-hint">支持 .json 格式的填报数据文件</p>
+          </Upload.Dragger>
+          {importFileData && (
+            <div style={{ marginTop: 8, color: '#52c41a' }}>
+              ✓ 已加载文件数据
+              {importFileData._description && ` (${importFileData._description})`}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -2,6 +2,11 @@
 
 import { get, post, put, del } from './api';
 
+// ==================== 请求去重/缓存（用于避免 StrictMode 下重复请求） ====================
+const FULL_SCHEMA_CACHE_TTL_MS = 5000;
+const fullSchemaCache = new Map<string, { ts: number; value: FullSchemaResponse }>();
+const fullSchemaInFlight = new Map<string, Promise<FullSchemaResponse>>();
+
 // 采集工具类型
 export interface DataTool {
   id: string;
@@ -221,6 +226,32 @@ export async function importElements(
   });
 }
 
+// 获取完整的工具 schema（含字段映射）
+export async function getFullSchema(toolId: string): Promise<FullSchemaResponse> {
+  const key = String(toolId || '');
+  const now = Date.now();
+
+  const cached = fullSchemaCache.get(key);
+  if (cached && now - cached.ts < FULL_SCHEMA_CACHE_TTL_MS) {
+    return cached.value;
+  }
+
+  const inFlight = fullSchemaInFlight.get(key);
+  if (inFlight) return inFlight;
+
+  const p = get<FullSchemaResponse>(`/tools/${key}/full-schema`)
+    .then((res) => {
+      fullSchemaCache.set(key, { ts: Date.now(), value: res });
+      return res;
+    })
+    .finally(() => {
+      fullSchemaInFlight.delete(key);
+    });
+
+  fullSchemaInFlight.set(key, p);
+  return p;
+}
+
 // ==================== 字段映射 API ====================
 
 // 字段映射目标信息类型
@@ -306,9 +337,7 @@ export async function deleteFieldMapping(toolId: string, fieldId: string): Promi
 }
 
 // 获取完整的表单schema（含字段映射信息）
-export async function getFullSchema(toolId: string): Promise<FullSchemaResponse> {
-  return get<FullSchemaResponse>(`/tools/${toolId}/full-schema`);
-}
+// 注意：上方已提供带去重/缓存的 getFullSchema；这里保留注释位置但不重复导出实现。
 
 // ==================== 数据指标 API ====================
 

@@ -1,0 +1,47 @@
+/**
+ * 示例填报数据索引
+ * 包含5种不同学校类型的示例数据，可用于测试填报页面
+ */
+
+import primaryData from './sample-data-primary.json';
+import juniorData from './sample-data-junior.json';
+import nineYearData from './sample-data-nine-year.json';
+import twelveYearData from './sample-data-twelve-year.json';
+import completeSecondaryData from './sample-data-complete-secondary.json';
+
+export const sampleDataList = [
+  {
+    type: 'primary',
+    label: '小学',
+    description: '小学示例数据',
+    data: primaryData,
+  },
+  {
+    type: 'junior',
+    label: '初中',
+    description: '初中示例数据',
+    data: juniorData,
+  },
+  {
+    type: 'nine_year',
+    label: '九年一贯制学校',
+    description: '九年一贯制学校示例数据（小学部+初中部）',
+    data: nineYearData,
+  },
+  {
+    type: 'twelve_year',
+    label: '十二年一贯制学校',
+    description: '十二年一贯制学校示例数据（小学部+初中部+高中部）',
+    data: twelveYearData,
+  },
+  {
+    type: 'complete_secondary',
+    label: '完全中学',
+    description: '完全中学示例数据（初中部+高中部）',
+    data: completeSecondaryData,
+  },
+];
+
+export { primaryData, juniorData, nineYearData, twelveYearData, completeSecondaryData };
+
+export default sampleDataList;

@@ -45,13 +45,20 @@ const TARGET_TYPES = [
   { label: '家长', value: '家长' },
 ];
 
+// 角色定义
+// | 角色 | 所属层级 | 可操作的采集工具 | 权限范围 |
+// | 系统管理员 | 省级/国家级 | 所有工具模板 | 创建/维护工具模板、项目全局配置 |
+// | 市级管理员 | 市级 | 查看工具、汇总报表 | 查看区县进度，不可编辑数据 |
+// | 区县管理员 | 区县 | 表单审核工具、Excel汇总模板 | 审核本区县所有学校数据、退回修改 |
+// | 学校填报员 | 学校 | 在线表单、Excel填报模板 | 仅编辑本校原始要素 |
+
 // 获取角色显示名和描述
 const getRoleInfo = (role: string): RoleInfo => {
   const roleMap: Record<string, RoleInfo> = {
-    'system_admin': { name: '系统管理员', desc: '拥有所有权限' },
-    'project_manager': { name: '项目管理员', desc: '管理项目配置' },
-    'data_collector': { name: '数据采集员', desc: '负责数据填报' },
-    'expert': { name: '评估专家', desc: '负责评审评估' },
+    'system_admin': { name: '系统管理员', desc: '省级/国家级，创建/维护工具模板、项目全局配置' },
+    'city_admin': { name: '市级管理员', desc: '市级，查看区县进度，不可编辑数据' },
+    'district_admin': { name: '区县管理员', desc: '区县，审核本区县所有学校数据、退回修改' },
+    'school_reporter': { name: '学校填报员', desc: '学校，仅编辑本校原始要素' },
   };
   return roleMap[role] || { name: role, desc: '' };
 };
@@ -99,9 +106,9 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
     return acc;
   }, {} as Record<string, ProjectTool[]>);
 
-  // 获取数据采集员列表
-  const collectors = personnel['data_collector'] || [];
-  const filteredCollectors = filterPersonnel('data_collector');
+  // 获取学校填报员列表（主要填报角色）
+  const reporters = personnel['school_reporter'] || [];
+  const filteredReporters = filterPersonnel('school_reporter');
 
   // 自动分配采集工具
   const handleAutoAssign = async () => {
@@ -110,8 +117,8 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
       return;
     }
 
-    if (collectors.length === 0) {
-      message.warning('暂无数据采集员，请先添加人员');
+    if (reporters.length === 0) {
+      message.warning('暂无学校填报员，请先添加人员');
       return;
     }
 
@@ -134,9 +141,9 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
       title: '自动分配采集工具',
       content: (
         <div>
-          <p>将为 <strong>{collectors.length}</strong> 名数据采集员分配 <strong>{toolsToAssign.length}</strong> 个采集工具的任务。</p>
+          <p>将为 <strong>{reporters.length}</strong> 名学校填报员分配 <strong>{toolsToAssign.length}</strong> 个采集工具的任务。</p>
           {selectedTargetType && <p>筛选条件：填报对象 = {selectedTargetType}</p>}
-          <p style={{ color: '#999', marginTop: 8 }}>每名采集员将被分配所有匹配的工具任务。</p>
+          <p style={{ color: '#999', marginTop: 8 }}>每名填报员将被分配所有匹配的工具任务。</p>
         </div>
       ),
       okText: '确认分配',
@@ -147,13 +154,13 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
         let failCount = 0;
 
         try {
-          // 为每个工具分配给所有采集员
+          // 为每个工具分配给所有填报员
           for (const tool of toolsToAssign) {
             try {
               await taskService.batchCreateTasks({
                 projectId,
                 toolId: tool.toolId,
-                assigneeIds: collectors.map(c => c.id),
+                assigneeIds: reporters.map(c => c.id),
               });
               successCount++;
             } catch (err) {
@@ -215,8 +222,8 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
         <Row gutter={24}>
           <Col span={6}>
             <Statistic
-              title="数据采集员"
-              value={collectors.length}
+              title="学校填报员"
+              value={reporters.length}
               suffix="人"
               prefix={<UserOutlined />}
             />
@@ -249,13 +256,13 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
                   ))}
                 </Select>
                 {!disabled && (
-                  <Tooltip title="为所有数据采集员自动分配匹配的采集工具任务">
+                  <Tooltip title="为所有学校填报员自动分配匹配的采集工具任务">
                     <Button
                       type="primary"
                       icon={<ThunderboltOutlined />}
                       onClick={handleAutoAssign}
                       loading={autoAssigning}
-                      disabled={collectors.length === 0 || tools.length === 0}
+                      disabled={reporters.length === 0 || tools.length === 0}
                     >
                       自动分配任务
                     </Button>
@@ -292,7 +299,7 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
 
       {/* 人员配置标题行 */}
       <div className={styles.personnelHeader}>
-        <h3 className={styles.sectionTitle}>数据采集员</h3>
+        <h3 className={styles.sectionTitle}>学校填报员</h3>
         <div className={styles.personnelActions}>
           <Input
             placeholder="搜索人员"
@@ -313,19 +320,19 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => onAddPerson('data_collector')}
+              onClick={() => onAddPerson('school_reporter')}
             >
-              添加采集员
+              添加填报员
             </Button>
           )}
         </div>
       </div>
 
-      {/* 数据采集员列表 */}
+      {/* 学校填报员列表 */}
       <Table
         rowKey="id"
         columns={personnelColumns}
-        dataSource={filteredCollectors}
+        dataSource={filteredReporters}
         pagination={{
           pageSize: 10,
           showTotal: (total) => `共 ${total} 人`,
@@ -337,7 +344,7 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
 
       {/* 其他角色折叠显示 */}
       <div style={{ marginTop: 24 }}>
-        {['project_manager', 'expert'].map(role => {
+        {['district_admin', 'city_admin', 'system_admin'].map(role => {
           const roleInfo = getRoleInfo(role);
           const rolePersonnel = personnel[role] || [];
 

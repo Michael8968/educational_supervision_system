@@ -2,6 +2,13 @@
 
 import { get, post, put, del } from './api';
 
+// 角色定义
+// | 角色 | 所属层级 | 可操作的采集工具 | 权限范围 |
+// | 系统管理员 | 省级/国家级 | 所有工具模板 | 创建/维护工具模板、项目全局配置 |
+// | 市级管理员 | 市级 | 查看工具、汇总报表 | 查看区县进度，不可编辑数据 |
+// | 区县管理员 | 区县 | 表单审核工具、Excel汇总模板 | 审核本区县所有学校数据、退回修改 |
+// | 学校填报员 | 学校 | 在线表单、Excel填报模板 | 仅编辑本校原始要素 |
+
 // 人员类型
 export interface Personnel {
   id: string;
@@ -10,7 +17,7 @@ export interface Personnel {
   organization: string;
   phone: string;
   idCard: string;
-  role: 'leader' | 'member' | 'expert' | 'observer';
+  role: 'system_admin' | 'city_admin' | 'district_admin' | 'school_reporter';
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -19,10 +26,10 @@ export interface Personnel {
 // 人员统计类型
 export interface PersonnelStats {
   total: number;
-  leader: number;
-  member: number;
-  expert: number;
-  observer: number;
+  system_admin: number;
+  city_admin: number;
+  district_admin: number;
+  school_reporter: number;
 }
 
 // 导入结果类型
@@ -82,16 +89,16 @@ export async function getPersonnelStats(projectId: string): Promise<PersonnelSta
 
 // 角色映射
 export const roleMap: Record<string, string> = {
-  leader: '组长',
-  member: '成员',
-  expert: '专家',
-  observer: '观察员',
+  system_admin: '系统管理员',
+  city_admin: '市级管理员',
+  district_admin: '区县管理员',
+  school_reporter: '学校填报员',
 };
 
 // 反向角色映射
 export const roleReverseMap: Record<string, string> = {
-  '组长': 'leader',
-  '成员': 'member',
-  '专家': 'expert',
-  '观察员': 'observer',
+  '系统管理员': 'system_admin',
+  '市级管理员': 'city_admin',
+  '区县管理员': 'district_admin',
+  '学校填报员': 'school_reporter',
 };

@@ -545,7 +545,7 @@ router.get('/submissions/:id', async (req, res) => {
 // 创建填报记录（草稿）
 router.post('/submissions', async (req, res) => {
   try {
-    const { projectId, formId, submitterId, submitterName, submitterOrg, data } = req.body;
+    const { projectId, formId, schoolId, submitterId, submitterName, submitterOrg, data } = req.body;
 
     // 验证项目是否存在（程序层面引用验证）
     const projectResult = await db.query('SELECT id FROM projects WHERE id = $1', [projectId]);
@@ -562,12 +562,33 @@ router.post('/submissions', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
+    // 兼容数据库 submissions.school_id 为 NOT NULL 的情况：
+    // - 优先使用前端传入的 schoolId
+    // - 其次：submitterId 若恰好是 schools.id，则复用
+    // - 再其次：用 submitterOrg 匹配 schools.name（若唯一）
+    let resolvedSchoolId = schoolId || null;
+    if (!resolvedSchoolId && submitterId) {
+      const schoolById = await db.query('SELECT id FROM schools WHERE id = $1 LIMIT 1', [submitterId]);
+      if (schoolById.rows?.[0]?.id) resolvedSchoolId = schoolById.rows[0].id;
+    }
+    if (!resolvedSchoolId && submitterOrg) {
+      const schoolByName = await db.query('SELECT id FROM schools WHERE name = $1 LIMIT 2', [submitterOrg]);
+      if ((schoolByName.rows || []).length === 1) resolvedSchoolId = schoolByName.rows[0].id;
+    }
+    if (!resolvedSchoolId) {
+      return res.status(400).json({
+        code: 400,
+        message: '缺少 schoolId：请在创建填报时传入 schoolId（schools.id），或将 submitterOrg 设置为唯一的学校名称以便自动匹配',
+      });
+    }
+
     const { data: inserted, error } = await db
       .from('submissions')
       .insert({
         id,
         project_id: projectId,
         form_id: formId,
+        school_id: resolvedSchoolId,
         submitter_id: submitterId,
         submitter_name: submitterName,
         submitter_org: submitterOrg,

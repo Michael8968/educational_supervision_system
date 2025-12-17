@@ -7,15 +7,32 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 // 用户角色类型
-export type UserRole = 'admin' | 'project_manager' | 'collector' | 'expert' | 'decision_maker';
+export type UserRole =
+  | 'admin'
+  | 'city_admin'
+  | 'district_admin'
+  | 'school_reporter'
+  | 'project_manager'
+  | 'collector'
+  | 'expert'
+  | 'decision_maker';
 
 const roleNameMap: Record<UserRole, string> = {
   admin: '系统管理员',
+  city_admin: '市级管理员',
+  district_admin: '区县管理员',
+  school_reporter: '学校填报员',
   project_manager: '项目管理员',
   collector: '数据采集员',
   expert: '评估专家',
   decision_maker: '报告决策者',
 };
+
+export interface ScopeItem {
+  type: 'city' | 'district' | 'school';
+  id: string;
+  name: string;
+}
 
 // 用户信息接口
 export interface User {
@@ -25,6 +42,10 @@ export interface User {
   roleName?: string;
   /** 当前用户拥有的角色列表 */
   roles?: UserRole[];
+  /** 用户的数据范围（区县/学校等） */
+  scopes?: ScopeItem[];
+  /** 当前选中的区县/学校（用于二级子菜单上下文） */
+  currentScope?: ScopeItem | null;
 }
 
 // 登录凭证
@@ -46,6 +67,7 @@ interface AuthState {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   logout: () => void;
   switchRole: (nextRole: UserRole) => void;
+  setCurrentScope: (scope: ScopeItem | null) => void;
   clearError: () => void;
   checkAuth: () => boolean;
 }
@@ -89,7 +111,7 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          const { username, role, roleName, roles, token } = data.data || {};
+          const { username, role, roleName, roles, scopes, token } = data.data || {};
 
           const rolesArr: UserRole[] = Array.isArray(roles)
             ? roles
@@ -112,6 +134,8 @@ export const useAuthStore = create<AuthState>()(
                   role: currentRole,
                   roleName: roleName || roleNameMap[currentRole],
                   roles: rolesArr.length > 0 ? rolesArr : [currentRole],
+                  scopes: Array.isArray(scopes) ? scopes : [],
+                  currentScope: null,
                 }
               : null,
             token,
@@ -175,8 +199,22 @@ export const useAuthStore = create<AuthState>()(
             role: nextRole,
             roleName: roleNameMap[nextRole],
             roles: availableRoles,
+            // 切换到非区县/学校相关角色时，清掉当前 scope 上下文
+            currentScope: (nextRole === 'district_admin' || nextRole === 'school_reporter') ? user.currentScope || null : null,
           },
           token: nextToken,
+        });
+      },
+
+      setCurrentScope: (scope: ScopeItem | null) => {
+        const state = get();
+        const user = state.user;
+        if (!user) return;
+        set({
+          user: {
+            ...user,
+            currentScope: scope,
+          },
         });
       },
 
@@ -242,7 +280,10 @@ export const useUserPermissions = () => {
   // 角色判断（独立，不继承）
   const isAdmin = role === 'admin';
   const isProjectManager = role === 'project_manager';
-  const isCollector = role === 'collector';
+  const isCityAdmin = role === 'city_admin';
+  const isDistrictAdmin = role === 'district_admin';
+  // school_reporter（学校填报员）在当前前端路由体系中按“数据填报”口径处理
+  const isCollector = role === 'collector' || role === 'school_reporter';
   const isExpert = role === 'expert';
   const isDecisionMaker = role === 'decision_maker';
 
@@ -251,12 +292,15 @@ export const useUserPermissions = () => {
     // 角色标识
     isAdmin,
     isProjectManager,
+    isCityAdmin,
+    isDistrictAdmin,
     isCollector,
     isExpert,
     isDecisionMaker,
 
     // 功能权限（admin 拥有所有权限）
-    canManageProjects: isAdmin || isProjectManager,  // 项目管理权限
+    // city_admin / district_admin 可查看项目与进度（不含系统配置/项目配置）
+    canManageProjects: isAdmin || isProjectManager || isCityAdmin || isDistrictAdmin,  // 项目管理权限
     canCollectData: isAdmin || isCollector,          // 数据填报权限
     canReviewData: isAdmin || isExpert,              // 数据审核权限
     canViewReports: isAdmin || isDecisionMaker,      // 查看报告权限

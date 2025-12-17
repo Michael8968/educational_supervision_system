@@ -25,13 +25,20 @@ import type {
 import type { ImportFilter } from '../hooks';
 import styles from '../index.module.css';
 
+// 角色定义
+// | 角色 | 所属层级 | 可操作的采集工具 | 权限范围 |
+// | 系统管理员 | 省级/国家级 | 所有工具模板 | 创建/维护工具模板、项目全局配置 |
+// | 市级管理员 | 市级 | 查看工具、汇总报表 | 查看区县进度，不可编辑数据 |
+// | 区县管理员 | 区县 | 表单审核工具、Excel汇总模板 | 审核本区县所有学校数据、退回修改 |
+// | 学校填报员 | 学校 | 在线表单、Excel填报模板 | 仅编辑本校原始要素 |
+
 // 获取角色显示名和描述
 const getRoleInfo = (role: string): RoleInfo => {
   const roleMap: Record<string, RoleInfo> = {
-    'system_admin': { name: '项目创建者/系统管理员', desc: '项目创建者，拥有本项目的所有权限' },
-    'project_manager': { name: '项目管理员', desc: '项目管理者，拥有本项目的所有权限' },
-    'data_collector': { name: '数据采集员', desc: '负责项目数据填报和采集' },
-    'expert': { name: '评估专家', desc: '负责项目评审和评估' },
+    'system_admin': { name: '系统管理员', desc: '省级/国家级，创建/维护工具模板、项目全局配置' },
+    'city_admin': { name: '市级管理员', desc: '市级，查看区县进度，不可编辑数据' },
+    'district_admin': { name: '区县管理员', desc: '区县，审核本区县所有学校数据、退回修改' },
+    'school_reporter': { name: '学校填报员', desc: '学校，仅编辑本校原始要素' },
   };
   return roleMap[role] || { name: role, desc: '' };
 };
@@ -67,38 +74,36 @@ interface AddPersonModalProps {
   presetRole?: string;  // 预设角色（从角色标题行点击时传入）
 }
 
-// 系统角色到人员角色的映射
+// 系统角色到人员角色的映射（一对一，保持一致）
 const systemRoleToPersonnelRole: Record<string, string> = {
   admin: 'system_admin',
-  project_manager: 'project_manager',
-  collector: 'data_collector',
-  expert: 'expert',
-  decision_maker: 'project_manager',
+  city_admin: 'city_admin',
+  district_admin: 'district_admin',
+  school_reporter: 'school_reporter',
 };
 
 // 人员角色到系统角色的映射（用于筛选）
 const personnelRoleToSystemRoles: Record<string, string[]> = {
   system_admin: ['admin'],
-  project_manager: ['project_manager', 'admin', 'decision_maker'],
-  data_collector: ['collector'],
-  expert: ['expert'],
+  city_admin: ['city_admin'],
+  district_admin: ['district_admin'],
+  school_reporter: ['school_reporter'],
 };
 
 // 人员配置角色显示名称
 const roleDisplayNames: Record<string, string> = {
-  system_admin: '项目创建者/系统管理员',
-  project_manager: '项目管理员',
-  data_collector: '数据采集员',
-  expert: '评估专家',
+  system_admin: '系统管理员',
+  city_admin: '市级管理员',
+  district_admin: '区县管理员',
+  school_reporter: '学校填报员',
 };
 
 // 系统角色显示名称（用于下拉选项）
 const systemRoleDisplayNames: Record<string, string> = {
   admin: '系统管理员',
-  project_manager: '项目管理员',
-  collector: '数据采集员',
-  expert: '评估专家',
-  decision_maker: '报告决策者',
+  city_admin: '市级管理员',
+  district_admin: '区县管理员',
+  school_reporter: '学校填报员',
 };
 
 // 获取用户角色的显示文本
@@ -268,7 +273,7 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
                     if (user) {
                       // 使用用户的第一个角色来映射人员角色
                       const firstRole = (user.roles || [])[0];
-                      const personnelRole = systemRoleToPersonnelRole[firstRole] || 'data_collector';
+                      const personnelRole = systemRoleToPersonnelRole[firstRole] || 'school_reporter';
                       form.setFieldsValue({
                         name: user.username,
                         role: personnelRole,
@@ -286,9 +291,10 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
               rules={[{ required: true, message: '请选择角色类型' }]}
             >
               <Select placeholder="请选择角色类型">
-                <Select.Option value="project_manager">项目管理员</Select.Option>
-                <Select.Option value="data_collector">数据采集员</Select.Option>
-                <Select.Option value="expert">评估专家</Select.Option>
+                <Select.Option value="system_admin">系统管理员（省级/国家级）</Select.Option>
+                <Select.Option value="city_admin">市级管理员</Select.Option>
+                <Select.Option value="district_admin">区县管理员</Select.Option>
+                <Select.Option value="school_reporter">学校填报员</Select.Option>
               </Select>
             </Form.Item>
 
@@ -414,8 +420,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             <h4 className={styles.guideTitle}>导入说明</h4>
             <ul className={styles.guideList}>
               <li>Excel文件应包含以下字段：<strong>角色类型、姓名、单位、电话号码、身份证件号码</strong></li>
-              <li>角色类型可选：<strong>项目管理员、数据采集员、评估专家、报告决策者</strong></li>
-              <li>系统会自动比对账号库（项目管理员、数据采集员、报告决策者）和专家库（评估专家）</li>
+              <li>角色类型可选：<strong>系统管理员、市级管理员、区县管理员、学校填报员</strong></li>
+              <li>系统会自动比对已有账号库</li>
               <li className={styles.guideItem}>
                 <span className={styles.guideIcon}>✓</span>
                 <strong>已确认</strong>：姓名、手机、单位、身份证全部一致

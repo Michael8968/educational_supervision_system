@@ -86,7 +86,12 @@ router.post('/projects/:projectId/personnel', async (req, res) => {
       return res.status(400).json({ code: 400, message: '姓名和角色为必填项' });
     }
 
-    const validRoles = ['leader', 'member', 'expert', 'observer'];
+    // 角色定义：
+    // system_admin - 系统管理员（省级/国家级）
+    // city_admin - 市级管理员
+    // district_admin - 区县管理员
+    // school_reporter - 学校填报员
+    const validRoles = ['system_admin', 'city_admin', 'district_admin', 'school_reporter'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ code: 400, message: '无效的角色类型' });
     }
@@ -187,7 +192,7 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
     }
 
     const timestamp = now();
-    const validRoles = ['leader', 'member', 'expert', 'observer'];
+    const validRoles = ['system_admin', 'city_admin', 'district_admin', 'school_reporter'];
     const results = { success: 0, failed: 0, errors: [] };
 
     for (const person of personnel) {
@@ -252,10 +257,10 @@ router.get('/projects/:projectId/personnel/stats', async (req, res) => {
 
     const stats = {
       total: 0,
-      leader: 0,
-      member: 0,
-      expert: 0,
-      observer: 0
+      system_admin: 0,
+      city_admin: 0,
+      district_admin: 0,
+      school_reporter: 0
     };
 
     result.rows.forEach(row => {

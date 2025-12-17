@@ -101,6 +101,7 @@ export async function getSubmission(id: string): Promise<Submission> {
 export async function createSubmission(data: {
   projectId: string;
   formId: string;
+  schoolId?: string;
   submitterId?: string;
   submitterName?: string;
   submitterOrg?: string;
@@ -162,6 +163,7 @@ export async function getByProject(projectId: string): Promise<Submission[]> {
 export async function create(data: {
   projectId: string;
   formId: string;
+  schoolId?: string;
   submitterName?: string;
   submitterOrg?: string;
   data?: Record<string, unknown>;

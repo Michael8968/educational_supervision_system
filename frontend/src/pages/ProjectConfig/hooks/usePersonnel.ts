@@ -9,20 +9,27 @@ import type { Personnel, ImportRecord, PersonnelFormValues } from '../types';
 
 export type ImportFilter = 'all' | 'confirmed' | 'new' | 'conflict';
 
-// 角色映射：后端角色 -> 前端角色key
+// 角色定义
+// | 角色 | 所属层级 | 可操作的采集工具 | 权限范围 |
+// | 系统管理员 | 省级/国家级 | 所有工具模板 | 创建/维护工具模板、项目全局配置 |
+// | 市级管理员 | 市级 | 查看工具、汇总报表 | 查看区县进度，不可编辑数据 |
+// | 区县管理员 | 区县 | 表单审核工具、Excel汇总模板 | 审核本区县所有学校数据、退回修改 |
+// | 学校填报员 | 学校 | 在线表单、Excel填报模板 | 仅编辑本校原始要素 |
+
+// 角色映射：后端角色 -> 前端角色key（保持一致）
 const backendToFrontendRole: Record<string, string> = {
-  leader: 'project_manager',
-  member: 'data_collector',
-  expert: 'expert',
-  observer: 'system_admin',
+  system_admin: 'system_admin',
+  city_admin: 'city_admin',
+  district_admin: 'district_admin',
+  school_reporter: 'school_reporter',
 };
 
-// 角色映射：前端角色key -> 后端角色
+// 角色映射：前端角色key -> 后端角色（保持一致）
 const frontendToBackendRole: Record<string, string> = {
-  system_admin: 'observer',
-  project_manager: 'leader',
-  data_collector: 'member',
-  expert: 'expert',
+  system_admin: 'system_admin',
+  city_admin: 'city_admin',
+  district_admin: 'district_admin',
+  school_reporter: 'school_reporter',
 };
 
 export function usePersonnel(projectId?: string) {
@@ -43,9 +50,9 @@ export function usePersonnel(projectId?: string) {
       // 按角色分组
       const grouped: Record<string, Personnel[]> = {
         system_admin: [],
-        project_manager: [],
-        data_collector: [],
-        expert: [],
+        city_admin: [],
+        district_admin: [],
+        school_reporter: [],
       };
 
       data.forEach(person => {
@@ -132,11 +139,11 @@ export function usePersonnel(projectId?: string) {
   const loadSampleImportData = useCallback(() => {
     // 这里实际应该是解析上传的文件
     const mockImportData: ImportRecord[] = [
-      { id: '1', status: 'confirmed', role: 'data_collector', name: '王明', organization: '铁西区教育局', phone: '13900001001', idCard: '210100********1001' },
-      { id: '2', status: 'name_conflict', role: 'data_collector', name: '李华', organization: '大东区教育局新址', phone: '13900009002', idCard: '210100********1002' },
-      { id: '3', status: 'new', role: 'project_manager', name: '陈新', organization: '沈阳市督导办', phone: '13900009001', idCard: '210100********9001' },
-      { id: '4', status: 'id_conflict', role: 'data_collector', name: '张丽丽', organization: '沈北新区教育局', phone: '13900001005', idCard: '210100********1005' },
-      { id: '5', status: 'confirmed', role: 'expert', name: '张教授', organization: '东北大学', phone: '13900002001', idCard: '210100********2001' },
+      { id: '1', status: 'confirmed', role: 'school_reporter', name: '王明', organization: '铁西区第一小学', phone: '13900001001', idCard: '210100********1001' },
+      { id: '2', status: 'name_conflict', role: 'school_reporter', name: '李华', organization: '大东区实验中学', phone: '13900009002', idCard: '210100********1002' },
+      { id: '3', status: 'new', role: 'district_admin', name: '陈新', organization: '铁西区教育局', phone: '13900009001', idCard: '210100********9001' },
+      { id: '4', status: 'id_conflict', role: 'school_reporter', name: '张丽丽', organization: '沈北新区第二中学', phone: '13900001005', idCard: '210100********1005' },
+      { id: '5', status: 'confirmed', role: 'city_admin', name: '张处长', organization: '沈阳市教育局', phone: '13900002001', idCard: '210100********2001' },
     ];
     setImportData(mockImportData);
   }, []);
@@ -158,7 +165,7 @@ export function usePersonnel(projectId?: string) {
         organization: record.organization,
         phone: record.phone,
         idCard: record.idCard,
-        role: (frontendToBackendRole[record.role] || record.role) as 'leader' | 'member' | 'expert' | 'observer',
+        role: (frontendToBackendRole[record.role] || record.role) as 'system_admin' | 'city_admin' | 'district_admin' | 'school_reporter',
       }));
 
       const result = await personnelService.importPersonnel(projectId, personnelToImport);

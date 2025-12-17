@@ -30,7 +30,8 @@ const Login: React.FC = () => {
 
   const getDefaultRouteByRole = (role?: string) => {
     if (role === 'admin' || role === 'project_manager') return '/home';
-    if (role === 'collector') return '/collector';
+    if (role === 'city_admin' || role === 'district_admin') return '/home';
+    if (role === 'collector' || role === 'school_reporter') return '/collector';
     if (role === 'expert') return '/expert';
     if (role === 'decision_maker') return '/reports';
     return '/home';

@@ -95,10 +95,10 @@ app.post('/api/login', loginRules, (req, res) => {
     const role = user.role || roles[0] || null;
     const roleNameMap = {
       admin: '系统管理员',
-      project_manager: '项目管理员',
-      collector: '数据采集员',
+      city_admin: '市级管理员',
+      district_admin: '区县管理员',
+      school_reporter: '学校填报员',
       expert: '评估专家',
-      decision_maker: '报告决策者',
     };
     res.json({
       code: 200,
@@ -106,6 +106,7 @@ app.post('/api/login', loginRules, (req, res) => {
         username,
         role,
         roles,
+        scopes: Array.isArray(user.scopes) ? user.scopes : [],
         roleName: (role && roleNameMap[role]) || user.roleName || '',
         token: 'token-' + Date.now() + '-' + (role || 'anonymous'),
       },

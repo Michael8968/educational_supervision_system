@@ -62,7 +62,14 @@ router.get('/projects/:projectId/tasks', async (req, res) => {
     const result = await db.query(sql, params);
     res.json({ code: 200, data: result.rows });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -99,7 +106,14 @@ router.get('/projects/:projectId/tasks/stats', async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -138,7 +152,14 @@ router.get('/tasks/:id', async (req, res) => {
 
     res.json({ code: 200, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -155,14 +176,36 @@ router.post('/projects/:projectId/tasks', async (req, res) => {
     const id = generateId();
     const timestamp = now();
 
-    await db.query(`
-      INSERT INTO tasks (id, project_id, tool_id, assignee_id, target_type, target_id, due_date, status, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $8)
-    `, [id, projectId, toolId, assigneeId, targetType || null, targetId || null, dueDate || null, timestamp]);
+    // 使用 Supabase Data API，避免 exec_sql 仅支持 SELECT 的限制
+    const { data, error } = await db
+      .from('tasks')
+      .insert({
+        id,
+        project_id: projectId,
+        tool_id: toolId,
+        assignee_id: assigneeId,
+        target_type: targetType || null,
+        target_id: targetId || null,
+        due_date: dueDate || null,
+        status: 'pending',
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select('id');
 
-    res.json({ code: 200, data: { id }, message: '任务创建成功' });
+    if (error) throw error;
+
+    const createdId = data?.[0]?.id || id;
+    res.json({ code: 200, data: { id: createdId }, message: '任务创建成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -177,29 +220,53 @@ router.post('/projects/:projectId/tasks/batch', async (req, res) => {
     }
 
     const timestamp = now();
-    let createdCount = 0;
 
-    // 为每个采集员创建任务
-    for (const assigneeId of assigneeIds) {
-      // 检查是否已存在相同的任务
-      const existing = await db.query(`
-        SELECT id FROM tasks
-        WHERE project_id = $1 AND tool_id = $2 AND assignee_id = $3
-      `, [projectId, toolId, assigneeId]);
+    // 使用 Supabase Data API：先批量查询已存在任务，再批量插入缺失任务
+    const { data: existing, error: existingError } = await db
+      .from('tasks')
+      .select('assignee_id')
+      .eq('project_id', projectId)
+      .eq('tool_id', toolId)
+      .in('assignee_id', assigneeIds);
+    if (existingError) throw existingError;
 
-      if (existing.rows.length === 0) {
-        const id = generateId();
-        await db.query(`
-          INSERT INTO tasks (id, project_id, tool_id, assignee_id, target_type, target_id, due_date, status, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $8)
-        `, [id, projectId, toolId, assigneeId, targetType || null, targetIds?.[0] || null, dueDate || null, timestamp]);
-        createdCount++;
-      }
+    const existingSet = new Set((existing || []).map(r => r.assignee_id));
+    const toCreate = assigneeIds
+      .filter(aid => !existingSet.has(aid))
+      .map((assigneeId) => ({
+        id: generateId(),
+        project_id: projectId,
+        tool_id: toolId,
+        assignee_id: assigneeId,
+        target_type: targetType || null,
+        target_id: targetIds?.[0] || null,
+        due_date: dueDate || null,
+        status: 'pending',
+        created_at: timestamp,
+        updated_at: timestamp,
+      }));
+
+    if (toCreate.length === 0) {
+      return res.json({ code: 200, data: { created: 0 }, message: '成功创建 0 个任务' });
     }
 
+    const { data: inserted, error: insertError } = await db
+      .from('tasks')
+      .insert(toCreate)
+      .select('id');
+    if (insertError) throw insertError;
+
+    const createdCount = inserted?.length || toCreate.length;
     res.json({ code: 200, data: { created: createdCount }, message: `成功创建 ${createdCount} 个任务` });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -209,43 +276,38 @@ router.put('/tasks/:id', async (req, res) => {
     const { id } = req.params;
     const { status, dueDate, assigneeId } = req.body;
 
-    const updates = [];
-    const params = [];
-    let paramIndex = 1;
-
-    if (status !== undefined) {
-      updates.push(`status = $${paramIndex++}`);
-      params.push(status);
-    }
-    if (dueDate !== undefined) {
-      updates.push(`due_date = $${paramIndex++}`);
-      params.push(dueDate);
-    }
-    if (assigneeId !== undefined) {
-      updates.push(`assignee_id = $${paramIndex++}`);
-      params.push(assigneeId);
-    }
-
-    if (updates.length === 0) {
+    // 使用 Supabase Data API，避免 exec_sql 仅支持 SELECT 的限制
+    if (status === undefined && dueDate === undefined && assigneeId === undefined) {
       return res.status(400).json({ code: 400, message: '没有要更新的字段' });
     }
 
-    updates.push(`updated_at = $${paramIndex++}`);
-    params.push(now());
-    params.push(id);
+    const updates = {
+      ...(status !== undefined ? { status } : {}),
+      ...(dueDate !== undefined ? { due_date: dueDate } : {}),
+      ...(assigneeId !== undefined ? { assignee_id: assigneeId } : {}),
+      updated_at: now(),
+    };
 
-    const result = await db.query(`
-      UPDATE tasks SET ${updates.join(', ')}
-      WHERE id = $${paramIndex}
-    `, params);
-
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('tasks')
+      .update(updates)
+      .eq('id', id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '任务不存在' });
     }
 
     res.json({ code: 200, message: '更新成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -254,15 +316,26 @@ router.delete('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await db.query('DELETE FROM tasks WHERE id = $1', [id]);
-
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '任务不存在' });
     }
 
     res.json({ code: 200, message: '删除成功' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -275,12 +348,24 @@ router.post('/tasks/batch-delete', async (req, res) => {
       return res.status(400).json({ code: 400, message: '任务ID列表不能为空' });
     }
 
-    const placeholders = taskIds.map((_, i) => `$${i + 1}`).join(', ');
-    const result = await db.query(`DELETE FROM tasks WHERE id IN (${placeholders})`, taskIds);
+    const { data, error } = await db
+      .from('tasks')
+      .delete()
+      .in('id', taskIds)
+      .select('id');
+    if (error) throw error;
 
-    res.json({ code: 200, data: { deleted: result.rowCount }, message: `成功删除 ${result.rowCount} 个任务` });
+    const deleted = data?.length || 0;
+    res.json({ code: 200, data: { deleted }, message: `成功删除 ${deleted} 个任务` });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -289,18 +374,27 @@ router.post('/tasks/:id/start', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await db.query(`
-      UPDATE tasks SET status = 'in_progress', updated_at = $1
-      WHERE id = $2 AND status = 'pending'
-    `, [now(), id]);
-
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('tasks')
+      .update({ status: 'in_progress', updated_at: now() })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '任务不存在或状态不允许开始' });
     }
 
     res.json({ code: 200, message: '任务已开始' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -311,18 +405,32 @@ router.post('/tasks/:id/complete', async (req, res) => {
     const { submissionId } = req.body;
 
     const timestamp = now();
-    const result = await db.query(`
-      UPDATE tasks SET status = 'completed', submission_id = $1, completed_at = $2, updated_at = $2
-      WHERE id = $3 AND status IN ('pending', 'in_progress')
-    `, [submissionId || null, timestamp, id]);
-
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('tasks')
+      .update({
+        status: 'completed',
+        submission_id: submissionId || null,
+        completed_at: timestamp,
+        updated_at: timestamp,
+      })
+      .eq('id', id)
+      .in('status', ['pending', 'in_progress'])
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(400).json({ code: 400, message: '任务不存在或状态不允许完成' });
     }
 
     res.json({ code: 200, message: '任务已完成' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 
@@ -331,18 +439,31 @@ router.post('/tasks/:id/reset', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await db.query(`
-      UPDATE tasks SET status = 'pending', submission_id = NULL, completed_at = NULL, updated_at = $1
-      WHERE id = $2
-    `, [now(), id]);
-
-    if (result.rowCount === 0) {
+    const { data, error } = await db
+      .from('tasks')
+      .update({
+        status: 'pending',
+        submission_id: null,
+        completed_at: null,
+        updated_at: now(),
+      })
+      .eq('id', id)
+      .select('id');
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ code: 404, message: '任务不存在' });
     }
 
     res.json({ code: 200, message: '任务已重置' });
   } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
+    const msg = String(error?.message || '');
+    if (msg.includes('relation "tasks" does not exist')) {
+      return res.status(500).json({
+        code: 500,
+        message: '数据库缺少 tasks 表：请在 Supabase SQL Editor 执行 backend/database/fix-missing-tasks-table.sql',
+      });
+    }
+    res.status(500).json({ code: 500, message: msg });
   }
 });
 

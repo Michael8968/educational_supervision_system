@@ -16,10 +16,10 @@ const statusTag = (status: SystemUser['status']) => {
 
 const roleTagColor: Record<UserRole, string> = {
   admin: 'red',
-  project_manager: 'blue',
-  collector: 'green',
-  expert: 'orange',
-  decision_maker: 'purple',
+  city_admin: 'purple',
+  district_admin: 'blue',
+  school_reporter: 'green',
+  expert: 'gold',
 };
 
 // 构建带分组的选项
@@ -381,7 +381,7 @@ const AccountManagement: React.FC = () => {
           form={createForm}
           layout="vertical"
           onFinish={onCreate}
-          initialValues={{ status: 'active', roles: ['project_manager'] }}
+          initialValues={{ status: 'active', roles: ['school_reporter'] }}
         >
           <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input placeholder="请输入用户名" />
