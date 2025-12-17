@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Tag, Modal, Form, Input, Select, message, Radio, Upload, Switch, Divider } from 'antd';
+import { Button, Tag, Modal, Form, Input, Select, message, Radio, Upload, Switch, Divider, Tooltip } from 'antd';
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -11,6 +11,7 @@ import {
   FormOutlined,
   ThunderboltOutlined,
   ImportOutlined,
+  FunctionOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import styles from './index.module.css';
@@ -88,6 +89,15 @@ const flattenFormFields = (fields: any[], parentPath: string = ''): FlattenedFie
   });
 
   return result;
+};
+
+// 解析公式中的要素编码（如 E001, E002 等）
+const parseFormulaElements = (formula: string): string[] => {
+  if (!formula) return [];
+  // 匹配要素编码格式：字母开头，后跟数字（如 E001, E002）
+  const matches = formula.match(/[A-Za-z]+\d+/g);
+  // 去重
+  return matches ? Array.from(new Set(matches)) : [];
 };
 
 const IndicatorEdit: React.FC = () => {
@@ -924,10 +934,67 @@ const IndicatorEdit: React.FC = () => {
                 <span className={styles.propertyValue}>{selectedElement.dataType}</span>
               </div>
               {selectedElement.formula && (
-                <div className={styles.propertyItem}>
-                  <label>计算公式</label>
-                  <div className={styles.formulaDisplay}>{selectedElement.formula}</div>
-                </div>
+                <>
+                  <div className={styles.propertyItem}>
+                    <label>计算公式</label>
+                    <div className={styles.formulaDisplay}>{selectedElement.formula}</div>
+                  </div>
+                  <div className={styles.propertyItem}>
+                    <label>引用要素</label>
+                    <div className={styles.formulaElementsDisplay}>
+                      {(() => {
+                        const codes = parseFormulaElements(selectedElement.formula || '');
+                        if (codes.length === 0) {
+                          return <span className={styles.noToolLink}>无引用要素</span>;
+                        }
+                        return codes.map((code) => {
+                          const refElement = library?.elements.find(el => el.code === code);
+                          if (refElement) {
+                            return (
+                              <Tooltip
+                                key={code}
+                                title={
+                                  <div>
+                                    <div><strong>{refElement.name}</strong></div>
+                                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                                      类型: {refElement.elementType} | 数据类型: {refElement.dataType}
+                                    </div>
+                                    {refElement.elementType === '基础要素' && refElement.fieldLabel && (
+                                      <div style={{ fontSize: 12, marginTop: 2 }}>
+                                        关联控件: {refElement.fieldLabel}
+                                      </div>
+                                    )}
+                                    {refElement.elementType === '派生要素' && refElement.formula && (
+                                      <div style={{ fontSize: 12, marginTop: 2 }}>
+                                        公式: {refElement.formula}
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              >
+                                <Tag
+                                  color="blue"
+                                  style={{ cursor: 'pointer', marginBottom: 4 }}
+                                  onClick={() => handleSelectElement(refElement)}
+                                >
+                                  <FunctionOutlined style={{ marginRight: 4 }} />
+                                  {code}: {refElement.name}
+                                </Tag>
+                              </Tooltip>
+                            );
+                          }
+                          return (
+                            <Tooltip key={code} title="未找到该要素，可能已被删除">
+                              <Tag color="warning" style={{ marginBottom: 4 }}>
+                                {code} (未找到)
+                              </Tag>
+                            </Tooltip>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </>
               )}
               <div className={styles.propertyItem}>
                 <label>关联采集工具</label>

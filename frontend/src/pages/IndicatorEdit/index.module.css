@@ -330,6 +330,13 @@
   font-family: 'SF Mono', Monaco, monospace;
 }
 
+.formulaElementsDisplay {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+}
+
 .toolLinkDisplay {
   display: flex;
   align-items: center;
