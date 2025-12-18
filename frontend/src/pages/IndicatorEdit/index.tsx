@@ -1017,6 +1017,9 @@ const IndicatorEdit: React.FC = () => {
                       <FormOutlined className={styles.fieldLinkIcon} />
                       <span className={styles.fieldLinkName}>
                         {normalizeOptionalText(selectedElement.fieldLabel) || normalizeOptionalId(selectedElement.fieldId)}
+                        <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>
+                          ({normalizeOptionalId(selectedElement.fieldId)})
+                        </span>
                       </span>
                     </div>
                   ) : (
@@ -1176,10 +1179,13 @@ const IndicatorEdit: React.FC = () => {
                     label="关联表单控件"
                     name="fieldId"
                   >
-                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="children">
+                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="label">
                       {addFormFields.map(field => (
-                        <Select.Option key={field.id} value={field.id}>
-                          {field.path}
+                        <Select.Option key={field.id} value={field.id} label={`${field.path} ${field.id}`}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{field.path}</span>
+                            <span style={{ color: '#999', fontSize: 12 }}>({field.id})</span>
+                          </div>
                         </Select.Option>
                       ))}
                     </Select>
@@ -1383,10 +1389,13 @@ const IndicatorEdit: React.FC = () => {
                     label="关联表单控件"
                     name="fieldId"
                   >
-                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="children">
+                    <Select placeholder="请选择表单控件" allowClear showSearch optionFilterProp="label">
                       {editFormFields.map(field => (
-                        <Select.Option key={field.id} value={field.id}>
-                          {field.path}
+                        <Select.Option key={field.id} value={field.id} label={`${field.path} ${field.id}`}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{field.path}</span>
+                            <span style={{ color: '#999', fontSize: 12 }}>({field.id})</span>
+                          </div>
                         </Select.Option>
                       ))}
                     </Select>

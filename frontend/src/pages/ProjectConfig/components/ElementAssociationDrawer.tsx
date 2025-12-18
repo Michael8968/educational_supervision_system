@@ -43,6 +43,7 @@ interface ElementAssociationDrawerProps {
   dataIndicator: DataIndicator | null;
   indicatorName?: string;
   onSaved?: () => void;
+  readonly?: boolean; // 只读模式，隐藏编辑操作
 }
 
 interface LocalAssociation {
@@ -66,6 +67,7 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
   dataIndicator,
   indicatorName,
   onSaved,
+  readonly = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -232,21 +234,26 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
       dataIndex: 'mappingType',
       key: 'mappingType',
       width: 120,
-      render: (type: string, record) => (
-        <Select
-          value={type}
-          size="small"
-          style={{ width: 100 }}
-          onChange={(value) => handleMappingTypeChange(record.elementId, value as 'primary' | 'reference')}
-        >
-          <Select.Option value="primary">
-            <Tag color="blue">主要关联</Tag>
-          </Select.Option>
-          <Select.Option value="reference">
-            <Tag color="orange">参考关联</Tag>
-          </Select.Option>
-        </Select>
-      ),
+      render: (type: string, record) =>
+        readonly ? (
+          <Tag color={type === 'primary' ? 'blue' : 'orange'}>
+            {type === 'primary' ? '主要关联' : '参考关联'}
+          </Tag>
+        ) : (
+          <Select
+            value={type}
+            size="small"
+            style={{ width: 100 }}
+            onChange={(value) => handleMappingTypeChange(record.elementId, value as 'primary' | 'reference')}
+          >
+            <Select.Option value="primary">
+              <Tag color="blue">主要关联</Tag>
+            </Select.Option>
+            <Select.Option value="reference">
+              <Tag color="orange">参考关联</Tag>
+            </Select.Option>
+          </Select>
+        ),
     },
     {
       title: '说明',
@@ -254,7 +261,9 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
       key: 'description',
       ellipsis: true,
       render: (desc: string, record) =>
-        editingKey === record.elementId ? (
+        readonly ? (
+          <span style={{ color: desc ? undefined : '#999' }}>{desc || '-'}</span>
+        ) : editingKey === record.elementId ? (
           <Input
             size="small"
             value={desc}
@@ -272,11 +281,12 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
           </div>
         ),
     },
-    {
+    // 只读模式下不显示操作列
+    ...(!readonly ? [{
       title: '操作',
       key: 'action',
       width: 80,
-      render: (_, record) => (
+      render: (_: any, record: LocalAssociation) => (
         <Popconfirm
           title="确定删除该关联吗？"
           onConfirm={() => handleDelete(record.elementId)}
@@ -286,7 +296,7 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
           <Button type="link" danger size="small" icon={<DeleteOutlined />} />
         </Popconfirm>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -295,7 +305,7 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
         title={
           <Space>
             <LinkOutlined />
-            <span>编辑要素关联</span>
+            <span>{readonly ? '查看要素关联' : '编辑要素关联'}</span>
           </Space>
         }
         placement="right"
@@ -303,17 +313,21 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
         open={visible}
         onClose={onClose}
         extra={
-          <Space>
-            <Button onClick={onClose}>取消</Button>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSave}
-              loading={saving}
-            >
-              保存
-            </Button>
-          </Space>
+          readonly ? (
+            <Button onClick={onClose}>关闭</Button>
+          ) : (
+            <Space>
+              <Button onClick={onClose}>取消</Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSave}
+                loading={saving}
+              >
+                保存
+              </Button>
+            </Space>
+          )
         }
       >
         {/* 数据指标信息 */}
@@ -348,14 +362,16 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
             <span style={{ fontWeight: 500 }}>
               关联的评估要素 ({associations.length})
             </span>
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={() => setElementSelectorVisible(true)}
-            >
-              添加要素
-            </Button>
+            {!readonly && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => setElementSelectorVisible(true)}
+              >
+                添加要素
+              </Button>
+            )}
           </Space>
         </div>
 
@@ -372,15 +388,17 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="暂无关联要素"
+              description={readonly ? '该数据指标暂未关联评估要素' : '暂无关联要素'}
             >
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setElementSelectorVisible(true)}
-              >
-                添加要素
-              </Button>
+              {!readonly && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setElementSelectorVisible(true)}
+                >
+                  添加要素
+                </Button>
+              )}
             </Empty>
           )}
         </Spin>

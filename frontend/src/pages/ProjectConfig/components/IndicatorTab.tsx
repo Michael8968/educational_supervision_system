@@ -360,41 +360,38 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
                       </li>
                     ))}
                   </ul>
+                  {disabled && <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 12 }}>点击查看详情</div>}
                 </div>
               )
-              : disabled ? '要素关联（只读）' : '点击关联评估要素'
+              : disabled ? '未关联要素（点击查看详情）' : '点击关联评估要素'
           }
         >
           <Tag
             color={hasElements ? 'success' : 'warning'}
             icon={hasElements ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
-            style={{ cursor: disabled ? 'default' : 'pointer' }}
+            style={{ cursor: 'pointer' }}
             onClick={(e) => {
               e.stopPropagation();
-              if (!disabled) {
-                handleEditElementAssociation(di, indicatorName);
-              }
+              handleEditElementAssociation(di, indicatorName);
             }}
           >
             <DatabaseOutlined style={{ marginRight: 4 }} />
             {hasElements ? `已关联 ${elementCount} 个要素` : '未关联要素'}
           </Tag>
         </Tooltip>
-        {/* 编辑按钮 - 仅在可编辑状态显示 */}
-        {!disabled && (
-          <Tooltip title="编辑要素关联">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEditElementAssociation(di, indicatorName);
-              }}
-              style={{ marginLeft: 4 }}
-            />
-          </Tooltip>
-        )}
+        {/* 编辑/查看按钮 */}
+        <Tooltip title={disabled ? '查看要素关联' : '编辑要素关联'}>
+          <Button
+            type="link"
+            size="small"
+            icon={disabled ? <EyeOutlined /> : <EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditElementAssociation(di, indicatorName);
+            }}
+            style={{ marginLeft: 4 }}
+          />
+        </Tooltip>
       </div>
     );
   };
@@ -734,6 +731,7 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         dataIndicator={selectedDataIndicator}
         indicatorName={selectedIndicatorName}
         onSaved={loadData}
+        readonly={disabled}
       />
 
       {/* 自动关联要素 - 选择要素库 */}
