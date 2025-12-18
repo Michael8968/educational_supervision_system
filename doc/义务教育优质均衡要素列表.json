@@ -2201,7 +2201,15 @@
       "description": "资源配置指标L1（每百名学生拥有高于规定学历教师数）的校际差异系数（小学）。需基于全区县所有小学的D003值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D040",
@@ -2215,7 +2223,15 @@
       "description": "资源配置指标L1（每百名学生拥有高于规定学历教师数）的校际差异系数（初中）。需基于全区县所有初中的D004值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D041",
@@ -2229,7 +2245,15 @@
       "description": "资源配置指标L2（每百名学生拥有县级及以上骨干教师数）的校际差异系数（小学）。需基于全区县所有小学的D030值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D042",
@@ -2243,7 +2267,15 @@
       "description": "资源配置指标L2（每百名学生拥有县级及以上骨干教师数）的校际差异系数（初中）。需基于全区县所有初中的D031值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D043",
@@ -2257,7 +2289,15 @@
       "description": "资源配置指标L3（每百名学生拥有体育、艺术专任教师数）的校际差异系数（小学）。需基于全区县所有小学的D032值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D044",
@@ -2271,7 +2311,15 @@
       "description": "资源配置指标L3（每百名学生拥有体育、艺术专任教师数）的校际差异系数（初中）。需基于全区县所有初中的D033值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D045",
@@ -2285,7 +2333,15 @@
       "description": "资源配置指标L4（生均教学及辅助用房面积）的校际差异系数（小学）。需基于全区县所有小学的D005值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D046",
@@ -2299,7 +2355,15 @@
       "description": "资源配置指标L4（生均教学及辅助用房面积）的校际差异系数（初中）。需基于全区县所有初中的D006值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D047",
@@ -2313,7 +2377,15 @@
       "description": "资源配置指标L5（生均体育运动场馆面积）的校际差异系数（小学）。需基于全区县所有小学的D007值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D048",
@@ -2327,7 +2399,15 @@
       "description": "资源配置指标L5（生均体育运动场馆面积）的校际差异系数（初中）。需基于全区县所有初中的D008值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D049",
@@ -2341,7 +2421,15 @@
       "description": "资源配置指标L6（生均教学仪器设备值）的校际差异系数（小学）。需基于全区县所有小学的D009值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D050",
@@ -2355,7 +2443,15 @@
       "description": "资源配置指标L6（生均教学仪器设备值）的校际差异系数（初中）。需基于全区县所有初中的D010值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D051",
@@ -2369,7 +2465,15 @@
       "description": "资源配置指标L7（每百名学生拥有网络多媒体教室数）的校际差异系数（小学）。需基于全区县所有小学的D028值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+        }
+      }
     },
     {
       "code": "D052",
@@ -2383,7 +2487,15 @@
       "description": "资源配置指标L7（每百名学生拥有网络多媒体教室数）的校际差异系数（初中）。需基于全区县所有初中的D029值计算变异系数。",
       "calculationLevel": "district",
       "calculationMethod": "变异系数 = 标准差 / 均值",
-      "category": "资源配置"
+      "category": "资源配置",
+      "aggregation": {
+        "enabled": true,
+        "method": "cv",
+        "scope": {
+          "level": "custom",
+          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+        }
+      }
     },
     {
       "code": "D053",

@@ -303,9 +303,9 @@ const IndicatorEdit: React.FC = () => {
         fieldLabel = field?.path;
       }
 
-      // 构建聚合配置
+      // 构建聚合配置（基础要素和派生要素都支持）
       let aggregation: AggregationConfig | undefined;
-      if (values.elementType === '基础要素' && addFormAggregationEnabled) {
+      if (addFormAggregationEnabled) {
         aggregation = {
           enabled: true,
           method: values.aggregationMethod || 'sum',
@@ -412,9 +412,9 @@ const IndicatorEdit: React.FC = () => {
         fieldLabel = field?.path;
       }
 
-      // 构建聚合配置
+      // 构建聚合配置（基础要素和派生要素都支持）
       let aggregation: AggregationConfig | undefined;
-      if (values.elementType === '基础要素' && editFormAggregationEnabled) {
+      if (editFormAggregationEnabled) {
         aggregation = {
           enabled: true,
           method: values.aggregationMethod || 'sum',
@@ -1302,25 +1302,29 @@ const IndicatorEdit: React.FC = () => {
                   )}
                 </div>
               )}
-              {selectedElement.elementType === '基础要素' && (
-                <div className={styles.propertyItem}>
-                  <label>多填报汇总</label>
-                  {selectedElement.aggregation?.enabled ? (
-                    <div>
-                      <Tag color="blue">
-                        {AGGREGATION_METHOD_LABELS[selectedElement.aggregation.method] || selectedElement.aggregation.method}
-                      </Tag>
-                      <span style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
-                        {selectedElement.aggregation.scope?.level === 'custom'
-                          ? `(${selectedElement.aggregation.scope.filter?.field} ${selectedElement.aggregation.scope.filter?.operator} ${selectedElement.aggregation.scope.filter?.value})`
-                          : '(全部样本)'}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className={styles.noToolLink}>未启用</span>
-                  )}
-                </div>
-              )}
+              {/* 多填报汇总 - 基础要素和派生要素都显示 */}
+              <div className={styles.propertyItem}>
+                <label>多填报汇总</label>
+                {selectedElement.aggregation?.enabled ? (
+                  <div>
+                    <Tag color="blue">
+                      {AGGREGATION_METHOD_LABELS[selectedElement.aggregation.method] || selectedElement.aggregation.method}
+                    </Tag>
+                    <span style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
+                      {selectedElement.aggregation.scope?.level === 'custom'
+                        ? `(${selectedElement.aggregation.scope.filter?.field} ${selectedElement.aggregation.scope.filter?.operator} ${selectedElement.aggregation.scope.filter?.value})`
+                        : '(全部样本)'}
+                    </span>
+                    {selectedElement.elementType === '派生要素' && (
+                      <div style={{ color: '#999', fontSize: 11, marginTop: 4 }}>
+                        先计算各样本的派生值，再汇总
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className={styles.noToolLink}>未启用</span>
+                )}
+              </div>
 
               <div className={styles.propertiesActions}>
                 <Button
@@ -1468,84 +1472,86 @@ const IndicatorEdit: React.FC = () => {
                   <div className={styles.formHint}>选择工具表单中要关联的具体控件</div>
                 </>
               )}
+            </>
+          )}
 
-              {/* 多填报汇总配置 */}
-              <Divider style={{ margin: '16px 0 12px' }}>多填报汇总配置</Divider>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ marginRight: 8 }}>启用多填报汇总：</span>
-                <Switch
-                  checked={addFormAggregationEnabled}
-                  onChange={setAddFormAggregationEnabled}
-                />
-                <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
-                  同一表单被多个学校填报后，自动汇总计算
-                </span>
+          {/* 多填报汇总配置 - 基础要素和派生要素都支持 */}
+          <Divider style={{ margin: '16px 0 12px' }}>多填报汇总配置</Divider>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ marginRight: 8 }}>启用多填报汇总：</span>
+            <Switch
+              checked={addFormAggregationEnabled}
+              onChange={setAddFormAggregationEnabled}
+            />
+            <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+              {addFormElementType === '基础要素'
+                ? '同一表单被多个学校填报后，自动汇总计算'
+                : '先计算各学校的派生值，再汇总计算（如差异系数）'}
+            </span>
+          </div>
+
+          {addFormAggregationEnabled && (
+            <>
+              <Form.Item
+                label="汇总方式"
+                name="aggregationMethod"
+                initialValue="sum"
+                rules={[{ required: true, message: '请选择汇总方式' }]}
+              >
+                <Select placeholder="请选择汇总方式">
+                  {Object.entries(AGGREGATION_METHOD_LABELS).map(([value, label]) => (
+                    <Select.Option key={value} value={value}>
+                      {label}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ marginRight: 8 }}>汇总范围：</span>
+                <Radio.Group
+                  value={addFormAggregationScopeLevel}
+                  onChange={(e) => setAddFormAggregationScopeLevel(e.target.value)}
+                >
+                  <Radio value="all">全部样本</Radio>
+                  <Radio value="custom">按条件筛选</Radio>
+                </Radio.Group>
               </div>
 
-              {addFormAggregationEnabled && (
-                <>
-                  <Form.Item
-                    label="汇总方式"
-                    name="aggregationMethod"
-                    initialValue="sum"
-                    rules={[{ required: true, message: '请选择汇总方式' }]}
-                  >
-                    <Select placeholder="请选择汇总方式">
-                      {Object.entries(AGGREGATION_METHOD_LABELS).map(([value, label]) => (
-                        <Select.Option key={value} value={value}>
-                          {label}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ marginRight: 8 }}>汇总范围：</span>
-                    <Radio.Group
-                      value={addFormAggregationScopeLevel}
-                      onChange={(e) => setAddFormAggregationScopeLevel(e.target.value)}
+              {addFormAggregationScopeLevel === 'custom' && (
+                <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Form.Item
+                      name="filterField"
+                      style={{ marginBottom: 0, flex: 1 }}
                     >
-                      <Radio value="all">全部样本</Radio>
-                      <Radio value="custom">按条件筛选</Radio>
-                    </Radio.Group>
+                      <Input placeholder="筛选字段（如：school_type）" />
+                    </Form.Item>
+                    <Form.Item
+                      name="filterOperator"
+                      initialValue="eq"
+                      style={{ marginBottom: 0, width: 100 }}
+                    >
+                      <Select>
+                        <Select.Option value="eq">等于</Select.Option>
+                        <Select.Option value="ne">不等于</Select.Option>
+                        <Select.Option value="gt">大于</Select.Option>
+                        <Select.Option value="lt">小于</Select.Option>
+                        <Select.Option value="gte">大于等于</Select.Option>
+                        <Select.Option value="lte">小于等于</Select.Option>
+                      </Select>
+                    </Form.Item>
+                    <Form.Item
+                      name="filterValue"
+                      style={{ marginBottom: 0, flex: 1 }}
+                    >
+                      <Input placeholder="筛选值（如：小学）" />
+                    </Form.Item>
                   </div>
-
-                  {addFormAggregationScopeLevel === 'custom' && (
-                    <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <Form.Item
-                          name="filterField"
-                          style={{ marginBottom: 0, flex: 1 }}
-                        >
-                          <Input placeholder="筛选字段（如：school_type）" />
-                        </Form.Item>
-                        <Form.Item
-                          name="filterOperator"
-                          initialValue="eq"
-                          style={{ marginBottom: 0, width: 100 }}
-                        >
-                          <Select>
-                            <Select.Option value="eq">等于</Select.Option>
-                            <Select.Option value="ne">不等于</Select.Option>
-                            <Select.Option value="gt">大于</Select.Option>
-                            <Select.Option value="lt">小于</Select.Option>
-                            <Select.Option value="gte">大于等于</Select.Option>
-                            <Select.Option value="lte">小于等于</Select.Option>
-                          </Select>
-                        </Form.Item>
-                        <Form.Item
-                          name="filterValue"
-                          style={{ marginBottom: 0, flex: 1 }}
-                        >
-                          <Input placeholder="筛选值（如：小学）" />
-                        </Form.Item>
-                      </div>
-                      <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
-                        只汇总满足条件的填报数据
-                      </div>
-                    </div>
-                  )}
-                </>
+                  <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+                    只汇总满足条件的填报数据
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -1678,82 +1684,84 @@ const IndicatorEdit: React.FC = () => {
                   <div className={styles.formHint}>选择工具表单中要关联的具体控件</div>
                 </>
               )}
+            </>
+          )}
 
-              {/* 多填报汇总配置 */}
-              <Divider style={{ margin: '16px 0 12px' }}>多填报汇总配置</Divider>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ marginRight: 8 }}>启用多填报汇总：</span>
-                <Switch
-                  checked={editFormAggregationEnabled}
-                  onChange={setEditFormAggregationEnabled}
-                />
-                <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
-                  同一表单被多个学校填报后，自动汇总计算
-                </span>
+          {/* 多填报汇总配置 - 基础要素和派生要素都支持 */}
+          <Divider style={{ margin: '16px 0 12px' }}>多填报汇总配置</Divider>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ marginRight: 8 }}>启用多填报汇总：</span>
+            <Switch
+              checked={editFormAggregationEnabled}
+              onChange={setEditFormAggregationEnabled}
+            />
+            <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+              {editFormElementType === '基础要素'
+                ? '同一表单被多个学校填报后，自动汇总计算'
+                : '先计算各学校的派生值，再汇总计算（如差异系数）'}
+            </span>
+          </div>
+
+          {editFormAggregationEnabled && (
+            <>
+              <Form.Item
+                label="汇总方式"
+                name="aggregationMethod"
+                rules={[{ required: true, message: '请选择汇总方式' }]}
+              >
+                <Select placeholder="请选择汇总方式">
+                  {Object.entries(AGGREGATION_METHOD_LABELS).map(([value, label]) => (
+                    <Select.Option key={value} value={value}>
+                      {label}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ marginRight: 8 }}>汇总范围：</span>
+                <Radio.Group
+                  value={editFormAggregationScopeLevel}
+                  onChange={(e) => setEditFormAggregationScopeLevel(e.target.value)}
+                >
+                  <Radio value="all">全部样本</Radio>
+                  <Radio value="custom">按条件筛选</Radio>
+                </Radio.Group>
               </div>
 
-              {editFormAggregationEnabled && (
-                <>
-                  <Form.Item
-                    label="汇总方式"
-                    name="aggregationMethod"
-                    rules={[{ required: true, message: '请选择汇总方式' }]}
-                  >
-                    <Select placeholder="请选择汇总方式">
-                      {Object.entries(AGGREGATION_METHOD_LABELS).map(([value, label]) => (
-                        <Select.Option key={value} value={value}>
-                          {label}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ marginRight: 8 }}>汇总范围：</span>
-                    <Radio.Group
-                      value={editFormAggregationScopeLevel}
-                      onChange={(e) => setEditFormAggregationScopeLevel(e.target.value)}
+              {editFormAggregationScopeLevel === 'custom' && (
+                <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Form.Item
+                      name="filterField"
+                      style={{ marginBottom: 0, flex: 1 }}
                     >
-                      <Radio value="all">全部样本</Radio>
-                      <Radio value="custom">按条件筛选</Radio>
-                    </Radio.Group>
+                      <Input placeholder="筛选字段（如：school_type）" />
+                    </Form.Item>
+                    <Form.Item
+                      name="filterOperator"
+                      style={{ marginBottom: 0, width: 100 }}
+                    >
+                      <Select>
+                        <Select.Option value="eq">等于</Select.Option>
+                        <Select.Option value="ne">不等于</Select.Option>
+                        <Select.Option value="gt">大于</Select.Option>
+                        <Select.Option value="lt">小于</Select.Option>
+                        <Select.Option value="gte">大于等于</Select.Option>
+                        <Select.Option value="lte">小于等于</Select.Option>
+                      </Select>
+                    </Form.Item>
+                    <Form.Item
+                      name="filterValue"
+                      style={{ marginBottom: 0, flex: 1 }}
+                    >
+                      <Input placeholder="筛选值（如：小学）" />
+                    </Form.Item>
                   </div>
-
-                  {editFormAggregationScopeLevel === 'custom' && (
-                    <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <Form.Item
-                          name="filterField"
-                          style={{ marginBottom: 0, flex: 1 }}
-                        >
-                          <Input placeholder="筛选字段（如：school_type）" />
-                        </Form.Item>
-                        <Form.Item
-                          name="filterOperator"
-                          style={{ marginBottom: 0, width: 100 }}
-                        >
-                          <Select>
-                            <Select.Option value="eq">等于</Select.Option>
-                            <Select.Option value="ne">不等于</Select.Option>
-                            <Select.Option value="gt">大于</Select.Option>
-                            <Select.Option value="lt">小于</Select.Option>
-                            <Select.Option value="gte">大于等于</Select.Option>
-                            <Select.Option value="lte">小于等于</Select.Option>
-                          </Select>
-                        </Form.Item>
-                        <Form.Item
-                          name="filterValue"
-                          style={{ marginBottom: 0, flex: 1 }}
-                        >
-                          <Input placeholder="筛选值（如：小学）" />
-                        </Form.Item>
-                      </div>
-                      <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
-                        只汇总满足条件的填报数据
-                      </div>
-                    </div>
-                  )}
-                </>
+                  <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+                    只汇总满足条件的填报数据
+                  </div>
+                </div>
               )}
             </>
           )}

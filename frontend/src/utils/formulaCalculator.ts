@@ -608,6 +608,231 @@ export function calculateBatchAggregation(
 }
 
 /**
+ * 要素定义接口（用于派生要素聚合计算）
+ */
+export interface ElementDefinition {
+  code: string;
+  name: string;
+  elementType: '基础要素' | '派生要素';
+  dataType?: string;
+  formula?: string;                    // 派生要素的计算公式
+  fieldId?: string;                    // 基础要素关联的字段ID
+  toolId?: string;                     // 基础要素关联的工具ID
+  aggregation?: {
+    enabled: boolean;
+    method: AggregationMethod;
+    scope?: AggregationScope;
+  };
+}
+
+/**
+ * 计算单个样本的派生要素值
+ * 递归计算：如果派生要素依赖其他派生要素，会先计算依赖的要素
+ * @param elementCode 要计算的要素编码
+ * @param elements 所有要素定义
+ * @param sampleData 单个样本的填报数据
+ * @param calculatedCache 已计算的要素值缓存（避免重复计算）
+ * @returns 计算结果，null 表示无法计算
+ */
+export function calculateDerivedValueForSample(
+  elementCode: string,
+  elements: ElementDefinition[],
+  sampleData: Record<string, any>,
+  calculatedCache: Map<string, number> = new Map()
+): number | null {
+  // 如果已经计算过，直接返回缓存
+  if (calculatedCache.has(elementCode)) {
+    return calculatedCache.get(elementCode) ?? null;
+  }
+
+  const element = elements.find(e => e.code === elementCode);
+  if (!element) {
+    console.warn(`[派生计算] 未找到要素: ${elementCode}`);
+    return null;
+  }
+
+  // 基础要素：直接从填报数据中获取
+  if (element.elementType === '基础要素') {
+    if (!element.fieldId) {
+      console.warn(`[派生计算] 基础要素 ${elementCode} 没有关联字段`);
+      return null;
+    }
+    const value = sampleData[element.fieldId];
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    const numValue = Number(value);
+    if (isNaN(numValue)) {
+      return null;
+    }
+    calculatedCache.set(elementCode, numValue);
+    return numValue;
+  }
+
+  // 派生要素：通过公式计算
+  if (element.elementType === '派生要素') {
+    if (!element.formula) {
+      console.warn(`[派生计算] 派生要素 ${elementCode} 没有公式`);
+      return null;
+    }
+
+    // 解析公式中引用的要素
+    const referencedCodes = parseVariables(element.formula);
+    const values: Record<string, number> = {};
+
+    // 递归计算每个引用的要素
+    for (const refCode of referencedCodes) {
+      const refValue = calculateDerivedValueForSample(refCode, elements, sampleData, calculatedCache);
+      if (refValue === null) {
+        // 如果任何依赖的要素无法计算，则整个派生要素无法计算
+        return null;
+      }
+      values[refCode] = refValue;
+    }
+
+    // 计算公式
+    try {
+      const result = calculate(element.formula, values);
+      calculatedCache.set(elementCode, result);
+      return result;
+    } catch (error) {
+      console.warn(`[派生计算] 计算公式失败: ${element.formula}`, error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 计算派生要素的聚合值（多样本聚合）
+ *
+ * 计算流程：
+ * 1. 对每个填报样本，计算派生公式得到该样本的派生值
+ * 2. 收集所有样本的派生值
+ * 3. 对派生值列表执行聚合计算（如差异系数 CV）
+ *
+ * @param derivedElement 派生要素定义（必须有公式和聚合配置）
+ * @param allElements 所有要素定义（用于递归计算依赖）
+ * @param submissions 所有填报数据
+ * @returns 聚合计算结果
+ */
+export function calculateDerivedElementAggregation(
+  derivedElement: ElementDefinition,
+  allElements: ElementDefinition[],
+  submissions: SubmissionData[]
+): AggregationResult {
+  const { code, name, formula, aggregation } = derivedElement;
+
+  // 验证参数
+  if (derivedElement.elementType !== '派生要素') {
+    throw new Error(`要素 ${code} 不是派生要素`);
+  }
+  if (!formula) {
+    throw new Error(`派生要素 ${code} 没有计算公式`);
+  }
+  if (!aggregation?.enabled) {
+    throw new Error(`派生要素 ${code} 没有启用聚合`);
+  }
+
+  // 1. 应用聚合范围过滤
+  const filteredSubmissions = applyAggregationScope(submissions, aggregation.scope);
+
+  // 2. 为每个样本计算派生值
+  const derivedValues: number[] = [];
+  const sampleDetails: Array<{ sampleId: string; sampleName?: string; value: number }> = [];
+
+  for (const submission of filteredSubmissions) {
+    const calculatedCache = new Map<string, number>();
+    const value = calculateDerivedValueForSample(code, allElements, submission.data, calculatedCache);
+
+    if (value !== null && !isNaN(value) && isFinite(value)) {
+      derivedValues.push(value);
+      sampleDetails.push({
+        sampleId: submission.sampleId,
+        sampleName: submission.sampleName,
+        value,
+      });
+    }
+  }
+
+  // 3. 执行聚合计算
+  const aggregatedValue = aggregate(derivedValues, aggregation.method);
+
+  // 4. 生成范围描述
+  let scopeDesc = '全部样本';
+  if (aggregation.scope && aggregation.scope.level !== 'all' && aggregation.scope.filter) {
+    scopeDesc = `${aggregation.scope.filter.field} ${aggregation.scope.filter.operator} ${aggregation.scope.filter.value}`;
+  }
+
+  return {
+    elementCode: code,
+    elementName: name,
+    value: aggregatedValue,
+    method: aggregation.method,
+    details: {
+      sampleCount: derivedValues.length,
+      rawValues: derivedValues,
+      scope: scopeDesc,
+    },
+  };
+}
+
+/**
+ * 批量计算要素聚合值（支持基础要素和派生要素）
+ * @param elements 要素列表（需包含聚合配置）
+ * @param submissions 所有填报数据
+ * @returns 要素编码到聚合结果的映射
+ */
+export function calculateAllElementsAggregation(
+  elements: ElementDefinition[],
+  submissions: SubmissionData[]
+): Map<string, AggregationResult> {
+  const results = new Map<string, AggregationResult>();
+
+  for (const element of elements) {
+    // 只处理启用了聚合的要素
+    if (!element.aggregation?.enabled) {
+      continue;
+    }
+
+    try {
+      if (element.elementType === '基础要素') {
+        // 基础要素聚合
+        if (!element.fieldId || !element.toolId) {
+          continue;
+        }
+        const result = calculateElementAggregation(
+          element.code,
+          element.name,
+          element.fieldId,
+          element.toolId,
+          element.aggregation.method,
+          submissions,
+          element.aggregation.scope
+        );
+        results.set(element.code, result);
+      } else if (element.elementType === '派生要素') {
+        // 派生要素聚合
+        if (!element.formula) {
+          continue;
+        }
+        const result = calculateDerivedElementAggregation(
+          element,
+          elements,
+          submissions
+        );
+        results.set(element.code, result);
+      }
+    } catch (error) {
+      console.error(`[聚合计算] 要素 ${element.code} 计算失败:`, error);
+    }
+  }
+
+  return results;
+}
+
+/**
  * 公式计算器类
  */
 export class FormulaCalculator {
@@ -642,14 +867,29 @@ export class FormulaCalculator {
   aggregate = aggregate;
 
   /**
-   * 计算要素聚合值
+   * 计算要素聚合值（基础要素）
    */
   calculateElementAggregation = calculateElementAggregation;
 
   /**
-   * 批量计算要素聚合值
+   * 批量计算要素聚合值（基础要素）
    */
   calculateBatchAggregation = calculateBatchAggregation;
+
+  /**
+   * 计算单个样本的派生要素值
+   */
+  calculateDerivedValueForSample = calculateDerivedValueForSample;
+
+  /**
+   * 计算派生要素的聚合值
+   */
+  calculateDerivedElementAggregation = calculateDerivedElementAggregation;
+
+  /**
+   * 批量计算所有要素聚合值（支持基础要素和派生要素）
+   */
+  calculateAllElementsAggregation = calculateAllElementsAggregation;
 }
 
 export default FormulaCalculator;

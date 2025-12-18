@@ -533,6 +533,317 @@ function generateDistrictReport(db, projectId, districtId) {
   };
 }
 
+/**
+ * 解析公式中的变量（要素编码）
+ * @param {string} formula - 公式字符串
+ * @returns {string[]} 变量列表
+ */
+function parseFormulaVariables(formula) {
+  if (!formula) return [];
+
+  const variables = new Set();
+
+  // 匹配字母开头的标识符（如 E001, E002）
+  const identifierPattern = /\b([A-Za-z][A-Za-z0-9_]*)\b/g;
+  let match;
+  while ((match = identifierPattern.exec(formula)) !== null) {
+    // 排除数学关键字
+    const identifier = match[1];
+    if (!['Math', 'PI', 'E'].includes(identifier)) {
+      variables.add(identifier);
+    }
+  }
+
+  return Array.from(variables);
+}
+
+/**
+ * 安全计算数学表达式
+ * @param {string} expression - 表达式字符串
+ * @returns {number} 计算结果
+ */
+function safeEvaluate(expression) {
+  // 移除空格
+  expression = expression.replace(/\s+/g, '');
+
+  // 验证表达式只包含数字、运算符和括号
+  if (!/^[\d+\-*/%().]+$/.test(expression)) {
+    throw new Error('表达式包含非法字符');
+  }
+
+  try {
+    const fn = new Function(`return (${expression})`);
+    const result = fn();
+
+    if (typeof result !== 'number' || !isFinite(result)) {
+      throw new Error('计算结果无效');
+    }
+
+    return result;
+  } catch (error) {
+    throw new Error(`表达式计算错误: ${error.message}`);
+  }
+}
+
+/**
+ * 计算公式结果
+ * @param {string} formula - 公式字符串
+ * @param {Object} values - 变量值映射
+ * @returns {number} 计算结果
+ */
+function calculateFormula(formula, values) {
+  if (!formula) {
+    throw new Error('公式不能为空');
+  }
+
+  // 替换变量（从长到短排序，避免部分替换）
+  let expression = formula;
+  const varNames = Object.keys(values).sort((a, b) => b.length - a.length);
+  for (const varName of varNames) {
+    const regex = new RegExp(`\\b${varName}\\b`, 'g');
+    expression = expression.replace(regex, String(values[varName]));
+  }
+
+  return safeEvaluate(expression);
+}
+
+/**
+ * 计算单个样本的派生要素值
+ * @param {string} elementCode - 要素编码
+ * @param {Array} elements - 所有要素定义
+ * @param {Object} sampleData - 单个样本的填报数据
+ * @param {Map} calculatedCache - 已计算的要素值缓存
+ * @returns {number|null} 计算结果
+ */
+function calculateDerivedValueForSample(elementCode, elements, sampleData, calculatedCache = new Map()) {
+  // 如果已经计算过，直接返回缓存
+  if (calculatedCache.has(elementCode)) {
+    return calculatedCache.get(elementCode);
+  }
+
+  const element = elements.find(e => e.code === elementCode);
+  if (!element) {
+    console.warn(`[派生计算] 未找到要素: ${elementCode}`);
+    return null;
+  }
+
+  // 基础要素：直接从填报数据中获取
+  if (element.element_type === '基础要素' || element.elementType === '基础要素') {
+    const fieldId = element.field_id || element.fieldId;
+    if (!fieldId) {
+      console.warn(`[派生计算] 基础要素 ${elementCode} 没有关联字段`);
+      return null;
+    }
+    const value = sampleData[fieldId];
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    const numValue = Number(value);
+    if (isNaN(numValue)) {
+      return null;
+    }
+    calculatedCache.set(elementCode, numValue);
+    return numValue;
+  }
+
+  // 派生要素：通过公式计算
+  if (element.element_type === '派生要素' || element.elementType === '派生要素') {
+    if (!element.formula) {
+      console.warn(`[派生计算] 派生要素 ${elementCode} 没有公式`);
+      return null;
+    }
+
+    // 解析公式中引用的要素
+    const referencedCodes = parseFormulaVariables(element.formula);
+    const values = {};
+
+    // 递归计算每个引用的要素
+    for (const refCode of referencedCodes) {
+      const refValue = calculateDerivedValueForSample(refCode, elements, sampleData, calculatedCache);
+      if (refValue === null) {
+        return null;
+      }
+      values[refCode] = refValue;
+    }
+
+    // 计算公式
+    try {
+      const result = calculateFormula(element.formula, values);
+      calculatedCache.set(elementCode, result);
+      return result;
+    } catch (error) {
+      console.warn(`[派生计算] 计算公式失败: ${element.formula}`, error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 计算派生要素的聚合值（多样本聚合）
+ *
+ * 计算流程：
+ * 1. 对每个填报样本，计算派生公式得到该样本的派生值
+ * 2. 收集所有样本的派生值
+ * 3. 对派生值列表执行聚合计算（如差异系数 CV）
+ *
+ * @param {Object} db - 数据库实例
+ * @param {Object} derivedElement - 派生要素定义
+ * @param {Array} allElements - 所有要素定义
+ * @param {Array} submissions - 所有填报数据
+ * @param {Object} options - 选项
+ * @returns {Object} 聚合计算结果
+ */
+function calculateDerivedElementAggregation(db, derivedElement, allElements, submissions, options = {}) {
+  const { code, name, formula, aggregation } = derivedElement;
+  const elementType = derivedElement.element_type || derivedElement.elementType;
+
+  // 验证参数
+  if (elementType !== '派生要素') {
+    throw new Error(`要素 ${code} 不是派生要素`);
+  }
+  if (!formula) {
+    throw new Error(`派生要素 ${code} 没有计算公式`);
+  }
+
+  const aggConfig = typeof aggregation === 'string' ? JSON.parse(aggregation) : aggregation;
+  if (!aggConfig?.enabled) {
+    throw new Error(`派生要素 ${code} 没有启用聚合`);
+  }
+
+  // 1. 应用聚合范围过滤
+  let filteredSubmissions = submissions;
+  if (aggConfig.scope && aggConfig.scope.level === 'custom' && aggConfig.scope.filter) {
+    const { field, operator, value } = aggConfig.scope.filter;
+    filteredSubmissions = submissions.filter(s => {
+      const fieldValue = s.data?.[field] ?? s[field];
+      if (fieldValue === undefined || fieldValue === null) return false;
+
+      switch (operator) {
+        case 'eq': return fieldValue === value;
+        case 'ne': return fieldValue !== value;
+        case 'gt': return Number(fieldValue) > Number(value);
+        case 'lt': return Number(fieldValue) < Number(value);
+        case 'gte': return Number(fieldValue) >= Number(value);
+        case 'lte': return Number(fieldValue) <= Number(value);
+        default: return true;
+      }
+    });
+  }
+
+  // 2. 为每个样本计算派生值
+  const derivedValues = [];
+  const sampleDetails = [];
+
+  for (const submission of filteredSubmissions) {
+    const sampleData = submission.data || submission;
+    const calculatedCache = new Map();
+    const value = calculateDerivedValueForSample(code, allElements, sampleData, calculatedCache);
+
+    if (value !== null && !isNaN(value) && isFinite(value)) {
+      derivedValues.push(value);
+      sampleDetails.push({
+        sampleId: submission.school_id || submission.sampleId,
+        sampleName: submission.school_name || submission.sampleName,
+        value,
+      });
+    }
+  }
+
+  // 3. 执行聚合计算
+  const aggregatedValue = executeAggregateFunction(aggConfig.method.toUpperCase(), derivedValues);
+
+  // 4. 生成范围描述
+  let scopeDesc = '全部样本';
+  if (aggConfig.scope && aggConfig.scope.level !== 'all' && aggConfig.scope.filter) {
+    scopeDesc = `${aggConfig.scope.filter.field} ${aggConfig.scope.filter.operator} ${aggConfig.scope.filter.value}`;
+  }
+
+  return {
+    elementCode: code,
+    elementName: name,
+    value: aggConfig.method === 'cv' && aggregatedValue?.cv !== undefined ? aggregatedValue.cv : aggregatedValue,
+    method: aggConfig.method,
+    details: {
+      sampleCount: derivedValues.length,
+      rawValues: derivedValues,
+      scope: scopeDesc,
+      samples: sampleDetails,
+    },
+  };
+}
+
+/**
+ * 批量计算要素聚合值（支持基础要素和派生要素）
+ * @param {Object} db - 数据库实例
+ * @param {Array} elements - 要素列表
+ * @param {Array} submissions - 所有填报数据
+ * @param {Object} options - 选项
+ * @returns {Map} 要素编码到聚合结果的映射
+ */
+function calculateAllElementsAggregation(db, elements, submissions, options = {}) {
+  const results = new Map();
+
+  for (const element of elements) {
+    const aggConfig = typeof element.aggregation === 'string'
+      ? JSON.parse(element.aggregation)
+      : element.aggregation;
+
+    // 只处理启用了聚合的要素
+    if (!aggConfig?.enabled) {
+      continue;
+    }
+
+    const elementType = element.element_type || element.elementType;
+
+    try {
+      if (elementType === '基础要素') {
+        // 基础要素聚合
+        const fieldId = element.field_id || element.fieldId;
+        const toolId = element.tool_id || element.toolId;
+        if (!fieldId || !toolId) {
+          continue;
+        }
+
+        // 筛选该工具的填报数据
+        const relevantSubmissions = submissions.filter(s => s.tool_id === toolId || s.toolId === toolId);
+        const values = relevantSubmissions
+          .map(s => {
+            const data = s.data || s;
+            const v = data[fieldId];
+            return v !== undefined && v !== null && v !== '' ? Number(v) : NaN;
+          })
+          .filter(v => !isNaN(v));
+
+        const aggregatedValue = executeAggregateFunction(aggConfig.method.toUpperCase(), values);
+
+        results.set(element.code, {
+          elementCode: element.code,
+          elementName: element.name,
+          value: aggConfig.method === 'cv' && aggregatedValue?.cv !== undefined ? aggregatedValue.cv : aggregatedValue,
+          method: aggConfig.method,
+          details: {
+            sampleCount: values.length,
+            rawValues: values,
+          },
+        });
+      } else if (elementType === '派生要素') {
+        // 派生要素聚合
+        if (!element.formula) {
+          continue;
+        }
+        const result = calculateDerivedElementAggregation(db, element, elements, submissions, options);
+        results.set(element.code, result);
+      }
+    } catch (error) {
+      console.error(`[聚合计算] 要素 ${element.code} 计算失败:`, error);
+    }
+  }
+
+  return results;
+}
+
 module.exports = {
   AGGREGATE_FUNCTIONS,
   sum,
@@ -548,5 +859,11 @@ module.exports = {
   calculateDistrictCV,
   calculateCompositeCV,
   executeAggregationRule,
-  generateDistrictReport
+  generateDistrictReport,
+  // 新增：派生要素聚合支持
+  parseFormulaVariables,
+  calculateFormula,
+  calculateDerivedValueForSample,
+  calculateDerivedElementAggregation,
+  calculateAllElementsAggregation,
 };
