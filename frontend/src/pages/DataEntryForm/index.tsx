@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
@@ -64,6 +64,32 @@ interface ShowWhenCondition {
   condition?: 'filled' | 'empty';
 }
 
+// 拆分配置类型
+interface SplitConfig {
+  id: string;
+  type: 'config';
+  label: string;
+  description?: string;
+  splitRules: {
+    [key: string]: {
+      label: string;
+      description: string;
+      weights: {
+        primary?: number;
+        junior?: number;
+        senior?: number;
+      };
+      formula?: string;
+    };
+  };
+  splitFields: string[];
+  studentCountFields: {
+    primary?: string;
+    junior?: string;
+    senior?: string;
+  };
+}
+
 // 扩展 FormField 类型以包含更多属性
 interface ExtendedFormField extends FormField {
   minValue?: string;
@@ -78,6 +104,19 @@ interface ExtendedFormField extends FormField {
     targetId: string;
     targetInfo?: MappingTargetInfo;
   } | null;
+  // 拆分相关属性
+  autoSplit?: {
+    enabled: boolean;
+    targetFields: {
+      primary?: string;
+      junior?: string;
+      senior?: string;
+    };
+    description?: string;
+  };
+  computed?: boolean;
+  readonly?: boolean;
+  sourceField?: string;
 }
 
 // 校验警告类型
@@ -173,6 +212,10 @@ const DataEntryForm: React.FC = () => {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [currentFormValues, setCurrentFormValues] = useState<Record<string, any>>({});
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
+  const [splitConfig, setSplitConfig] = useState<SplitConfig | null>(null);
+  
+  // 防抖定时器引用
+  const computeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 导入示例数据相关状态
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -221,7 +264,18 @@ const DataEntryForm: React.FC = () => {
       try {
         // 获取完整的工具信息和schema（含字段映射）
         const fullSchemaData = await toolService.getFullSchema(formId);
-        const schemaFields = (fullSchemaData?.schema as ExtendedFormField[] | undefined) || [];
+        const rawSchema = (fullSchemaData?.schema as any[] | undefined) || [];
+        
+        // 分离 config 和字段
+        const configItem = rawSchema.find((item: any) => item.type === 'config' && item.id === '_split_config');
+        const schemaFields = rawSchema.filter((item: any) => item.type !== 'config') as ExtendedFormField[];
+        
+        // 设置拆分配置（在设置字段之前，以便后续使用）
+        const currentSplitConfig = configItem ? (configItem as SplitConfig) : null;
+        if (currentSplitConfig) {
+          setSplitConfig(currentSplitConfig);
+        }
+        
         if (fullSchemaData) {
           setToolInfo({
             id: fullSchemaData.id,
@@ -548,8 +602,10 @@ const DataEntryForm: React.FC = () => {
     return derivedFields;
   }, [formFields]);
 
-  // 根据表单值计算派生字段
-  const computeDerivedValues = (values: Record<string, any>): Record<string, number> => {
+  // 根据表单值计算派生字段（使用 useCallback 优化）
+  const computeDerivedValues = useCallback((values: Record<string, any>): Record<string, number> => {
+    if (calculateDerivedFields.length === 0) return {};
+
     const results: Record<string, number> = {};
 
     // 构建变量值映射（fieldId 或 code -> value）
@@ -585,11 +641,140 @@ const DataEntryForm: React.FC = () => {
     });
 
     return results;
-  };
+  }, [calculateDerivedFields, formFields]);
 
+  // 缓存字段查找结果
+  const fieldCacheRef = useRef<Map<string, ExtendedFormField>>(new Map());
 
-  // 评估 showWhen 条件
-  const evaluateShowWhen = (showWhen: ShowWhenCondition | undefined, currentValues: Record<string, any>): boolean => {
+  // 构建字段查找缓存
+  const buildFieldCache = useCallback((fields: ExtendedFormField[]) => {
+    const cache = new Map<string, ExtendedFormField>();
+    const walk = (fs: ExtendedFormField[]) => {
+      fs.forEach((field) => {
+        cache.set(field.id, field);
+        if (field.children) {
+          walk(field.children);
+        }
+      });
+    };
+    walk(fields);
+    return cache;
+  }, []);
+
+  // 当 formFields 变化时更新缓存
+  useEffect(() => {
+    if (formFields.length > 0) {
+      fieldCacheRef.current = buildFieldCache(formFields);
+    }
+  }, [formFields, buildFieldCache]);
+
+  // 计算拆分字段值（带配置参数版本，用于初始化）
+  const computeSplitValuesWithConfig = useCallback((
+    values: Record<string, any>,
+    config: SplitConfig,
+    fields: ExtendedFormField[]
+  ): Record<string, number> => {
+    const results: Record<string, number> = {};
+
+    const schoolType = values.school_type;
+    if (!schoolType) return results;
+
+    // 只对需要拆分的学校类型进行计算
+    const needSplitTypes = ['nine_year', 'twelve_year', 'complete_secondary'];
+    if (!needSplitTypes.includes(schoolType)) return results;
+
+    // 获取对应的拆分规则
+    const splitRule = config.splitRules[schoolType];
+    if (!splitRule) return results;
+
+    // 获取学生人数
+    const studentCounts: Record<string, number> = {};
+    if (config.studentCountFields.primary) {
+      const primaryCount = values[config.studentCountFields.primary];
+      if (typeof primaryCount === 'number' && primaryCount > 0) {
+        studentCounts.primary = primaryCount;
+      }
+    }
+    if (config.studentCountFields.junior) {
+      const juniorCount = values[config.studentCountFields.junior];
+      if (typeof juniorCount === 'number' && juniorCount > 0) {
+        studentCounts.junior = juniorCount;
+      }
+    }
+    if (config.studentCountFields.senior) {
+      const seniorCount = values[config.studentCountFields.senior];
+      if (typeof seniorCount === 'number' && seniorCount > 0) {
+        studentCounts.senior = seniorCount;
+      }
+    }
+
+    // 计算加权总数
+    let totalWeighted = 0;
+    if (studentCounts.primary !== undefined && splitRule.weights.primary !== undefined) {
+      totalWeighted += studentCounts.primary * splitRule.weights.primary;
+    }
+    if (studentCounts.junior !== undefined && splitRule.weights.junior !== undefined) {
+      totalWeighted += studentCounts.junior * splitRule.weights.junior;
+    }
+    if (studentCounts.senior !== undefined && splitRule.weights.senior !== undefined) {
+      totalWeighted += studentCounts.senior * splitRule.weights.senior;
+    }
+
+    if (totalWeighted === 0) return results;
+
+    // 对每个需要拆分的字段进行计算
+    config.splitFields.forEach((sourceFieldId) => {
+      const sourceValue = values[sourceFieldId];
+      if (typeof sourceValue !== 'number' || sourceValue <= 0) return;
+
+      // 使用缓存查找字段
+      const sourceField = fieldCacheRef.current.get(sourceFieldId);
+      if (!sourceField?.autoSplit?.targetFields) return;
+
+      // 计算各部分的占比和值
+      if (studentCounts.primary !== undefined && splitRule.weights.primary !== undefined && sourceField.autoSplit.targetFields.primary) {
+        const primaryWeighted = studentCounts.primary * splitRule.weights.primary;
+        const primaryRatio = primaryWeighted / totalWeighted;
+        const primaryValue = sourceValue * primaryRatio;
+        // 根据字段的 decimalPlaces 设置精度
+        const precision = sourceField.decimalPlaces === '2位小数' ? 2 : sourceField.decimalPlaces === '1位小数' ? 1 : 0;
+        results[sourceField.autoSplit.targetFields.primary] = precision > 0 
+          ? parseFloat(primaryValue.toFixed(precision))
+          : Math.round(primaryValue);
+      }
+
+      if (studentCounts.junior !== undefined && splitRule.weights.junior !== undefined && sourceField.autoSplit.targetFields.junior) {
+        const juniorWeighted = studentCounts.junior * splitRule.weights.junior;
+        const juniorRatio = juniorWeighted / totalWeighted;
+        const juniorValue = sourceValue * juniorRatio;
+        const precision = sourceField.decimalPlaces === '2位小数' ? 2 : sourceField.decimalPlaces === '1位小数' ? 1 : 0;
+        results[sourceField.autoSplit.targetFields.junior] = precision > 0 
+          ? parseFloat(juniorValue.toFixed(precision))
+          : Math.round(juniorValue);
+      }
+
+      if (studentCounts.senior !== undefined && splitRule.weights.senior !== undefined && sourceField.autoSplit.targetFields.senior) {
+        const seniorWeighted = studentCounts.senior * splitRule.weights.senior;
+        const seniorRatio = seniorWeighted / totalWeighted;
+        const seniorValue = sourceValue * seniorRatio;
+        const precision = sourceField.decimalPlaces === '2位小数' ? 2 : sourceField.decimalPlaces === '1位小数' ? 1 : 0;
+        results[sourceField.autoSplit.targetFields.senior] = precision > 0 
+          ? parseFloat(seniorValue.toFixed(precision))
+          : Math.round(seniorValue);
+      }
+    });
+
+    return results;
+  }, [fieldCacheRef]);
+
+  // 计算拆分字段值（使用组件状态中的配置）
+  const computeSplitValues = useCallback((values: Record<string, any>): Record<string, number> => {
+    if (!splitConfig) return {};
+    return computeSplitValuesWithConfig(values, splitConfig, formFields);
+  }, [splitConfig, formFields, computeSplitValuesWithConfig]);
+
+  // 评估 showWhen 条件（使用 useCallback 优化）
+  const evaluateShowWhen = useCallback((showWhen: ShowWhenCondition | undefined, currentValues: Record<string, any>): boolean => {
     if (!showWhen) return true;
 
     const { field: fieldName, value, condition } = showWhen;
@@ -612,10 +797,10 @@ const DataEntryForm: React.FC = () => {
     }
 
     return true;
-  };
+  }, []);
 
-  // 渲染表单字段
-  const renderFormField = (field: ExtendedFormField, currentValues?: Record<string, any>) => {
+  // 渲染表单字段（使用 useCallback 优化）
+  const renderFormField = useCallback((field: ExtendedFormField, currentValues?: Record<string, any>) => {
     // 检查 showWhen 条件
     const values = currentValues || form.getFieldsValue();
     if (!evaluateShowWhen(field.showWhen, values)) {
@@ -661,6 +846,8 @@ const DataEntryForm: React.FC = () => {
 
       case 'number': {
         const isDerived = field.mapping?.targetInfo?.elementType === '派生要素';
+        const isComputed = field.computed === true;
+        const isReadonly = field.readonly === true || isComputed;
         const threshold = field.mapping?.targetInfo?.threshold;
         const formula = field.mapping?.targetInfo?.formula;
         const mappingCode = field.mapping?.targetInfo?.code;
@@ -688,7 +875,14 @@ const DataEntryForm: React.FC = () => {
                     </span>
                   </Tooltip>
                 )}
-                {mappingCode && !isDerived && (
+                {isComputed && !isDerived && (
+                  <Tooltip title="系统自动计算">
+                    <span className={styles.derivedBadge}>
+                      自动计算
+                    </span>
+                  </Tooltip>
+                )}
+                {mappingCode && !isDerived && !isComputed && (
                   <Tooltip title={`关联: ${field.mapping?.targetInfo?.name || mappingCode}`}>
                     <span className={styles.mappingBadge}>
                       {mappingCode}
@@ -698,7 +892,7 @@ const DataEntryForm: React.FC = () => {
               </span>
             }
             rules={[
-              ...commonRules,
+              ...(isReadonly ? [] : commonRules),
               {
                 type: 'number',
                 min: field.minValue ? parseFloat(field.minValue) : undefined,
@@ -712,15 +906,18 @@ const DataEntryForm: React.FC = () => {
                 {isDerived && formula && (
                   <div className={styles.formulaHint}>计算公式: {formula}</div>
                 )}
+                {isComputed && field.sourceField && (
+                  <div className={styles.formulaHint}>根据 {field.sourceField} 自动拆分计算</div>
+                )}
               </>
             }
             style={{ width: field.width }}
-            className={isDerived ? styles.derivedField : undefined}
+            className={isDerived || isComputed ? styles.derivedField : undefined}
           >
             <InputNumber
-              placeholder={isDerived ? '自动计算' : (field.placeholder || '请输入数字')}
+              placeholder={isReadonly ? '系统自动计算' : (field.placeholder || '请输入数字')}
               style={{ width: '100%' }}
-              disabled={isDerived}
+              disabled={isReadonly}
               precision={
                 field.decimalPlaces === '1位小数'
                   ? 1
@@ -977,7 +1174,7 @@ const DataEntryForm: React.FC = () => {
       default:
         return null;
     }
-  };
+  }, [evaluateShowWhen, form]);
 
   if (loading) {
     return (
@@ -1104,20 +1301,64 @@ const DataEntryForm: React.FC = () => {
             layout="vertical"
             initialValues={formData}
             disabled={submission?.status === 'submitted'}
-            onValuesChange={(_, allValues) => {
+            onValuesChange={(changedValues, allValues) => {
               // 更新当前表单值状态（用于 showWhen 条件评估）
               setCurrentFormValues(allValues);
 
-              // 当有派生字段时，计算并更新派生字段值
-              if (calculateDerivedFields.length > 0) {
-                const derivedValues = computeDerivedValues(allValues);
-                if (Object.keys(derivedValues).length > 0) {
-                  // 使用 setTimeout 避免循环更新
-                  setTimeout(() => {
-                    form.setFieldsValue(derivedValues);
-                  }, 0);
-                }
+              // 清除之前的定时器
+              if (computeTimerRef.current) {
+                clearTimeout(computeTimerRef.current);
               }
+
+              // 防抖处理：延迟计算，避免频繁更新
+              computeTimerRef.current = setTimeout(() => {
+                // 检查是否有相关字段变化（只在这些字段变化时才计算）
+                const relevantFields = new Set<string>();
+                if (calculateDerivedFields.length > 0) {
+                  calculateDerivedFields.forEach(({ variables }) => {
+                    variables.forEach(v => relevantFields.add(v));
+                  });
+                }
+                if (splitConfig) {
+                  relevantFields.add('school_type');
+                  if (splitConfig.studentCountFields.primary) {
+                    relevantFields.add(splitConfig.studentCountFields.primary);
+                  }
+                  if (splitConfig.studentCountFields.junior) {
+                    relevantFields.add(splitConfig.studentCountFields.junior);
+                  }
+                  if (splitConfig.studentCountFields.senior) {
+                    relevantFields.add(splitConfig.studentCountFields.senior);
+                  }
+                  splitConfig.splitFields.forEach(f => relevantFields.add(f));
+                }
+
+                // 检查是否有相关字段变化
+                const hasRelevantChange = Object.keys(changedValues).some(key => relevantFields.has(key));
+                if (!hasRelevantChange && calculateDerivedFields.length === 0 && !splitConfig) {
+                  return;
+                }
+
+                // 合并所有计算值
+                const computedValues: Record<string, number> = {};
+
+                // 当有派生字段时，计算并更新派生字段值
+                if (calculateDerivedFields.length > 0) {
+                  const derivedValues = computeDerivedValues(allValues);
+                  Object.assign(computedValues, derivedValues);
+                }
+
+                // 当有拆分配置时，计算并更新拆分字段值
+                if (splitConfig) {
+                  const splitValues = computeSplitValues(allValues);
+                  Object.assign(computedValues, splitValues);
+                }
+
+                // 更新所有计算字段
+                if (Object.keys(computedValues).length > 0) {
+                  form.setFieldsValue(computedValues);
+                }
+              }, 150); // 150ms 防抖延迟
             }}
           >
             <div className={styles.formFieldsContainer}>
