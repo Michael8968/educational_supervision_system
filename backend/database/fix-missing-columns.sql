@@ -45,6 +45,8 @@ ALTER TABLE elements ADD COLUMN IF NOT EXISTS field_label TEXT;
 ALTER TABLE elements ADD COLUMN IF NOT EXISTS aggregation JSONB;
 
 -- ==================== submissions ====================
+-- 添加 school_id 列（关联学校）
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS school_id TEXT;
 -- 添加 form_id 列（与 tool_id 分开，或作为别名）
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS form_id TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS submitter_id TEXT;
@@ -55,6 +57,9 @@ ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_at TEXT;
 
 -- 同步 form_id 和 tool_id 的数据（如果 tool_id 已有数据）
 UPDATE submissions SET form_id = tool_id WHERE form_id IS NULL AND tool_id IS NOT NULL;
+
+-- 为 school_id 添加索引以提高查询性能
+CREATE INDEX IF NOT EXISTS idx_submissions_school_id ON submissions(school_id);
 
 -- ==================== supporting_materials ====================
 ALTER TABLE supporting_materials ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;

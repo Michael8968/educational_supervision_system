@@ -201,3 +201,74 @@ export async function saveSchoolIndicatorDataBatch(data: {
 }): Promise<void> {
   return post('/school-indicator-data/batch', data);
 }
+
+// ==================== 资源配置7项指标汇总 ====================
+
+// 单项差异系数指标
+export interface CVIndicatorSummary {
+  code: string;
+  name: string;
+  unit: string;
+  cv: number | null;
+  mean: number | null;
+  stdDev: number | null;
+  count: number;
+  threshold: number;
+  isCompliant: boolean | null;
+}
+
+// 学校单项指标
+export interface SchoolIndicatorValue {
+  value: number | null;
+  threshold: number;
+  isCompliant: boolean | null;
+}
+
+// 学校资源配置指标汇总
+export interface SchoolResourceIndicators {
+  id: string;
+  code: string;
+  name: string;
+  schoolType: string;
+  studentCount: number;
+  indicators: {
+    L1: SchoolIndicatorValue;
+    L2: SchoolIndicatorValue;
+    L3: SchoolIndicatorValue;
+    L4: SchoolIndicatorValue;
+    L5: SchoolIndicatorValue;
+    L6: SchoolIndicatorValue;
+    L7: SchoolIndicatorValue;
+  };
+  compliantCount: number;
+  totalCount: number;
+}
+
+// 资源配置指标汇总响应
+export interface ResourceIndicatorsSummary {
+  district: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  schoolType: string;
+  summary: {
+    schoolCount: number;
+    cvIndicators: CVIndicatorSummary[];
+    compliantCvCount: number;
+    totalCvCount: number;
+    allCompliant: boolean | null;
+  };
+  schools: SchoolResourceIndicators[];
+}
+
+// 获取区县资源配置7项指标汇总
+export async function getResourceIndicatorsSummary(
+  districtId: string,
+  projectId: string,
+  schoolType?: string
+): Promise<ResourceIndicatorsSummary> {
+  const params: Record<string, string> = { projectId };
+  if (schoolType) params.schoolType = schoolType;
+  return get<ResourceIndicatorsSummary>(`/districts/${districtId}/resource-indicators-summary`, params);
+}

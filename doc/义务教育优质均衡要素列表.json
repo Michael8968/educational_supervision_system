@@ -2134,60 +2134,120 @@
       "name": "县域初中毕业学生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_graduate_count",
+      "fieldId": "junior_graduate_count",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县汇总：全县所有初中毕业学生总数。需基于全区县所有初中数据汇总。",
+      "description": "区县汇总：全县所有初中毕业学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+          }
+        }
+      }
     },
     {
       "code": "E198",
       "name": "县域初中三年前初一在校生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_grade7_count_3years_ago",
+      "fieldId": "junior_grade7_student_count_3years_ago",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县汇总：全县所有初中三年前初一时在校学生总数。需基于全区县所有初中数据汇总。",
+      "description": "区县汇总：全县所有初中三年前初一时在校学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+          }
+        }
+      }
     },
     {
       "code": "E199",
       "name": "县域初中三年转入学生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_transfer_in_count_3years",
+      "fieldId": "junior_transfer_in_count_3years",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县汇总：全县所有初中毕业年级三年转入学生总数。需基于全区县所有初中数据汇总。",
+      "description": "区县汇总：全县所有初中毕业年级三年转入学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+          }
+        }
+      }
     },
     {
       "code": "E200",
       "name": "县域初中三年转出学生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_transfer_out_count_3years",
+      "fieldId": "junior_transfer_out_count_3years",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县汇总：全县所有初中毕业年级三年转出学生总数。需基于全区县所有初中数据汇总。",
+      "description": "区县汇总：全县所有初中毕业年级三年转出学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+          }
+        }
+      }
     },
     {
       "code": "E201",
       "name": "县域初中三年死亡学生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_deceased_count_3years",
+      "fieldId": "junior_deceased_count_3years",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县汇总：全县所有初中毕业年级三年死亡学生总数。需基于全区县所有初中数据汇总。",
+      "description": "区县汇总：全县所有初中毕业年级三年死亡学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+          }
+        }
+      }
     },
     {
       "code": "D039",

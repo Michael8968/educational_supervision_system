@@ -727,6 +727,7 @@ function calculateDerivedElementAggregation(db, derivedElement, allElements, sub
         case 'lt': return Number(fieldValue) < Number(value);
         case 'gte': return Number(fieldValue) >= Number(value);
         case 'lte': return Number(fieldValue) <= Number(value);
+        case 'in': return Array.isArray(value) && value.includes(fieldValue);
         default: return true;
       }
     });
@@ -807,7 +808,28 @@ function calculateAllElementsAggregation(db, elements, submissions, options = {}
         }
 
         // 筛选该工具的填报数据
-        const relevantSubmissions = submissions.filter(s => s.tool_id === toolId || s.toolId === toolId);
+        let relevantSubmissions = submissions.filter(s => s.tool_id === toolId || s.toolId === toolId);
+        
+        // 应用聚合范围过滤
+        if (aggConfig.scope && aggConfig.scope.level === 'custom' && aggConfig.scope.filter) {
+          const { field, operator, value } = aggConfig.scope.filter;
+          relevantSubmissions = relevantSubmissions.filter(s => {
+            const fieldValue = s.data?.[field] ?? s[field];
+            if (fieldValue === undefined || fieldValue === null) return false;
+
+            switch (operator) {
+              case 'eq': return fieldValue === value;
+              case 'ne': return fieldValue !== value;
+              case 'gt': return Number(fieldValue) > Number(value);
+              case 'lt': return Number(fieldValue) < Number(value);
+              case 'gte': return Number(fieldValue) >= Number(value);
+              case 'lte': return Number(fieldValue) <= Number(value);
+              case 'in': return Array.isArray(value) && value.includes(fieldValue);
+              default: return true;
+            }
+          });
+        }
+        
         const values = relevantSubmissions
           .map(s => {
             const data = s.data || s;

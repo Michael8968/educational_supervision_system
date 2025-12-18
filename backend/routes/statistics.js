@@ -702,33 +702,248 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
     const schoolsResult = await db.query(schoolQuery, params);
     const schools = schoolsResult.rows;
 
+    // 需要从 submissions 实时计算的指标代码（资源配置7项指标）
+    // 这些指标需要根据学校类型使用对应的学生数进行计算，确保数据一致性
+    const calculatedIndicatorCodes = [
+      '1.1-D1', // 每百名学生拥有高学历教师数（通过公式计算得出）
+      '1.2-D1', // 每百名学生拥有骨干教师数（通过公式计算得出）
+      '1.3-D1', // 每百名学生拥有体艺教师数
+      '1.4-D1', // 生均教学及辅助用房面积（通过公式计算得出）
+      '1.5-D1', // 生均体育运动场馆面积（通过公式计算得出）
+      '1.6-D1', // 生均教学仪器设备值（通过公式计算得出）
+      '1.7-D1'  // 每百名学生拥有多媒体教室数
+    ];
+
     // 获取每个学校的指标数据和达标统计
     const schoolSummaries = [];
     for (const school of schools) {
-      // 获取该学校的指标数据统计
+      // 确定学校类型（用于计算资源配置指标）
+      const actualSchoolType = school.schoolType === '九年一贯制' 
+        ? (schoolType === '初中' ? '初中' : '小学')
+        : school.schoolType;
+
+      // 获取该学校的 submissions 数据（用于计算资源配置指标）
+      const submissionResult = await db.query(`
+        SELECT s.data as form_data
+        FROM submissions s
+        WHERE s.school_id = $1 AND s.project_id = $2 AND s.status = 'approved'
+        ORDER BY s.submitted_at DESC
+        LIMIT 1
+      `, [school.id, projectId]);
+
+      let formData = {};
+      if (submissionResult.rows.length > 0 && submissionResult.rows[0].form_data) {
+        const rawData = submissionResult.rows[0].form_data;
+        if (typeof rawData === 'string') {
+          try {
+            formData = JSON.parse(rawData);
+          } catch (e) {
+            formData = {};
+          }
+        } else {
+          formData = rawData || {};
+        }
+      }
+
+      // 根据学校类型确定学生数（小学用小学部学生数，初中用初中部学生数）
+      let studentCount = 0;
+      if (actualSchoolType === '小学') {
+        studentCount = formData.primary_student_count || school.studentCount || formData.student_count || 0;
+      } else {
+        studentCount = formData.junior_student_count || school.studentCount || formData.student_count || 0;
+      }
+
+      // 计算需要实时计算的指标值（7项资源配置指标）
+      const calculatedValues = {};
+      if (studentCount > 0) {
+        // 1.1-D1: 每百名学生拥有高学历教师数
+        let highEduTeachers = 0;
+        if (actualSchoolType === '小学') {
+          highEduTeachers = (
+            (formData.primary_college_degree_teacher_count || 0) +
+            (formData.primary_bachelor_degree_teacher_count || 0) +
+            (formData.primary_master_degree_teacher_count || 0) +
+            (formData.primary_doctor_degree_teacher_count || 0)
+          );
+        } else {
+          highEduTeachers = (
+            (formData.junior_bachelor_degree_teacher_count || 0) +
+            (formData.junior_master_degree_teacher_count || 0) +
+            (formData.junior_doctor_degree_teacher_count || 0)
+          );
+        }
+        const L1Value = (highEduTeachers / studentCount) * 100;
+        calculatedValues['1.1-D1'] = Math.round(L1Value * 100) / 100;
+
+        // 1.2-D1: 每百名学生拥有骨干教师数
+        const backboneTeachers = actualSchoolType === '小学'
+          ? (formData.primary_county_backbone_teacher_count || 0)
+          : (formData.junior_county_backbone_teacher_count || 0);
+        const L2Value = (backboneTeachers / studentCount) * 100;
+        calculatedValues['1.2-D1'] = Math.round(L2Value * 100) / 100;
+
+        // 1.3-D1: 每百名学生拥有体艺教师数
+        let peArtTeachers = 0;
+        if (actualSchoolType === '小学') {
+          peArtTeachers = (
+            (formData.primary_pe_teacher_count || 0) +
+            (formData.primary_music_teacher_count || 0) +
+            (formData.primary_art_teacher_count || 0)
+          );
+        } else {
+          peArtTeachers = (
+            (formData.junior_pe_teacher_count || 0) +
+            (formData.junior_music_teacher_count || 0) +
+            (formData.junior_art_teacher_count || 0)
+          );
+        }
+        const L3Value = (peArtTeachers / studentCount) * 100;
+        calculatedValues['1.3-D1'] = Math.round(L3Value * 100) / 100;
+
+        // 1.4-D1: 生均教学及辅助用房面积
+        const teachingArea = actualSchoolType === '小学'
+          ? (formData.primary_teaching_auxiliary_area || 0)
+          : (formData.junior_teaching_auxiliary_area || 0);
+        const L4Value = teachingArea / studentCount;
+        calculatedValues['1.4-D1'] = Math.round(L4Value * 100) / 100;
+
+        // 1.5-D1: 生均体育运动场馆面积
+        const sportsArea = actualSchoolType === '小学'
+          ? (formData.primary_sports_venue_area || 0)
+          : (formData.junior_sports_venue_area || 0);
+        const L5Value = sportsArea / studentCount;
+        calculatedValues['1.5-D1'] = Math.round(L5Value * 100) / 100;
+
+        // 1.6-D1: 生均教学仪器设备值（万元转元）
+        const equipmentValue = actualSchoolType === '小学'
+          ? (formData.primary_teaching_equipment_value || 0)
+          : (formData.junior_teaching_equipment_value || 0);
+        const L6Value = (equipmentValue * 10000) / studentCount;
+        calculatedValues['1.6-D1'] = Math.round(L6Value * 100) / 100;
+
+        // 1.7-D1: 每百名学生拥有多媒体教室数
+        const multimediaRooms = actualSchoolType === '小学'
+          ? (formData.primary_multimedia_classroom_count || 0)
+          : (formData.junior_multimedia_classroom_count || 0);
+        const L7Value = (multimediaRooms / studentCount) * 100;
+        calculatedValues['1.7-D1'] = Math.round(L7Value * 100) / 100;
+      }
+
+      // 获取该学校的指标数据统计（排除需要实时计算的指标）
       const statsResult = await db.query(`
         SELECT
           COUNT(*) as total,
           SUM(CASE WHEN is_compliant = 1 THEN 1 ELSE 0 END) as compliant,
           SUM(CASE WHEN is_compliant = 0 THEN 1 ELSE 0 END) as "nonCompliant",
           SUM(CASE WHEN is_compliant IS NULL THEN 1 ELSE 0 END) as pending
-        FROM school_indicator_data
-        WHERE project_id = $1 AND school_id = $2
-      `, [projectId, school.id]);
+        FROM school_indicator_data sid
+        JOIN data_indicators di ON sid.data_indicator_id = di.id
+        WHERE sid.project_id = $1 AND sid.school_id = $2
+          AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)
+      `, [projectId, school.id, ...calculatedIndicatorCodes]);
 
       const stats = statsResult.rows[0];
-      const total = parseInt(stats.total) || 0;
-      const compliant = parseInt(stats.compliant) || 0;
+      let total = parseInt(stats.total) || 0;
+      let compliant = parseInt(stats.compliant) || 0;
+      let nonCompliant = parseInt(stats.nonCompliant) || 0;
 
-      // 获取未达标指标列表
+      // 获取需要实时计算的指标的阈值和达标状态
+      // 使用 LIKE 查询以支持不同的代码格式（如 1.3-D1 或 SY-YZJH-1-3-D1）
+      const calculatedIndicatorsResult = await db.query(`
+        SELECT id, code, name, threshold
+        FROM data_indicators
+        WHERE code IN ($1, $2, $3, $4, $5, $6, $7)
+           OR code LIKE '%1.1-D1%'
+           OR code LIKE '%1.2-D1%'
+           OR code LIKE '%1.3-D1%'
+           OR code LIKE '%1.4-D1%'
+           OR code LIKE '%1.5-D1%'
+           OR code LIKE '%1.6-D1%'
+           OR code LIKE '%1.7-D1%'
+      `, calculatedIndicatorCodes);
+
+      const calculatedIndicators = calculatedIndicatorsResult.rows;
+      const nonCompliantCalculated = [];
+
+      // 创建代码映射：将数据库中的实际代码映射到我们计算的指标代码
+      const codeMapping = {
+        '1.1-D1': ['1.1-D1'],
+        '1.2-D1': ['1.2-D1'],
+        '1.3-D1': ['1.3-D1'],
+        '1.4-D1': ['1.4-D1'],
+        '1.5-D1': ['1.5-D1'],
+        '1.6-D1': ['1.6-D1'],
+        '1.7-D1': ['1.7-D1']
+      };
+
+      for (const indicator of calculatedIndicators) {
+        // 尝试匹配指标代码（支持不同的代码格式）
+        let matchedCode = null;
+        for (const [calcCode, patterns] of Object.entries(codeMapping)) {
+          if (indicator.code === calcCode || indicator.code.includes(calcCode) || 
+              patterns.some(p => indicator.code.includes(p))) {
+            matchedCode = calcCode;
+            break;
+          }
+        }
+        
+        // 如果无法匹配，尝试从代码中提取模式（如从 SY-YZJH-1-3-D1 提取 1.3-D1）
+        if (!matchedCode) {
+          const codeMatch = indicator.code.match(/(\d+\.\d+-D\d+)/);
+          if (codeMatch) {
+            matchedCode = codeMatch[1];
+          }
+        }
+
+        const calculatedValue = matchedCode ? calculatedValues[matchedCode] : null;
+        if (calculatedValue !== undefined && calculatedValue !== null) {
+          total++;
+          // 判断是否达标
+          let isCompliant = null;
+          if (indicator.threshold) {
+            const threshold = indicator.threshold;
+            const match = threshold.match(/^([≥≤><]=?|>=|<=|>|<|=)?\s*([\d.]+)/);
+            if (match) {
+              const op = (match[1] || '≥').replace('>=', '≥').replace('<=', '≤');
+              const thresholdValue = parseFloat(match[2]);
+              switch (op) {
+                case '≥': isCompliant = calculatedValue >= thresholdValue; break;
+                case '≤': isCompliant = calculatedValue <= thresholdValue; break;
+                case '>': isCompliant = calculatedValue > thresholdValue; break;
+                case '<': isCompliant = calculatedValue < thresholdValue; break;
+                case '=': isCompliant = calculatedValue === thresholdValue; break;
+              }
+            }
+          }
+          if (isCompliant === true) {
+            compliant++;
+          } else if (isCompliant === false) {
+            nonCompliant++;
+            nonCompliantCalculated.push({
+              data_indicator_id: indicator.id,
+              value: calculatedValue,
+              threshold: indicator.threshold,
+              text_value: null,
+              indicatorCode: indicator.code,
+              indicatorName: indicator.name
+            });
+          }
+        }
+      }
+
+      // 获取未达标指标列表（排除需要实时计算的指标）
       const nonCompliantResult = await db.query(`
         SELECT sid.data_indicator_id, sid.value, sid.text_value,
                di.code as "indicatorCode", di.name as "indicatorName", di.threshold
         FROM school_indicator_data sid
         JOIN data_indicators di ON sid.data_indicator_id = di.id
         WHERE sid.project_id = $1 AND sid.school_id = $2 AND sid.is_compliant = 0
+          AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)
         ORDER BY di.code
-      `, [projectId, school.id]);
+      `, [projectId, school.id, ...calculatedIndicatorCodes]);
+
+      // 合并未达标指标列表
+      const allNonCompliantIndicators = [...nonCompliantResult.rows, ...nonCompliantCalculated];
 
       schoolSummaries.push({
         school: {
@@ -747,11 +962,11 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
         statistics: {
           total,
           compliant,
-          nonCompliant: parseInt(stats.nonCompliant) || 0,
+          nonCompliant,
           pending: parseInt(stats.pending) || 0
         },
         complianceRate: total > 0 ? Math.round((compliant / total) * 10000) / 100 : null,
-        nonCompliantIndicators: nonCompliantResult.rows
+        nonCompliantIndicators: allNonCompliantIndicators
       });
     }
 
@@ -902,6 +1117,301 @@ router.get('/projects/:projectId/urban-rural-comparison', async (req, res) => {
 
     res.json({ code: 200, data: comparison });
   } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// ==================== 资源配置7项指标汇总（区县管理员专用） ====================
+
+// 7项资源配置指标定义
+const RESOURCE_INDICATORS = {
+  primary: { // 小学
+    L1: { name: '每百名学生拥有高学历教师数', threshold: 4.2, unit: '人', cvThreshold: 0.50 },
+    L2: { name: '每百名学生拥有骨干教师数', threshold: 1.0, unit: '人', cvThreshold: 0.50 },
+    L3: { name: '每百名学生拥有体艺教师数', threshold: 0.9, unit: '人', cvThreshold: 0.50 },
+    L4: { name: '生均教学及辅助用房面积', threshold: 4.5, unit: '㎡', cvThreshold: 0.50 },
+    L5: { name: '生均体育运动场馆面积', threshold: 7.5, unit: '㎡', cvThreshold: 0.50 },
+    L6: { name: '生均教学仪器设备值', threshold: 2000, unit: '元', cvThreshold: 0.50 },
+    L7: { name: '每百名学生拥有多媒体教室数', threshold: 2.3, unit: '间', cvThreshold: 0.50 },
+  },
+  junior: { // 初中
+    L1: { name: '每百名学生拥有高学历教师数', threshold: 5.3, unit: '人', cvThreshold: 0.45 },
+    L2: { name: '每百名学生拥有骨干教师数', threshold: 1.0, unit: '人', cvThreshold: 0.45 },
+    L3: { name: '每百名学生拥有体艺教师数', threshold: 0.9, unit: '人', cvThreshold: 0.45 },
+    L4: { name: '生均教学及辅助用房面积', threshold: 5.8, unit: '㎡', cvThreshold: 0.45 },
+    L5: { name: '生均体育运动场馆面积', threshold: 10.2, unit: '㎡', cvThreshold: 0.45 },
+    L6: { name: '生均教学仪器设备值', threshold: 2500, unit: '元', cvThreshold: 0.45 },
+    L7: { name: '每百名学生拥有多媒体教室数', threshold: 2.4, unit: '间', cvThreshold: 0.45 },
+  }
+};
+
+// 获取区县资源配置7项指标汇总
+router.get('/districts/:districtId/resource-indicators-summary', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId, schoolType = '小学' } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取区县信息
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    // 根据学校类型确定指标配置
+    const indicatorConfig = schoolType === '初中' ? RESOURCE_INDICATORS.junior : RESOURCE_INDICATORS.primary;
+
+    // 获取该区县的学校列表
+    let schoolQuery = `
+      SELECT s.id, s.code, s.name, s.school_type as "schoolType",
+             s.student_count as "studentCount", s.teacher_count as "teacherCount"
+      FROM schools s
+      WHERE s.district_id = $1 AND s.status = 'active'
+    `;
+    const params = [districtId];
+
+    if (schoolType === '小学') {
+      schoolQuery += " AND (s.school_type = '小学' OR s.school_type = '九年一贯制')";
+    } else if (schoolType === '初中') {
+      schoolQuery += " AND (s.school_type = '初中' OR s.school_type = '九年一贯制' OR s.school_type = '完全中学')";
+    }
+
+    schoolQuery += ' ORDER BY s.name';
+
+    const schoolsResult = await db.query(schoolQuery, params);
+    const schools = schoolsResult.rows;
+
+    if (schools.length === 0) {
+      return res.json({
+        code: 200,
+        data: {
+          district,
+          schoolType,
+          summary: {
+            schoolCount: 0,
+            cvIndicators: [],
+            allCompliant: null
+          },
+          schools: []
+        }
+      });
+    }
+
+    // 获取每个学校的指标数据
+    const schoolIndicators = [];
+    const indicatorValuesMap = { L1: [], L2: [], L3: [], L4: [], L5: [], L6: [], L7: [] };
+
+    for (const school of schools) {
+      // 从 submissions 数据中获取学校的基础数据
+      const submissionResult = await db.query(`
+        SELECT s.data as form_data
+        FROM submissions s
+        WHERE s.school_id = $1 AND s.project_id = $2 AND s.status = 'approved'
+        ORDER BY s.submitted_at DESC
+        LIMIT 1
+      `, [school.id, projectId]);
+
+      let formData = {};
+      if (submissionResult.rows.length > 0 && submissionResult.rows[0].form_data) {
+        // 如果 data 是 JSON 字符串，需要解析
+        const rawData = submissionResult.rows[0].form_data;
+        if (typeof rawData === 'string') {
+          try {
+            formData = JSON.parse(rawData);
+          } catch (e) {
+            formData = {};
+          }
+        } else {
+          formData = rawData || {};
+        }
+      }
+
+      // 计算7项指标
+      // 根据学校类型确定学生数（小学用小学部学生数，初中用初中部学生数）
+      let studentCount = 0;
+      if (schoolType === '小学') {
+        studentCount = formData.primary_student_count || school.studentCount || formData.student_count || 0;
+      } else {
+        studentCount = formData.junior_student_count || school.studentCount || formData.student_count || 0;
+      }
+      const indicators = {};
+
+      if (studentCount > 0) {
+        // L1: 每百名学生拥有高学历教师数
+        // 小学: (专科+本科+硕士+博士) / 学生数 * 100
+        // 初中: (本科+硕士+博士) / 学生数 * 100
+        let highEduTeachers = 0;
+        if (schoolType === '小学') {
+          highEduTeachers = (
+            (formData.primary_college_degree_teacher_count || 0) +
+            (formData.primary_bachelor_degree_teacher_count || 0) +
+            (formData.primary_master_degree_teacher_count || 0) +
+            (formData.primary_doctor_degree_teacher_count || 0)
+          );
+        } else {
+          highEduTeachers = (
+            (formData.junior_bachelor_degree_teacher_count || 0) +
+            (formData.junior_master_degree_teacher_count || 0) +
+            (formData.junior_doctor_degree_teacher_count || 0)
+          );
+        }
+        const L1Value = (highEduTeachers / studentCount) * 100;
+        indicators.L1 = {
+          value: Math.round(L1Value * 100) / 100,
+          threshold: indicatorConfig.L1.threshold,
+          isCompliant: L1Value >= indicatorConfig.L1.threshold
+        };
+        if (L1Value > 0) indicatorValuesMap.L1.push(L1Value);
+
+        // L2: 每百名学生拥有骨干教师数
+        const backboneTeachers = schoolType === '小学'
+          ? (formData.primary_county_backbone_teacher_count || 0)
+          : (formData.junior_county_backbone_teacher_count || 0);
+        const L2Value = (backboneTeachers / studentCount) * 100;
+        indicators.L2 = {
+          value: Math.round(L2Value * 100) / 100,
+          threshold: indicatorConfig.L2.threshold,
+          isCompliant: L2Value >= indicatorConfig.L2.threshold
+        };
+        if (backboneTeachers > 0 || studentCount > 0) indicatorValuesMap.L2.push(L2Value);
+
+        // L3: 每百名学生拥有体艺教师数
+        let peArtTeachers = 0;
+        if (schoolType === '小学') {
+          peArtTeachers = (
+            (formData.primary_pe_teacher_count || 0) +
+            (formData.primary_music_teacher_count || 0) +
+            (formData.primary_art_teacher_count || 0)
+          );
+        } else {
+          peArtTeachers = (
+            (formData.junior_pe_teacher_count || 0) +
+            (formData.junior_music_teacher_count || 0) +
+            (formData.junior_art_teacher_count || 0)
+          );
+        }
+        const L3Value = (peArtTeachers / studentCount) * 100;
+        indicators.L3 = {
+          value: Math.round(L3Value * 100) / 100,
+          threshold: indicatorConfig.L3.threshold,
+          isCompliant: L3Value >= indicatorConfig.L3.threshold
+        };
+        if (peArtTeachers > 0 || studentCount > 0) indicatorValuesMap.L3.push(L3Value);
+
+        // L4: 生均教学及辅助用房面积
+        const teachingArea = schoolType === '小学'
+          ? (formData.primary_teaching_auxiliary_area || 0)
+          : (formData.junior_teaching_auxiliary_area || 0);
+        const L4Value = teachingArea / studentCount;
+        indicators.L4 = {
+          value: Math.round(L4Value * 100) / 100,
+          threshold: indicatorConfig.L4.threshold,
+          isCompliant: L4Value >= indicatorConfig.L4.threshold
+        };
+        if (teachingArea > 0 || studentCount > 0) indicatorValuesMap.L4.push(L4Value);
+
+        // L5: 生均体育运动场馆面积
+        const sportsArea = schoolType === '小学'
+          ? (formData.primary_sports_venue_area || 0)
+          : (formData.junior_sports_venue_area || 0);
+        const L5Value = sportsArea / studentCount;
+        indicators.L5 = {
+          value: Math.round(L5Value * 100) / 100,
+          threshold: indicatorConfig.L5.threshold,
+          isCompliant: L5Value >= indicatorConfig.L5.threshold
+        };
+        if (sportsArea > 0 || studentCount > 0) indicatorValuesMap.L5.push(L5Value);
+
+        // L6: 生均教学仪器设备值（万元转元）
+        const equipmentValue = schoolType === '小学'
+          ? (formData.primary_teaching_equipment_value || 0)
+          : (formData.junior_teaching_equipment_value || 0);
+        const L6Value = (equipmentValue * 10000) / studentCount;
+        indicators.L6 = {
+          value: Math.round(L6Value * 100) / 100,
+          threshold: indicatorConfig.L6.threshold,
+          isCompliant: L6Value >= indicatorConfig.L6.threshold
+        };
+        if (equipmentValue > 0 || studentCount > 0) indicatorValuesMap.L6.push(L6Value);
+
+        // L7: 每百名学生拥有多媒体教室数
+        const multimediaRooms = schoolType === '小学'
+          ? (formData.primary_multimedia_classroom_count || 0)
+          : (formData.junior_multimedia_classroom_count || 0);
+        const L7Value = (multimediaRooms / studentCount) * 100;
+        indicators.L7 = {
+          value: Math.round(L7Value * 100) / 100,
+          threshold: indicatorConfig.L7.threshold,
+          isCompliant: L7Value >= indicatorConfig.L7.threshold
+        };
+        if (multimediaRooms > 0 || studentCount > 0) indicatorValuesMap.L7.push(L7Value);
+      } else {
+        // 学生数为0，所有指标设为null
+        ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'].forEach(key => {
+          indicators[key] = { value: null, threshold: indicatorConfig[key].threshold, isCompliant: null };
+        });
+      }
+
+      // 计算达标数
+      const compliantCount = Object.values(indicators).filter(ind => ind.isCompliant === true).length;
+      const totalCount = Object.values(indicators).filter(ind => ind.value !== null).length;
+
+      schoolIndicators.push({
+        id: school.id,
+        code: school.code,
+        name: school.name,
+        schoolType: school.schoolType,
+        studentCount: studentCount,
+        indicators,
+        compliantCount,
+        totalCount
+      });
+    }
+
+    // 计算7个差异系数
+    const cvIndicators = [];
+    for (const [key, config] of Object.entries(indicatorConfig)) {
+      const values = indicatorValuesMap[key];
+      const cvResult = calculateCV(values);
+      cvIndicators.push({
+        code: key,
+        name: config.name,
+        unit: config.unit,
+        cv: cvResult?.cv ?? null,
+        mean: cvResult?.mean ?? null,
+        stdDev: cvResult?.stdDev ?? null,
+        count: cvResult?.count ?? 0,
+        threshold: config.cvThreshold,
+        isCompliant: cvResult && cvResult.cv !== null ? cvResult.cv <= config.cvThreshold : null
+      });
+    }
+
+    // 判断是否全部达标
+    const compliantCvCount = cvIndicators.filter(cv => cv.isCompliant === true).length;
+    const totalCvCount = cvIndicators.filter(cv => cv.cv !== null).length;
+    const allCompliant = totalCvCount > 0 && compliantCvCount === totalCvCount;
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        schoolType,
+        summary: {
+          schoolCount: schools.length,
+          cvIndicators,
+          compliantCvCount,
+          totalCvCount,
+          allCompliant
+        },
+        schools: schoolIndicators
+      }
+    });
+  } catch (error) {
+    console.error('获取资源配置指标汇总失败:', error);
     res.status(500).json({ code: 500, message: error.message });
   }
 });
