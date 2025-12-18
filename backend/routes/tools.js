@@ -381,7 +381,7 @@ router.get('/element-libraries/:id', async (req, res) => {
 
     let elementsResult;
     try {
-      // 新版本：elements 表含 tool_id/field_id/field_label，直接回显
+      // 新版本：elements 表含 tool_id/field_id/field_label/aggregation，直接回显
       elementsResult = await db.query(
         `
         SELECT
@@ -391,7 +391,8 @@ router.get('/element-libraries/:id', async (req, res) => {
           tool_id as "toolId",
           field_id as "fieldId",
           field_label as "fieldLabel",
-          formula
+          formula,
+          aggregation
         FROM elements WHERE library_id = $1 ORDER BY sort_order
       `,
         [req.params.id]
@@ -637,6 +638,7 @@ router.put('/element-libraries/:id', async (req, res) => {
           element_type: el.elementType,
           data_type: el.dataType,
           formula: el.elementType === '派生要素' ? (el.formula || null) : null,
+          aggregation: el.aggregation || null,
           sort_order: index,
           updated_at: timestamp,
         };
@@ -998,13 +1000,23 @@ router.post('/element-libraries/:id/elements/import', async (req, res) => {
             field_id: normalizeNullableText(element.fieldId),
             field_label: normalizeNullableText(element.fieldLabel),
             formula: element.formula || null,
+            aggregation: element.aggregation || null,
             sort_order: sortOrder++,
             created_at: timestamp,
             updated_at: timestamp,
           });
 
         if (insErr) {
-          errors.push({ code: element.code, error: insErr.message });
+          // 检测 schema cache 错误，给出更友好的提示
+          const errMsg = insErr.message || '';
+          if (errMsg.includes('aggregation') && errMsg.includes('schema cache')) {
+            errors.push({ 
+              code: element.code, 
+              error: '数据库表 elements 缺少字段 aggregation（或 PostgREST schema cache 未刷新）。请在 Supabase SQL Editor 执行：ALTER TABLE elements ADD COLUMN IF NOT EXISTS aggregation JSONB; NOTIFY pgrst, \'reload schema\';' 
+            });
+          } else {
+            errors.push({ code: element.code, error: insErr.message });
+          }
         } else {
           insertedIds.push({ id, code: element.code });
         }
@@ -1043,7 +1055,7 @@ router.post('/element-libraries/:id/elements/import', async (req, res) => {
 // 更新要素
 router.put('/elements/:id', async (req, res) => {
   try {
-    const { code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel } = req.body;
+    const { code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel, aggregation } = req.body;
     const timestamp = now();
 
     // 程序层面枚举验证
@@ -1055,7 +1067,7 @@ router.put('/elements/:id', async (req, res) => {
 
     let data;
     let error;
-    // 新库支持 tool_id/field_id/field_label；旧库没有这些列时，回退更新基础字段
+    // 新库支持 tool_id/field_id/field_label/aggregation；旧库没有这些列时，回退更新基础字段
     try {
       const result = await db
         .from('elements')
@@ -1068,6 +1080,7 @@ router.put('/elements/:id', async (req, res) => {
           field_id: normalizeNullableOrUndefined(fieldId),
           field_label: normalizeNullableOrUndefined(fieldLabel),
           formula: formula || null,
+          aggregation: aggregation || null,
           updated_at: timestamp,
         })
         .eq('id', req.params.id)

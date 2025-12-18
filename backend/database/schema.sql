@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS elements (
   field_id TEXT,                     -- 基础要素可选：关联表单控件
   field_label TEXT,                  -- 可选：控件展示路径（用于回显）
   formula TEXT,
+  aggregation JSONB,                 -- 多填报汇总配置（JSON格式）
   sort_order INTEGER DEFAULT 0,
   created_at TEXT,
   updated_at TEXT

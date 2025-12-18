@@ -191,7 +191,8 @@ async function ensureSchema() {
     // 因此这里仅做“检测 + 提示”，不在运行时执行 ALTER/DDL。
     const requiredColumns = [
       { table: 'projects', column: 'keywords' },
-      { table: 'projects', column: 'is_published' }
+      { table: 'projects', column: 'is_published' },
+      { table: 'elements', column: 'aggregation' }
     ];
 
     const missing = [];

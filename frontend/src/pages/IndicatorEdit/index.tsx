@@ -330,7 +330,7 @@ const IndicatorEdit: React.FC = () => {
         fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
         fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
         formula: values.elementType === '派生要素' ? values.formula : undefined,
-        aggregation,
+        aggregation, // 未启用时为 undefined，会自动清除聚合配置
       });
 
       // 基础要素：保存"表单字段 -> 要素"的映射（持久化）
@@ -388,11 +388,17 @@ const IndicatorEdit: React.FC = () => {
       formula: element.formula,
       toolId: element.toolId,
       fieldId: element.fieldId,
-      // 聚合配置
-      aggregationMethod: element.aggregation?.method || 'sum',
-      filterField: element.aggregation?.scope?.filter?.field,
-      filterOperator: element.aggregation?.scope?.filter?.operator || 'eq',
-      filterValue: element.aggregation?.scope?.filter?.value,
+      // 聚合配置 - 确保正确处理 aggregation 字段
+      aggregationMethod: element.aggregation?.enabled ? (element.aggregation?.method || 'sum') : 'sum',
+      filterField: element.aggregation?.enabled && element.aggregation?.scope?.level === 'custom' 
+        ? element.aggregation?.scope?.filter?.field 
+        : undefined,
+      filterOperator: element.aggregation?.enabled && element.aggregation?.scope?.level === 'custom'
+        ? (element.aggregation?.scope?.filter?.operator || 'eq')
+        : 'eq',
+      filterValue: element.aggregation?.enabled && element.aggregation?.scope?.level === 'custom'
+        ? element.aggregation?.scope?.filter?.value
+        : undefined,
     });
     // 如果有关联工具，预加载schema
     if (element.toolId) {
@@ -439,7 +445,7 @@ const IndicatorEdit: React.FC = () => {
         fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
         fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
         formula: values.elementType === '派生要素' ? values.formula : undefined,
-        aggregation,
+        aggregation, // 未启用时为 undefined，会自动清除聚合配置
       });
 
       // 处理"表单字段 -> 要素"的映射变更（持久化）
@@ -483,8 +489,10 @@ const IndicatorEdit: React.FC = () => {
       setLibrary({ ...library, elements: updatedElements });
       setSelectedElement(updatedElement || null);
       setEditModalVisible(false);
+      editForm.resetFields();
       setEditFormToolId(undefined);
       setEditFormAggregationEnabled(false);
+      setEditFormAggregationScopeLevel('all');
       message.success('保存成功');
     } catch (error) {
       console.error('更新要素失败:', error);
@@ -1571,7 +1579,13 @@ const IndicatorEdit: React.FC = () => {
       <Modal
         title="编辑要素"
         open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
+        onCancel={() => {
+          setEditModalVisible(false);
+          editForm.resetFields();
+          setEditFormToolId(undefined);
+          setEditFormAggregationEnabled(false);
+          setEditFormAggregationScopeLevel('all');
+        }}
         footer={null}
         width={500}
         className={styles.elementModal}
@@ -1767,7 +1781,13 @@ const IndicatorEdit: React.FC = () => {
           )}
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 24 }}>
-            <Button style={{ marginRight: 8 }} onClick={() => setEditModalVisible(false)}>
+            <Button style={{ marginRight: 8 }} onClick={() => {
+              setEditModalVisible(false);
+              editForm.resetFields();
+              setEditFormToolId(undefined);
+              setEditFormAggregationEnabled(false);
+              setEditFormAggregationScopeLevel('all');
+            }}>
               取消
             </Button>
             <Button type="primary" htmlType="submit">
