@@ -397,8 +397,16 @@ router.put('/indicator-systems/:id/tree', async (req, res) => {
     // 2) 递归插入新树
     let indicatorCount = 0;
 
+    // 检查ID是否已存在的辅助函数
+    const ensureUniqueId = async (id, table) => {
+      if (!id) return generateId();
+      const { data, error } = await db.from(table).select('id').eq('id', id).limit(1);
+      if (error) throw error;
+      return data && data.length > 0 ? generateId() : id;
+    };
+
     const insertNode = async (node, parentId, sortOrder) => {
-      const nodeId = node.id || generateId();
+      const nodeId = await ensureUniqueId(node.id, 'indicators');
       const { error: indErr } = await db.from('indicators').insert({
         id: nodeId,
         system_id: systemId,
@@ -418,22 +426,24 @@ router.put('/indicator-systems/:id/tree', async (req, res) => {
 
       // 数据指标
       if (node.isLeaf && node.dataIndicators && Array.isArray(node.dataIndicators)) {
-        const records = node.dataIndicators.map((di, idx) => ({
-          id: di.id || generateId(),
-          indicator_id: nodeId,
-          code: di.code,
-          name: di.name,
-          data_type: normalizeDataIndicatorDataType(di),
-          unit: di.unit || '',
-          threshold: di.threshold || '',
-          description: di.description || '',
-          calculation_method: di.calculationMethod || di.calculation_method || '',
-          data_source: di.dataSource || di.data_source || '',
-          collection_frequency: di.collectionFrequency || di.collection_frequency || '',
-          sort_order: idx,
-          created_at: timestamp,
-          updated_at: timestamp,
-        }));
+        const records = await Promise.all(
+          node.dataIndicators.map(async (di, idx) => ({
+            id: await ensureUniqueId(di.id, 'data_indicators'),
+            indicator_id: nodeId,
+            code: di.code,
+            name: di.name,
+            data_type: normalizeDataIndicatorDataType(di),
+            unit: di.unit || '',
+            threshold: di.threshold || '',
+            description: di.description || '',
+            calculation_method: di.calculationMethod || di.calculation_method || '',
+            data_source: di.dataSource || di.data_source || '',
+            collection_frequency: di.collectionFrequency || di.collection_frequency || '',
+            sort_order: idx,
+            created_at: timestamp,
+            updated_at: timestamp,
+          }))
+        );
         if (records.length > 0) {
           const { error: diErr } = await db.from('data_indicators').insert(records);
           if (diErr) throw diErr;
@@ -442,19 +452,21 @@ router.put('/indicator-systems/:id/tree', async (req, res) => {
 
       // 佐证资料
       if (node.isLeaf && node.supportingMaterials && Array.isArray(node.supportingMaterials)) {
-        const records = node.supportingMaterials.map((sm, idx) => ({
-          id: sm.id || generateId(),
-          indicator_id: nodeId,
-          code: sm.code,
-          name: sm.name,
-          file_types: sm.fileTypes || '',
-          max_size: sm.maxSize || '',
-          description: sm.description || '',
-          required: sm.required ? 1 : 0,
-          sort_order: idx,
-          created_at: timestamp,
-          updated_at: timestamp,
-        }));
+        const records = await Promise.all(
+          node.supportingMaterials.map(async (sm, idx) => ({
+            id: await ensureUniqueId(sm.id, 'supporting_materials'),
+            indicator_id: nodeId,
+            code: sm.code,
+            name: sm.name,
+            file_types: sm.fileTypes || '',
+            max_size: sm.maxSize || '',
+            description: sm.description || '',
+            required: sm.required ? 1 : 0,
+            sort_order: idx,
+            created_at: timestamp,
+            updated_at: timestamp,
+          }))
+        );
         if (records.length > 0) {
           const { error: smErr } = await db.from('supporting_materials').insert(records);
           if (smErr) throw smErr;
@@ -486,7 +498,13 @@ router.put('/indicator-systems/:id/tree', async (req, res) => {
     if (msg.includes('data_indicators') && msg.includes('data_type') && msg.includes('not-null')) {
       return res.status(400).json({
         code: 400,
-        message: '保存失败：数据指标缺少 dataType（数据类型）。可在前端补填，或由后端默认“数字”后重试。'
+        message: '保存失败：数据指标缺少 dataType（数据类型）。可在前端补填，或由后端默认"数字"后重试。'
+      });
+    }
+    if (msg.includes('duplicate key') || msg.includes('unique constraint') || msg.includes('indicators_pkey')) {
+      return res.status(400).json({
+        code: 400,
+        message: '保存失败：检测到重复的ID。系统已自动生成新ID，请重试。如果问题持续，请联系管理员。'
       });
     }
     return res.status(500).json({ code: 500, message: error.message });

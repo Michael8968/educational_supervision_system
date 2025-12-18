@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Progress, Select, Card, Row, Col, Statistic, Spin, Empty, Modal } from 'antd';
+import { Table, Tag, Progress, Select, Card, Row, Col, Statistic, Spin, Empty, Modal, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
@@ -36,6 +36,10 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [schoolDetail, setSchoolDetail] = useState<SchoolIndicatorDetail | null>(null);
+  const [primaryDetail, setPrimaryDetail] = useState<SchoolIndicatorDetail | null>(null);
+  const [juniorDetail, setJuniorDetail] = useState<SchoolIndicatorDetail | null>(null);
+  const [detailTabKey, setDetailTabKey] = useState<string>('primary');
+  const [currentSchoolType, setCurrentSchoolType] = useState<string>('');
 
   // 加载数据
   useEffect(() => {
@@ -64,16 +68,37 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
   }, [districtId, projectId, schoolType]);
 
   // 查看学校详情
-  const handleViewDetail = async (schoolId: string) => {
+  const handleViewDetail = async (schoolId: string, schoolTypeName?: string) => {
     setDetailModalVisible(true);
     setDetailLoading(true);
+    setCurrentSchoolType(schoolTypeName || '');
+    setDetailTabKey('primary');
+    
     try {
-      const detail = await getSchoolIndicatorDetail(schoolId, projectId);
-      console.log('学校详情数据:', detail);
-      setSchoolDetail(detail);
+      // 判断是否为一贯制学校或完全中学
+      const isIntegratedSchool = schoolTypeName === '九年一贯制' || schoolTypeName === '完全中学';
+      
+      if (isIntegratedSchool) {
+        // 加载两个部门的数据
+        const [primaryData, juniorData] = await Promise.all([
+          getSchoolIndicatorDetail(schoolId, projectId, 'primary'),
+          getSchoolIndicatorDetail(schoolId, projectId, 'junior')
+        ]);
+        setPrimaryDetail(primaryData);
+        setJuniorDetail(juniorData);
+        setSchoolDetail(primaryData); // 默认显示小学部
+      } else {
+        // 普通学校，只加载一次
+        const detail = await getSchoolIndicatorDetail(schoolId, projectId);
+        setSchoolDetail(detail);
+        setPrimaryDetail(null);
+        setJuniorDetail(null);
+      }
     } catch (error) {
       console.error('加载学校详情失败:', error);
       setSchoolDetail(null);
+      setPrimaryDetail(null);
+      setJuniorDetail(null);
     } finally {
       setDetailLoading(false);
     }
@@ -95,13 +120,30 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
     {
       title: '学校类型',
       key: 'schoolType',
-      width: 100,
+      width: 120,
       render: (_, record) => {
         const type = record?.school?.schoolType;
+        const sectionName = record?.school?.sectionName;
         if (!type) return '-';
+        
+        // 如果是一贯制学校或完全中学的拆分记录，显示部门信息
+        let displayType = type;
+        if (sectionName && (type.includes('九年一贯制') || type.includes('完全中学'))) {
+          displayType = sectionName;
+        }
+        
+        const colorMap: Record<string, string> = {
+          '小学': 'blue',
+          '初中': 'green',
+          '小学部': 'blue',
+          '初中部': 'green',
+          '九年一贯制': 'orange',
+          '完全中学': 'purple'
+        };
+        
         return (
-          <Tag color={type === '小学' ? 'blue' : type === '初中' ? 'green' : 'orange'}>
-            {type}
+          <Tag color={colorMap[displayType] || 'orange'}>
+            {displayType}
           </Tag>
         );
       },
@@ -174,8 +216,15 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
       fixed: 'right',
       render: (_, record) => {
         const schoolId = record?.school?.id;
+        // 获取原始学校类型（去除部门后缀）
+        const schoolTypeName = record?.school?.schoolType;
+        const originalSchoolType = schoolTypeName?.includes('九年一贯制') 
+          ? '九年一贯制' 
+          : schoolTypeName?.includes('完全中学')
+          ? '完全中学'
+          : schoolTypeName;
         if (!schoolId) return <span style={{ color: '#999' }}>-</span>;
-        return <a onClick={() => handleViewDetail(schoolId)}>查看详情</a>;
+        return <a onClick={() => handleViewDetail(schoolId, originalSchoolType)}>查看详情</a>;
       },
     },
   ];
@@ -266,6 +315,7 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
             { value: '小学', label: '小学' },
             { value: '初中', label: '初中' },
             { value: '九年一贯制', label: '九年一贯制' },
+            { value: '完全中学', label: '完全中学' },
           ]}
         />
       </div>
@@ -302,13 +352,15 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
                 value={data.summary.avgComplianceRate || 0}
                 precision={2}
                 suffix="%"
-                valueStyle={{
-                  color:
-                    (data.summary.avgComplianceRate || 0) >= 90
-                      ? '#3f8600'
-                      : (data.summary.avgComplianceRate || 0) >= 70
-                      ? '#faad14'
-                      : '#cf1322',
+                styles={{
+                  content: {
+                    color:
+                      (data.summary.avgComplianceRate || 0) >= 90
+                        ? '#3f8600'
+                        : (data.summary.avgComplianceRate || 0) >= 70
+                        ? '#faad14'
+                        : '#cf1322',
+                  },
                 }}
               />
             </Card>
@@ -325,7 +377,12 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
         <Table
           columns={columns}
           dataSource={data.schools}
-          rowKey={(record, index) => record?.school?.id || `row-${index}`}
+          rowKey={(record) => {
+            // 对于一贯制学校和完全中学，需要结合 school.id 和 sectionType 确保唯一性
+            const schoolId = record?.school?.id || '';
+            const sectionType = record?.school?.sectionType || '';
+            return sectionType ? `${schoolId}-${sectionType}` : schoolId || `row-${Math.random()}`;
+          }}
           expandable={{
             expandedRowRender,
             rowExpandable: (record) => (record?.statistics?.total ?? 0) > 0,
@@ -352,6 +409,8 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
         onCancel={() => {
           setDetailModalVisible(false);
           setSchoolDetail(null);
+          setPrimaryDetail(null);
+          setJuniorDetail(null);
         }}
         width={900}
         footer={null}
@@ -361,47 +420,166 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
             <Spin size="large" />
           </div>
         ) : schoolDetail?.school ? (
-          <div>
-            {/* 学校基本信息 */}
-            <Card size="small" style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                <Col span={6}>
-                  <Statistic title="学校类型" value={schoolDetail.school.schoolType} />
-                </Col>
-                <Col span={6}>
-                  <Statistic title="学生数" value={schoolDetail.school.studentCount} />
-                </Col>
-                <Col span={6}>
-                  <Statistic title="教师数" value={schoolDetail.school.teacherCount} />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="达标率"
-                    value={schoolDetail.complianceRate || 0}
-                    suffix="%"
-                    valueStyle={{
-                      color:
-                        (schoolDetail.complianceRate || 0) >= 90
-                          ? '#3f8600'
-                          : (schoolDetail.complianceRate || 0) >= 70
-                          ? '#faad14'
-                          : '#cf1322',
-                    }}
-                  />
-                </Col>
-              </Row>
-            </Card>
+          (() => {
+            // 判断是否为一贯制学校或完全中学
+            const isIntegratedSchool = currentSchoolType === '九年一贯制' || currentSchoolType === '完全中学';
+            
+            return isIntegratedSchool && primaryDetail && juniorDetail ? (
+              // 一贯制学校或完全中学：显示两个Tab
+              <Tabs
+                activeKey={detailTabKey}
+                onChange={(key) => {
+                  setDetailTabKey(key);
+                  setSchoolDetail(key === 'primary' ? primaryDetail : juniorDetail);
+                }}
+                items={[
+                  {
+                    key: 'primary',
+                    label: '小学部',
+                    children: (
+                      <div>
+                        {/* 学校基本信息 */}
+                        <Card size="small" style={{ marginBottom: 16 }}>
+                          <Row gutter={16}>
+                            <Col span={6}>
+                              <Statistic title="学校类型" value="小学部" />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic title="学生数" value={primaryDetail.school.studentCount} />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic title="教师数" value={primaryDetail.school.teacherCount} />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic
+                                title="达标率"
+                                value={primaryDetail.complianceRate || 0}
+                                suffix="%"
+                                styles={{
+                                  content: {
+                                    color:
+                                      (primaryDetail.complianceRate || 0) >= 90
+                                        ? '#3f8600'
+                                        : (primaryDetail.complianceRate || 0) >= 70
+                                        ? '#faad14'
+                                        : '#cf1322',
+                                  },
+                                }}
+                              />
+                            </Col>
+                          </Row>
+                        </Card>
 
-            {/* 指标列表 */}
-            <Table
-              columns={detailColumns}
-              dataSource={schoolDetail.indicators}
-              rowKey="id"
-              size="small"
-              pagination={false}
-              scroll={{ y: 400 }}
-            />
-          </div>
+                        {/* 指标列表 */}
+                        <Table
+                          columns={detailColumns}
+                          dataSource={primaryDetail.indicators}
+                          rowKey="id"
+                          size="small"
+                          pagination={false}
+                          scroll={{ y: 400 }}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'junior',
+                    label: '初中部',
+                    children: (
+                      <div>
+                        {/* 学校基本信息 */}
+                        <Card size="small" style={{ marginBottom: 16 }}>
+                          <Row gutter={16}>
+                            <Col span={6}>
+                              <Statistic title="学校类型" value="初中部" />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic title="学生数" value={juniorDetail.school.studentCount} />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic title="教师数" value={juniorDetail.school.teacherCount} />
+                            </Col>
+                            <Col span={6}>
+                              <Statistic
+                                title="达标率"
+                                value={juniorDetail.complianceRate || 0}
+                                suffix="%"
+                                styles={{
+                                  content: {
+                                    color:
+                                      (juniorDetail.complianceRate || 0) >= 90
+                                        ? '#3f8600'
+                                        : (juniorDetail.complianceRate || 0) >= 70
+                                        ? '#faad14'
+                                        : '#cf1322',
+                                  },
+                                }}
+                              />
+                            </Col>
+                          </Row>
+                        </Card>
+
+                        {/* 指标列表 */}
+                        <Table
+                          columns={detailColumns}
+                          dataSource={juniorDetail.indicators}
+                          rowKey="id"
+                          size="small"
+                          pagination={false}
+                          scroll={{ y: 400 }}
+                        />
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            ) : (
+              // 普通学校：直接显示
+              <div>
+                {/* 学校基本信息 */}
+                <Card size="small" style={{ marginBottom: 16 }}>
+                  <Row gutter={16}>
+                    <Col span={6}>
+                      <Statistic title="学校类型" value={schoolDetail.school.schoolType} />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic title="学生数" value={schoolDetail.school.studentCount} />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic title="教师数" value={schoolDetail.school.teacherCount} />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic
+                        title="达标率"
+                        value={schoolDetail.complianceRate || 0}
+                        suffix="%"
+                        styles={{
+                          content: {
+                            color:
+                              (schoolDetail.complianceRate || 0) >= 90
+                                ? '#3f8600'
+                                : (schoolDetail.complianceRate || 0) >= 70
+                                ? '#faad14'
+                                : '#cf1322',
+                          },
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+
+                {/* 指标列表 */}
+                <Table
+                  columns={detailColumns}
+                  dataSource={schoolDetail.indicators}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  scroll={{ y: 400 }}
+                />
+              </div>
+            );
+          })()
         ) : (
           <Empty description="暂无数据" />
         )}

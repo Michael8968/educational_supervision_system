@@ -152,6 +152,8 @@ export interface SchoolIndicatorSummary {
     studentCount: number;
     teacherCount: number;
     studentTeacherRatio: number | null;
+    sectionType?: 'primary' | 'junior'; // 部门类型：小学部或初中部
+    sectionName?: string; // 部门名称：小学部或初中部
   };
   statistics: {
     total: number;
@@ -272,9 +274,15 @@ export async function getDistrictSchoolsIndicatorSummary(
 // 获取单个学校的详细指标数据
 export async function getSchoolIndicatorDetail(
   schoolId: string,
-  projectId: string
+  projectId: string,
+  sectionType?: 'primary' | 'junior'
 ): Promise<SchoolIndicatorDetail> {
   // 后端返回完整的学校+指标数据结构
+  const params: { projectId: string; sectionType?: string } = { projectId };
+  if (sectionType) {
+    params.sectionType = sectionType;
+  }
+  
   const response = await get<{
     school: {
       id: string;
@@ -285,6 +293,8 @@ export async function getSchoolIndicatorDetail(
       teacherCount: number;
       districtId: string;
       districtName?: string;
+      sectionType?: 'primary' | 'junior' | null;
+      sectionName?: string | null;
     };
     statistics: {
       total: number;
@@ -306,7 +316,7 @@ export async function getSchoolIndicatorDetail(
       indicatorDescription?: string;
       submissionId?: string | null;
     }>;
-  }>(`/schools/${schoolId}/indicator-data`, { projectId });
+  }>(`/schools/${schoolId}/indicator-data`, params);
 
   // 直接返回后端返回的数据结构
   return {
