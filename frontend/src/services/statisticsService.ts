@@ -242,6 +242,23 @@ export interface SchoolResourceIndicators {
   };
   compliantCount: number;
   totalCount: number;
+  // 综合达标判定（至少6项达标，余项≥85%）
+  isOverallCompliant: boolean | null;
+  overallComplianceMessage: string;
+  belowMinThresholdCount: number;
+  overallComplianceDetails: string[];
+}
+
+// 学校综合达标统计
+export interface OverallComplianceSummary {
+  rule: string;
+  minCompliantCount: number;
+  minThresholdPercent: number;
+  compliantSchools: number;
+  nonCompliantSchools: number;
+  pendingSchools: number;
+  complianceRate: number | null;
+  allSchoolsCompliant: boolean;
 }
 
 // 资源配置指标汇总响应
@@ -257,7 +274,10 @@ export interface ResourceIndicatorsSummary {
     cvIndicators: CVIndicatorSummary[];
     compliantCvCount: number;
     totalCvCount: number;
-    allCompliant: boolean | null;
+    allCvCompliant: boolean | null;
+    allCompliant: boolean | null;  // 向后兼容别名
+    // 学校综合达标统计（至少6项达标，余项≥85%）
+    overallCompliance: OverallComplianceSummary;
   };
   schools: SchoolResourceIndicators[];
 }

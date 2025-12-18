@@ -187,17 +187,40 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
       render: (_, record) => renderIndicatorCell(record.indicators?.L7, '间'),
     },
     {
-      title: '达标数',
-      key: 'compliant',
-      width: 80,
+      title: (
+        <Tooltip title="每所学校至少6项达标，余项不低于标准的85%">
+          是否达标 <QuestionCircleOutlined style={{ fontSize: 12 }} />
+        </Tooltip>
+      ),
+      key: 'overallCompliant',
+      width: 100,
       align: 'center',
       fixed: 'right',
       render: (_, record) => {
-        const allCompliant = record.compliantCount === record.totalCount && record.totalCount > 0;
-        return (
-          <Tag color={allCompliant ? 'success' : record.compliantCount >= 6 ? 'warning' : 'error'}>
-            {record.compliantCount}/{record.totalCount}
-          </Tag>
+        if (record.isOverallCompliant === null) {
+          return <Tag color="default">暂无数据</Tag>;
+        }
+        return record.isOverallCompliant ? (
+          <Tooltip title={record.overallComplianceMessage}>
+            <Tag icon={<CheckCircleOutlined />} color="success">达标</Tag>
+          </Tooltip>
+        ) : (
+          <Tooltip
+            title={
+              <div>
+                <div>{record.overallComplianceMessage}</div>
+                {record.overallComplianceDetails && record.overallComplianceDetails.length > 0 && (
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: 16 }}>
+                    {record.overallComplianceDetails.map((detail, idx) => (
+                      <li key={idx} style={{ fontSize: 12 }}>{detail}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            }
+          >
+            <Tag icon={<CloseCircleOutlined />} color="error">未达标</Tag>
+          </Tooltip>
         );
       },
     },
@@ -327,9 +350,24 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
         title={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>各学校7项资源配置指标</span>
-            <span style={{ fontSize: 14, fontWeight: 'normal', color: '#666' }}>
-              共 {data?.schools?.length || 0} 所学校
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {data?.summary?.overallCompliance && (
+                <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                  {data.summary.overallCompliance.allSchoolsCompliant ? (
+                    <Tag icon={<CheckCircleOutlined />} color="success">
+                      {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                    </Tag>
+                  ) : (
+                    <Tag icon={<CloseCircleOutlined />} color="error">
+                      {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                    </Tag>
+                  )}
+                </span>
+              )}
+              <span style={{ fontSize: 14, fontWeight: 'normal', color: '#666' }}>
+                共 {data?.schools?.length || 0} 所学校
+              </span>
+            </div>
           </div>
         }
       >
