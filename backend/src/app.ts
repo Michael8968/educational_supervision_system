@@ -13,6 +13,7 @@ import { loginRules } from './middleware/validate';
 import {
   userRouter,
   districtRouter,
+  blobRouter,
   indicatorRouter,
   toolRouter,
   submissionRouter,
@@ -60,6 +61,7 @@ export function createApp(db?: Database): Express {
   }
 
   // API 路由
+  app.use('/api', blobRouter);
   app.use('/api', indicatorRouter);
   app.use('/api', toolRouter);
   app.use('/api', submissionRouter);

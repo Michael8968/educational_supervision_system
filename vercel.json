@@ -4,9 +4,13 @@
   "name": "educational-supervision-system",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install",
+  "installCommand": "npm install && cd frontend && npm install",
   "framework": "create-react-app",
   "rewrites": [
+    {
+      "source": "/api/blob/:path*",
+      "destination": "/api/blob/:path*"
+    },
     {
       "source": "/api/:path*",
       "destination": "${BACKEND_URL}/api/:path*"

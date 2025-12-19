@@ -72,6 +72,31 @@ npm start
 
 后端将在 http://localhost:3001 启动
 
+## 本地上传到 Vercel Blob（开发环境）
+
+本项目的 Vercel Blob 接口在仓库根目录的 `api/blob/*`（例如 `api/blob/upload.ts`），**只会在 Vercel / `vercel dev` 环境下生效**，后端 Express(3001) 默认不提供该路由。
+
+- **前端代理已配置**：开发时 `frontend/src/setupProxy.js` 会把 `http://localhost:3000/api/blob/*` 代理到 `vercel dev`（默认 `http://localhost:3002`），从而避免浏览器跨端口 CORS。
+
+### 1) 启动 Vercel Dev（建议 3002 端口）
+
+在仓库根目录执行：
+
+```bash
+vercel dev --listen 3002
+```
+
+### 2) 配置环境变量
+
+`vercel dev` / 线上 Vercel 都需要 `BLOB_READ_WRITE_TOKEN`。本地请在你的终端环境或 Vercel CLI 的本地环境文件中注入该变量（不要提交到 git）。
+
+### 3) 启动前端 + 后端
+
+按上面的“启动前端/后端”启动即可。此时前端页面里的上传会走：
+
+- `POST /api/blob/upload` → 代理到 `vercel dev` → 上传到 Vercel Blob
+- `POST /api/blob/delete` → 代理到 `vercel dev` → 删除 Blob
+
 ## 技术栈
 
 - **前端**: React + TypeScript + Ant Design + React Router

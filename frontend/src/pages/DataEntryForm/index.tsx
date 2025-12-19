@@ -41,7 +41,7 @@ import * as toolService from '../../services/toolService';
 import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
 import type { Submission } from '../../services/submissionService';
-import * as materialService from '../../services/materialService';
+import { upload as uploadToBlob } from '@vercel/blob/client';
 import { useAuthStore } from '../../stores/authStore';
 import { parseThreshold, validateThreshold, calculate, parseVariables } from '../../utils/formulaCalculator';
 import { sampleDataList } from '../../mock/sample-data-index';
@@ -49,6 +49,11 @@ import styles from './index.module.css';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 dayjs.extend(customParseFormat);
+
+// Vercel Blob 接口走后端代理（本地/部署均可通过环境变量覆盖）
+const BACKEND_API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const BLOB_UPLOAD_URL = `${BACKEND_API_BASE_URL}/blob/upload`;
+const BLOB_DELETE_URL = `${BACKEND_API_BASE_URL}/blob/delete`;
 
 // 映射目标信息
 interface MappingTargetInfo {
@@ -91,6 +96,14 @@ interface SplitConfig {
     junior?: string;
     senior?: string;
   };
+}
+
+interface BlobUploadedFile {
+  url: string;
+  pathname: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
 }
 
 // 扩展 FormField 类型以包含更多属性
@@ -368,42 +381,7 @@ const DataEntryForm: React.FC = () => {
     }
   };
 
-  // 确保存在 submission（用于上传佐证材料等需要 submissionId 的场景）
-  const ensureSubmissionId = useCallback(async (): Promise<string> => {
-    if (submission?.id) return submission.id;
-    if (!formId || !projectId) {
-      throw new Error('缺少表单信息，无法上传');
-    }
-    if (!resolvedScope) {
-      message.error(isDistrictForm
-        ? '缺少区县信息：请先在右上角选择区县范围后再上传'
-        : '缺少学校信息：请先在右上角选择学校范围后再上传');
-      throw new Error('缺少范围信息，无法上传');
-    }
-
-    const values = form.getFieldsValue();
-    const payloadValues = serializeValuesForSubmit(formFields, values);
-    const newSubmission = await submissionService.create({
-      projectId,
-      formId,
-      schoolId: resolvedScope.id,
-      submitterName: user?.username || '当前用户',
-      submitterOrg: resolvedScope.name,
-      data: payloadValues,
-    });
-    setSubmission(newSubmission);
-    message.info('已自动创建草稿，用于保存上传的佐证材料');
-    return newSubmission.id;
-  }, [
-    submission?.id,
-    formId,
-    projectId,
-    resolvedScope,
-    isDistrictForm,
-    form,
-    formFields,
-    user?.username,
-  ]);
+  // 注意：本次改造为 Vercel Blob 直传后，upload 控件不再依赖 submissionId
 
   // 提交表单
   const handleSubmit = async () => {
@@ -1221,10 +1199,10 @@ const DataEntryForm: React.FC = () => {
         // 注意：upload 通过 form.setFieldValue 更新时不一定触发 onValuesChange，
         // 不能只依赖 currentFormValues（currentValues）来渲染 fileList。
         const materialsRaw = form.getFieldValue(field.id);
-        const materials: materialService.UploadedMaterial[] = Array.isArray(materialsRaw) ? materialsRaw : [];
+        const materials: BlobUploadedFile[] = Array.isArray(materialsRaw) ? materialsRaw : [];
 
         const fileList: UploadFile[] = materials.map((m) => ({
-          uid: m.id,
+          uid: m.pathname || m.url,
           name: m.fileName,
           status: 'done',
           size: m.fileSize,
@@ -1270,8 +1248,19 @@ const DataEntryForm: React.FC = () => {
                 const { file, onSuccess, onError } = options;
                 try {
                   setUploadingFields((prev) => ({ ...prev, [field.id]: true }));
-                  const submissionId = await ensureSubmissionId();
-                  const uploaded = await materialService.uploadMaterial(submissionId, file as File);
+                  const f = file as File;
+                  const pathname = `${field.id}/${Date.now()}-${f.name}`;
+                  const blob = await uploadToBlob(pathname, f, {
+                    access: 'public',
+                    handleUploadUrl: BLOB_UPLOAD_URL,
+                  });
+                  const uploaded: BlobUploadedFile = {
+                    url: blob.url,
+                    pathname: blob.pathname,
+                    fileName: f.name,
+                    fileSize: f.size,
+                    fileType: blob.contentType || f.type || 'application/octet-stream',
+                  };
                   const next = [...materials, uploaded].slice(0, maxCount);
                   form.setFieldValue(field.id, next);
                   // 同步刷新 currentFormValues，确保 fileList 立刻渲染出来
@@ -1286,15 +1275,20 @@ const DataEntryForm: React.FC = () => {
                 }
               }}
               onRemove={async (file) => {
-                const materialId = String(file.uid || '');
-                const next = materials.filter((m) => m.id !== materialId);
+                const uid = String(file.uid || '');
+                const removing = materials.find((m) => (m.pathname || m.url) === uid);
+                const next = materials.filter((m) => (m.pathname || m.url) !== uid);
                 form.setFieldValue(field.id, next);
                 setCurrentFormValues(form.getFieldsValue());
 
-                if (materialId) {
+                if (removing?.url || removing?.pathname) {
                   try {
-                    await materialService.deleteMaterial(materialId);
-                    message.success('已删除');
+                    await fetch(BLOB_DELETE_URL, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ url: removing.url, pathname: removing.pathname }),
+                    });
+                    message.success('已删除（Blob）');
                   } catch (e: any) {
                     message.error(e?.message || '删除失败');
                   }
@@ -1302,9 +1296,10 @@ const DataEntryForm: React.FC = () => {
                 return true;
               }}
               onPreview={async (file) => {
-                const materialId = String(file.uid || '');
-                if (!materialId) return;
-                window.open(materialService.getDownloadUrl(materialId), '_blank');
+                const uid = String(file.uid || '');
+                const target = materials.find((m) => (m.pathname || m.url) === uid);
+                if (!target?.url) return;
+                window.open(target.url, '_blank');
               }}
             >
               <p className="ant-upload-drag-icon">
@@ -1454,7 +1449,6 @@ const DataEntryForm: React.FC = () => {
     computeSplitValues,
     submission?.status,
     uploadingFields,
-    ensureSubmissionId,
   ]);
 
   if (loading) {

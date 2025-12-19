@@ -11,6 +11,7 @@ export { router as userRouter } from './users';
 import districtsModule from './districts';
 export const districtRouter = districtsModule.router;
 export const setDistrictDb = districtsModule.setDb;
+export { router as blobRouter } from './blob';
 
 // 导入 JavaScript 路由（临时兼容层，逐步迁移到 TypeScript）
 // eslint-disable-next-line @typescript-eslint/no-var-requires
