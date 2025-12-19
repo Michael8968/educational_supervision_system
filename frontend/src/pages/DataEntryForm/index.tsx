@@ -41,10 +41,12 @@ import * as toolService from '../../services/toolService';
 import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
 import type { Submission } from '../../services/submissionService';
+import * as materialService from '../../services/materialService';
 import { useAuthStore } from '../../stores/authStore';
 import { parseThreshold, validateThreshold, calculate, parseVariables } from '../../utils/formulaCalculator';
 import { sampleDataList } from '../../mock/sample-data-index';
 import styles from './index.module.css';
+import type { UploadFile } from 'antd/es/upload/interface';
 
 dayjs.extend(customParseFormat);
 
@@ -214,6 +216,7 @@ const DataEntryForm: React.FC = () => {
   const [currentFormValues, setCurrentFormValues] = useState<Record<string, any>>({});
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
   const [splitConfig, setSplitConfig] = useState<SplitConfig | null>(null);
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   
   // 防抖定时器引用
   const computeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -364,6 +367,43 @@ const DataEntryForm: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // 确保存在 submission（用于上传佐证材料等需要 submissionId 的场景）
+  const ensureSubmissionId = useCallback(async (): Promise<string> => {
+    if (submission?.id) return submission.id;
+    if (!formId || !projectId) {
+      throw new Error('缺少表单信息，无法上传');
+    }
+    if (!resolvedScope) {
+      message.error(isDistrictForm
+        ? '缺少区县信息：请先在右上角选择区县范围后再上传'
+        : '缺少学校信息：请先在右上角选择学校范围后再上传');
+      throw new Error('缺少范围信息，无法上传');
+    }
+
+    const values = form.getFieldsValue();
+    const payloadValues = serializeValuesForSubmit(formFields, values);
+    const newSubmission = await submissionService.create({
+      projectId,
+      formId,
+      schoolId: resolvedScope.id,
+      submitterName: user?.username || '当前用户',
+      submitterOrg: resolvedScope.name,
+      data: payloadValues,
+    });
+    setSubmission(newSubmission);
+    message.info('已自动创建草稿，用于保存上传的佐证材料');
+    return newSubmission.id;
+  }, [
+    submission?.id,
+    formId,
+    projectId,
+    resolvedScope,
+    isDistrictForm,
+    form,
+    formFields,
+    user?.username,
+  ]);
 
   // 提交表单
   const handleSubmit = async () => {
@@ -1173,6 +1213,112 @@ const DataEntryForm: React.FC = () => {
           </Form.Item>
         );
 
+      case 'upload': {
+        const maxCount = 5;
+        const maxBytes = 20 * 1024 * 1024;
+        const disabled = submission?.status === 'submitted';
+
+        // 注意：upload 通过 form.setFieldValue 更新时不一定触发 onValuesChange，
+        // 不能只依赖 currentFormValues（currentValues）来渲染 fileList。
+        const materialsRaw = form.getFieldValue(field.id);
+        const materials: materialService.UploadedMaterial[] = Array.isArray(materialsRaw) ? materialsRaw : [];
+
+        const fileList: UploadFile[] = materials.map((m) => ({
+          uid: m.id,
+          name: m.fileName,
+          status: 'done',
+          size: m.fileSize,
+          type: m.fileType,
+        }));
+
+        const isUploading = !!uploadingFields[field.id];
+
+        return (
+          <Form.Item
+            key={field.id}
+            name={field.id}
+            label={field.label}
+            extra={field.helpText}
+            style={{ width: field.width }}
+            rules={[
+              ...(field.required
+                ? [{
+                    validator: async (_: any, v: any) => {
+                      if (Array.isArray(v) && v.length > 0) return;
+                      throw new Error(`请上传${field.label}`);
+                    },
+                  }]
+                : []),
+            ]}
+          >
+            <Upload.Dragger
+              multiple
+              disabled={disabled || isUploading}
+              fileList={fileList}
+              beforeUpload={(file) => {
+                if (materials.length >= maxCount) {
+                  message.warning(`最多上传 ${maxCount} 个文件`);
+                  return Upload.LIST_IGNORE;
+                }
+                if (file.size > maxBytes) {
+                  message.warning('单个文件大小不能超过 20MB');
+                  return Upload.LIST_IGNORE;
+                }
+                return true;
+              }}
+              customRequest={async (options: any) => {
+                const { file, onSuccess, onError } = options;
+                try {
+                  setUploadingFields((prev) => ({ ...prev, [field.id]: true }));
+                  const submissionId = await ensureSubmissionId();
+                  const uploaded = await materialService.uploadMaterial(submissionId, file as File);
+                  const next = [...materials, uploaded].slice(0, maxCount);
+                  form.setFieldValue(field.id, next);
+                  // 同步刷新 currentFormValues，确保 fileList 立刻渲染出来
+                  setCurrentFormValues(form.getFieldsValue());
+                  onSuccess?.(uploaded);
+                  message.success('上传成功');
+                } catch (e: any) {
+                  onError?.(e);
+                  message.error(e?.message || '上传失败');
+                } finally {
+                  setUploadingFields((prev) => ({ ...prev, [field.id]: false }));
+                }
+              }}
+              onRemove={async (file) => {
+                const materialId = String(file.uid || '');
+                const next = materials.filter((m) => m.id !== materialId);
+                form.setFieldValue(field.id, next);
+                setCurrentFormValues(form.getFieldsValue());
+
+                if (materialId) {
+                  try {
+                    await materialService.deleteMaterial(materialId);
+                    message.success('已删除');
+                  } catch (e: any) {
+                    message.error(e?.message || '删除失败');
+                  }
+                }
+                return true;
+              }}
+              onPreview={async (file) => {
+                const materialId = String(file.uid || '');
+                if (!materialId) return;
+                window.open(materialService.getDownloadUrl(materialId), '_blank');
+              }}
+            >
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined />
+              </p>
+              <p className="ant-upload-text">{field.placeholder || '点击或拖拽文件到此区域上传'}</p>
+              <p className="ant-upload-hint">
+                {field.helpText || `最多${maxCount}个文件，单个不超过20MB`}
+              </p>
+            </Upload.Dragger>
+          </Form.Item>
+        );
+      }
+
       case 'switch':
         return (
           <Form.Item
@@ -1298,7 +1444,18 @@ const DataEntryForm: React.FC = () => {
       default:
         return null;
     }
-  }, [evaluateShowWhen, form, handleManualCalculate, calculateDerivedFields, computeDerivedValues, splitConfig, computeSplitValues]);
+  }, [
+    evaluateShowWhen,
+    form,
+    handleManualCalculate,
+    calculateDerivedFields,
+    computeDerivedValues,
+    splitConfig,
+    computeSplitValues,
+    submission?.status,
+    uploadingFields,
+    ensureSubmissionId,
+  ]);
 
   if (loading) {
     return (

@@ -33,6 +33,7 @@ export type ControlType =
   | 'date'
   | 'time'
   | 'file'
+  | 'upload'
   | 'switch'
   | 'divider'
   | 'group'
