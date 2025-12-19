@@ -36,7 +36,7 @@ import {
   ImportOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as toolService from '../../services/toolService';
 import type { FormField } from '../../services/toolService';
 import * as submissionService from '../../services/submissionService';
@@ -216,10 +216,12 @@ const serializeValuesForSubmit = (
 const DataEntryForm: React.FC = () => {
   const navigate = useNavigate();
   const { projectId, formId } = useParams<{ projectId: string; formId: string }>();
+  const location = useLocation();
   const [form] = Form.useForm();
   const user = useAuthStore((s) => s.user);
 
-  const [loading, setLoading] = useState(true);
+  const [loadingSchema, setLoadingSchema] = useState(true);
+  const [loadingSubmission, setLoadingSubmission] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toolInfo, setToolInfo] = useState<ToolInfo | null>(null);
@@ -233,6 +235,8 @@ const DataEntryForm: React.FC = () => {
   
   // 防抖定时器引用
   const computeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 用于避免重复加载/覆盖用户正在编辑的数据
+  const lastLoadedKeyRef = useRef<string>('');
 
   // 导入示例数据相关状态
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -272,12 +276,20 @@ const DataEntryForm: React.FC = () => {
   // 判断是否为区县级表单
   const isDistrictForm = toolInfo?.target === '区县';
 
+  const isReadOnly = submission?.status === 'submitted' || submission?.status === 'approved';
+  const loading = loadingSchema || loadingSubmission;
+
+  const submissionIdFromQuery = useMemo(() => {
+    const sp = new URLSearchParams(location.search);
+    return sp.get('submissionId');
+  }, [location.search]);
+
   // 加载数据
   useEffect(() => {
     const loadData = async () => {
       if (!formId || !projectId) return;
 
-      setLoading(true);
+      setLoadingSchema(true);
       try {
         // 获取完整的工具信息和schema（含字段映射）
         const fullSchemaData = await toolService.getFullSchema(formId);
@@ -305,37 +317,102 @@ const DataEntryForm: React.FC = () => {
 
           setFormFields(schemaFields);
         }
-
-        // 尝试获取已有的填报记录
-        const submissions = await submissionService.getByProject(projectId);
-        // 使用当前选择的范围（学校或区县）来匹配
-        const scopeIdForMatch = user?.currentScope?.id || resolvedSchoolScope?.id || resolvedDistrictScope?.id;
-        const existingSubmission = submissions.find((s: Submission) =>
-          s.formId === formId
-          && s.status !== 'approved'
-          && (scopeIdForMatch ? s.schoolId === scopeIdForMatch : true)
-        );
-
-        if (existingSubmission) {
-          // 列表接口不包含 data，需再拉取详情以便回显
-          const full = await submissionService.getSubmission(existingSubmission.id);
-          setSubmission(full);
-          const parsedData = (full && full.data) ? full.data : {};
-          const normalized = normalizeValuesForPickers(schemaFields, parsedData as Record<string, any>);
-          setFormData(normalized);
-          setCurrentFormValues(normalized);
-          form.setFieldsValue(normalized);
-        }
       } catch (error) {
         console.error('加载数据失败:', error);
         message.error('加载数据失败');
       } finally {
-        setLoading(false);
+        setLoadingSchema(false);
       }
     };
 
     loadData();
-  }, [formId, projectId, form]);
+  }, [formId, projectId]);
+
+  // 加载已填报数据（回显）
+  useEffect(() => {
+    const loadExistingSubmission = async () => {
+      if (!formId || !projectId) return;
+      // schema 未加载出来时无法做 picker 的 normalize，也无法稳定回填
+      if (formFields.length === 0) return;
+
+      try {
+        // 1) 明确指定 submissionId 时，优先按 id 回显（来自“继续填报/查看”场景）
+        if (submissionIdFromQuery) {
+          const loadKey = `id:${submissionIdFromQuery}`;
+          if (lastLoadedKeyRef.current === loadKey) return;
+          lastLoadedKeyRef.current = loadKey;
+
+          setLoadingSubmission(true);
+          const full = await submissionService.getSubmission(submissionIdFromQuery);
+          setSubmission(full);
+          const parsedData = full?.data ? full.data : {};
+          const normalized = normalizeValuesForPickers(formFields, parsedData as Record<string, any>);
+          setFormData(normalized);
+          setCurrentFormValues(normalized);
+          form.setFieldsValue(normalized);
+          return;
+        }
+
+        // 2) 否则：按 projectId + formId + 当前 scope 精确匹配最新一条
+        // 区县表单：后端区县自身填报记录更多依赖 submitter_org（区县名），因此优先按 submitterOrg 匹配
+        // 学校表单：按 schoolId 精确匹配
+        const scopeIdForMatch = user?.currentScope?.id || resolvedScope?.id;
+        const scopeNameForMatch = user?.currentScope?.name || resolvedScope?.name;
+
+        // 若用户有多个范围且尚未选择，无法确定匹配对象：此时不自动匹配，避免误回显别人的数据
+        if (!scopeIdForMatch && !scopeNameForMatch) return;
+
+        const loadKey = isDistrictForm
+          ? `scope:district:${projectId}:${formId}:${scopeNameForMatch || ''}`
+          : `scope:school:${projectId}:${formId}:${scopeIdForMatch || ''}`;
+        if (lastLoadedKeyRef.current === loadKey) return;
+        lastLoadedKeyRef.current = loadKey;
+
+        setLoadingSubmission(true);
+
+        const submissions = await submissionService.getSubmissions({ projectId, formId });
+        const candidates = (submissions || []).filter((s: Submission) => {
+          if (s.formId !== formId) return false;
+          if (isDistrictForm) {
+            if (!scopeNameForMatch) return false;
+            // 先精确匹配，再允许包含（兼容“XX区教育局”等命名）
+            return s.submitterOrg === scopeNameForMatch || (typeof s.submitterOrg === 'string' && s.submitterOrg.includes(scopeNameForMatch));
+          }
+          // 学校/其它：按 schoolId 匹配
+          if (scopeIdForMatch) return s.schoolId === scopeIdForMatch;
+          return false;
+        });
+
+        const existing = candidates[0]; // 后端已按 updatedAt DESC 排序
+        if (!existing) return;
+
+        const full = await submissionService.getSubmission(existing.id);
+        setSubmission(full);
+        const parsedData = full?.data ? full.data : {};
+        const normalized = normalizeValuesForPickers(formFields, parsedData as Record<string, any>);
+        setFormData(normalized);
+        setCurrentFormValues(normalized);
+        form.setFieldsValue(normalized);
+      } catch (error) {
+        console.error('加载填报回显失败:', error);
+      } finally {
+        setLoadingSubmission(false);
+      }
+    };
+
+    loadExistingSubmission();
+  }, [
+    formId,
+    projectId,
+    formFields,
+    form,
+    submissionIdFromQuery,
+    user?.currentScope?.id,
+    user?.currentScope?.name,
+    resolvedScope?.id,
+    resolvedScope?.name,
+    isDistrictForm,
+  ]);
 
   // 保存草稿
   const handleSaveDraft = async () => {
@@ -1194,7 +1271,7 @@ const DataEntryForm: React.FC = () => {
       case 'upload': {
         const maxCount = 5;
         const maxBytes = 20 * 1024 * 1024;
-        const disabled = submission?.status === 'submitted';
+        const disabled = isReadOnly;
 
         // 注意：upload 通过 form.setFieldValue 更新时不一定触发 onValuesChange，
         // 不能只依赖 currentFormValues（currentValues）来渲染 fileList。
@@ -1447,7 +1524,7 @@ const DataEntryForm: React.FC = () => {
     computeDerivedValues,
     splitConfig,
     computeSplitValues,
-    submission?.status,
+    isReadOnly,
     uploadingFields,
   ]);
 
@@ -1475,7 +1552,7 @@ const DataEntryForm: React.FC = () => {
           <Button
             icon={<ImportOutlined />}
             onClick={handleOpenImport}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
           >
             导入数据
           </Button>
@@ -1483,7 +1560,7 @@ const DataEntryForm: React.FC = () => {
             icon={<SaveOutlined />}
             onClick={handleSaveDraft}
             loading={saving}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
           >
             保存草稿
           </Button>
@@ -1492,7 +1569,7 @@ const DataEntryForm: React.FC = () => {
             icon={<SendOutlined />}
             onClick={handleSubmit}
             loading={submitting}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
           >
             提交
           </Button>
@@ -1515,10 +1592,14 @@ const DataEntryForm: React.FC = () => {
       )}
 
       {/* 状态提示 */}
-      {submission?.status === 'submitted' && (
+      {(submission?.status === 'submitted' || submission?.status === 'approved') && (
         <Alert
-          message="表单已提交"
-          description="您的填报已提交，正在等待审核。如需修改，请联系管理员退回后再编辑。"
+          message={submission?.status === 'approved' ? '表单已通过' : '表单已提交'}
+          description={
+            submission?.status === 'approved'
+              ? '您的填报已审核通过，当前为只读查看。'
+              : '您的填报已提交，正在等待审核。如需修改，请联系管理员退回后再编辑。'
+          }
           type="info"
           showIcon
           className={styles.statusAlert}
@@ -1585,7 +1666,7 @@ const DataEntryForm: React.FC = () => {
             form={form}
             layout="vertical"
             initialValues={formData}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
             onValuesChange={(changedValues, allValues) => {
               // 更新当前表单值状态（用于 showWhen 条件评估）
               setCurrentFormValues(allValues);
@@ -1668,7 +1749,7 @@ const DataEntryForm: React.FC = () => {
             icon={<SaveOutlined />}
             onClick={handleSaveDraft}
             loading={saving}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
           >
             保存草稿
           </Button>
@@ -1677,7 +1758,7 @@ const DataEntryForm: React.FC = () => {
             icon={<SendOutlined />}
             onClick={handleSubmit}
             loading={submitting}
-            disabled={submission?.status === 'submitted'}
+            disabled={isReadOnly}
           >
             提交
           </Button>
