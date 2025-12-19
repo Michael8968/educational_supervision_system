@@ -680,6 +680,13 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
       return res.status(400).json({ code: 400, message: '请指定项目ID' });
     }
 
+    // 获取项目关联的指标体系（用于限定 data_indicators 范围，避免同 code 不同 id 的重复指标导致统计翻倍）
+    const projectResult = await db.query(
+      `SELECT indicator_system_id as "indicatorSystemId" FROM projects WHERE id = $1`,
+      [projectId]
+    );
+    const indicatorSystemId = projectResult.rows?.[0]?.indicatorSystemId || null;
+
     // 获取区县信息
     const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
     const district = districtResult.rows[0];
@@ -921,6 +928,78 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
           return code;
         });
 
+        // 关键：避免“落库数据 + 实时计算”双计导致 7 项变 14 项
+        // - 普通学校：如果已经有落库指标数据，直接以落库为准，不再实时计算 7 项资源指标
+        // - 一贯制/完全中学：即使有落库数据，也需要按部门拆分实时计算（否则无法得到小学部/初中部口径）
+        const storedStatsResult = await db.query(
+          `
+            SELECT
+              COUNT(*) as total,
+              SUM(CASE WHEN sid.is_compliant = 1 THEN 1 ELSE 0 END) as compliant,
+              SUM(CASE WHEN sid.is_compliant = 0 THEN 1 ELSE 0 END) as "nonCompliant",
+              SUM(CASE WHEN sid.is_compliant IS NULL THEN 1 ELSE 0 END) as pending
+            FROM school_indicator_data sid
+            JOIN data_indicators di ON sid.data_indicator_id = di.id
+            JOIN indicators ind ON di.indicator_id = ind.id
+            WHERE sid.project_id = $1 AND sid.school_id = $2
+              ${indicatorSystemId ? 'AND ind.system_id = $3' : ''}
+              ${indicatorFilter}
+          `,
+          indicatorSystemId ? [projectId, school.id, indicatorSystemId] : [projectId, school.id]
+        );
+        const storedStats = storedStatsResult.rows?.[0] || { total: 0, compliant: 0, nonCompliant: 0, pending: 0 };
+        const storedTotal = parseInt(storedStats.total) || 0;
+        const shouldCalculateRealtime = isIntegratedSchool || storedTotal === 0;
+
+        if (!shouldCalculateRealtime) {
+          // 普通学校且已有落库数据：直接返回落库统计与未达标列表
+          const nonCompliantStoredResult = await db.query(
+            `
+              SELECT sid.data_indicator_id, sid.value, sid.text_value,
+                     di.code as "indicatorCode", di.name as "indicatorName", di.threshold
+              FROM school_indicator_data sid
+              JOIN data_indicators di ON sid.data_indicator_id = di.id
+              JOIN indicators ind ON di.indicator_id = ind.id
+              WHERE sid.project_id = $1 AND sid.school_id = $2 AND sid.is_compliant = 0
+                ${indicatorSystemId ? 'AND ind.system_id = $3' : ''}
+                ${indicatorFilter}
+              ORDER BY di.code
+            `,
+            indicatorSystemId ? [projectId, school.id, indicatorSystemId] : [projectId, school.id]
+          );
+
+          schoolSummaries.push({
+            school: {
+              id: school.id,
+              code: school.code,
+              name: section.displayName,
+              schoolType: school.schoolType,
+              schoolCategory: school.schoolCategory,
+              urbanRural: school.urbanRural,
+              studentCount,
+              teacherCount: school.teacherCount,
+              studentTeacherRatio: school.teacherCount > 0
+                ? Math.round((studentCount / school.teacherCount) * 100) / 100
+                : null,
+              sectionType: section.sectionType,
+              sectionName: section.sectionName
+            },
+            statistics: {
+              total: storedTotal,
+              compliant: parseInt(storedStats.compliant) || 0,
+              nonCompliant: parseInt(storedStats.nonCompliant) || 0,
+              pending: parseInt(storedStats.pending) || 0
+            },
+            complianceRate: storedTotal > 0
+              ? Math.round(((parseInt(storedStats.compliant) || 0) / storedTotal) * 10000) / 100
+              : null,
+            nonCompliantIndicators: nonCompliantStoredResult.rows || []
+          });
+
+          // 已使用落库数据处理完本 section
+          continue;
+        }
+
         // 获取该部门的指标数据统计（排除需要实时计算的指标）
         const statsResult = await db.query(`
           SELECT
@@ -930,9 +1009,13 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
             SUM(CASE WHEN is_compliant IS NULL THEN 1 ELSE 0 END) as pending
           FROM school_indicator_data sid
           JOIN data_indicators di ON sid.data_indicator_id = di.id
+          JOIN indicators ind ON di.indicator_id = ind.id
           WHERE sid.project_id = $1 AND sid.school_id = $2
-            AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)${indicatorFilter}
-        `, [projectId, school.id, ...sectionCalculatedIndicatorCodes]);
+            AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)${indicatorSystemId ? ' AND ind.system_id = $10' : ''}${indicatorFilter}
+        `, indicatorSystemId
+          ? [projectId, school.id, ...sectionCalculatedIndicatorCodes, indicatorSystemId]
+          : [projectId, school.id, ...sectionCalculatedIndicatorCodes]
+        );
 
         const stats = statsResult.rows[0];
         let total = parseInt(stats.total) || 0;
@@ -940,16 +1023,31 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
         let nonCompliant = parseInt(stats.nonCompliant) || 0;
 
         // 获取需要实时计算的指标的阈值和达标状态（根据部门类型）
-        const calculatedIndicatorsResult = await db.query(`
-          SELECT id, code, name, threshold
-          FROM data_indicators
-          WHERE (code LIKE '%1.1${indicatorCodeSuffix}%' OR code LIKE '%1.2${indicatorCodeSuffix}%' 
-                 OR code LIKE '%1.3${indicatorCodeSuffix}%' OR code LIKE '%1.4${indicatorCodeSuffix}%'
-                 OR code LIKE '%1.5${indicatorCodeSuffix}%' OR code LIKE '%1.6${indicatorCodeSuffix}%'
-                 OR code LIKE '%1.7${indicatorCodeSuffix}%')
-        `);
+        const calculatedIndicatorsResult = await db.query(
+          `
+            SELECT di.id, di.code, di.name, di.threshold
+            FROM data_indicators di
+            JOIN indicators ind ON di.indicator_id = ind.id
+            WHERE (di.code LIKE '%1.1${indicatorCodeSuffix}%' OR di.code LIKE '%1.2${indicatorCodeSuffix}%'
+                   OR di.code LIKE '%1.3${indicatorCodeSuffix}%' OR di.code LIKE '%1.4${indicatorCodeSuffix}%'
+                   OR di.code LIKE '%1.5${indicatorCodeSuffix}%' OR di.code LIKE '%1.6${indicatorCodeSuffix}%'
+                   OR di.code LIKE '%1.7${indicatorCodeSuffix}%')
+              ${indicatorSystemId ? 'AND ind.system_id = $1' : ''}
+          `,
+          indicatorSystemId ? [indicatorSystemId] : []
+        );
 
-        const calculatedIndicators = calculatedIndicatorsResult.rows;
+        // 去重：避免同 code 不同 id 的 data_indicators 被重复计入（导致 7 项变 14 项）
+        const calculatedIndicators = [];
+        const seenCalcCode = new Set();
+        for (const row of (calculatedIndicatorsResult.rows || [])) {
+          const m = row.code?.match(/(\d+\.\d+-\w+)/);
+          const normalized = (m && m[1]) ? m[1] : row.code;
+          if (!normalized) continue;
+          if (seenCalcCode.has(normalized)) continue;
+          seenCalcCode.add(normalized);
+          calculatedIndicators.push(row);
+        }
         const nonCompliantCalculated = [];
 
         // 创建代码映射：将数据库中的实际代码映射到我们计算的指标代码
@@ -1024,13 +1122,30 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
                  di.code as "indicatorCode", di.name as "indicatorName", di.threshold
           FROM school_indicator_data sid
           JOIN data_indicators di ON sid.data_indicator_id = di.id
+          JOIN indicators ind ON di.indicator_id = ind.id
           WHERE sid.project_id = $1 AND sid.school_id = $2 AND sid.is_compliant = 0
-            AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)${indicatorFilter}
+            AND di.code NOT IN ($3, $4, $5, $6, $7, $8, $9)${indicatorSystemId ? ' AND ind.system_id = $10' : ''}${indicatorFilter}
           ORDER BY di.code
-        `, [projectId, school.id, ...sectionCalculatedIndicatorCodes]);
+        `, indicatorSystemId
+          ? [projectId, school.id, ...sectionCalculatedIndicatorCodes, indicatorSystemId]
+          : [projectId, school.id, ...sectionCalculatedIndicatorCodes]
+        );
 
         // 合并未达标指标列表
         const allNonCompliantIndicators = [...nonCompliantResult.rows, ...nonCompliantCalculated];
+
+        // 最终按规范码（如 1.3-D1）去重，避免历史脏数据导致展示重复
+        const dedupedNonCompliantIndicators = [];
+        const seenNonCompliantCode = new Set();
+        for (const item of allNonCompliantIndicators) {
+          const rawCode = item.indicatorCode || item.code || '';
+          const m = rawCode.match(/(\d+\.\d+-\w+)/);
+          const normalized = (m && m[1]) ? m[1] : rawCode;
+          if (!normalized) continue;
+          if (seenNonCompliantCode.has(normalized)) continue;
+          seenNonCompliantCode.add(normalized);
+          dedupedNonCompliantIndicators.push(item);
+        }
 
         // 根据部门类型确定学生数和教师数
         // studentCount 已经在上面根据部门类型正确设置了（会fallback到school.studentCount）
@@ -1078,7 +1193,7 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
             pending: parseInt(stats.pending) || 0
           },
           complianceRate: total > 0 ? Math.round((compliant / total) * 10000) / 100 : null,
-          nonCompliantIndicators: allNonCompliantIndicators
+          nonCompliantIndicators: dedupedNonCompliantIndicators
         });
       }
     }
