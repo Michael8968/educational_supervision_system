@@ -2780,6 +2780,19 @@
       "standard": "达标",
       "description": "学校音乐美术教室配置综合达标判定。小学部和初中部的音乐、美术教室均需达标。",
       "category": "政府保障"
+    },
+    {
+      "code": "D074",
+      "name": "特殊教育学生生均公用经费",
+      "elementType": "派生要素",
+      "dataType": "数字",
+      "formula": "E056 / E188",
+      "standard": "≥8000",
+      "unit": "元",
+      "precision": 2,
+      "description": "区县特殊教育学校生均公用经费。计算方式：上年度特殊教育学生生均公用经费拨付总金额(E056) ÷ 特殊教育学校学生人数(E188)。达标标准：≥8000元。",
+      "calculationLevel": "district",
+      "category": "政府保障"
     }
   ]
 }

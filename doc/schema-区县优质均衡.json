@@ -480,6 +480,33 @@
         "unit": "%"
       },
       {
+        "id": "divider_special_education_funding",
+        "type": "divider",
+        "label": "特殊教育经费",
+        "width": "100%",
+        "required": false
+      },
+      {
+        "id": "special_education_funding",
+        "type": "number",
+        "label": "上年度特殊教育学生生均公用经费拨付总金额",
+        "placeholder": "请输入上年度特殊教育学生生均公用经费拨付总金额",
+        "width": "50%",
+        "required": true,
+        "decimalPlaces": "2位小数",
+        "unit": "元"
+      },
+      {
+        "id": "special_education_student_count",
+        "type": "number",
+        "label": "特殊教育学校学生人数",
+        "placeholder": "请输入特殊教育学校学生总人数",
+        "width": "50%",
+        "required": true,
+        "decimalPlaces": "整数",
+        "unit": "人"
+      },
+      {
         "id": "divider_materials_gov",
         "type": "divider",
         "label": "佐证材料",

@@ -2014,9 +2014,12 @@ const GOVERNMENT_GUARANTEE_INDICATORS = [
     code: 'G7',
     name: '特殊教育学校生均公用经费不低于8000元',
     shortName: '特教经费',
-    type: 'number',
+    type: 'calculated_district',
     dataSource: 'district',
-    dataField: 'special_edu_per_student_funding',
+    dataFields: [
+      { id: 'special_education_funding', name: '特教经费拨付总额' },
+      { id: 'special_education_student_count', name: '特教学生人数' }
+    ],
     threshold: 8000,
     operator: '>=',
     unit: '元',
@@ -2521,7 +2524,28 @@ router.get('/districts/:districtId/government-guarantee-summary', async (req, re
 
             case 'calculated_district':
               // 区县填报数据的计算类型
-              if (config.code === 'G11') {
+              if (config.code === 'G7') {
+                // 特殊教育学校生均公用经费
+                const funding = parseFloat(districtFormData['special_education_funding']);
+                const studentCount = parseFloat(districtFormData['special_education_student_count']);
+                if (isNaN(funding) || isNaN(studentCount) || studentCount === 0) {
+                  indicator.isCompliant = null;
+                  indicator.displayValue = '待填报';
+                  pendingCount++;
+                } else {
+                  const perStudentFunding = funding / studentCount;
+                  indicator.value = Math.round(perStudentFunding * 100) / 100;
+                  indicator.displayValue = `${indicator.value}元`;
+                  indicator.isCompliant = perStudentFunding >= 8000;
+                  indicator.details = [
+                    { name: '特教经费拨付总额', value: funding, displayValue: `${funding}元` },
+                    { name: '特教学生人数', value: studentCount, displayValue: `${studentCount}人` },
+                    { name: '生均公用经费', value: indicator.value, displayValue: `${indicator.value}元`, threshold: 8000, unit: '元', isCompliant: indicator.isCompliant }
+                  ];
+                  if (indicator.isCompliant) compliantCount++;
+                  else nonCompliantCount++;
+                }
+              } else if (config.code === 'G11') {
                 // 交流轮岗
                 const eligibleCount = parseFloat(districtFormData['exchange_eligible_teacher_count']);
                 const actualCount = parseFloat(districtFormData['actual_exchange_teacher_count']);
