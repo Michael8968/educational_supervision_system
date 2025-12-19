@@ -15,3 +15,4 @@ CREATE INDEX IF NOT EXISTS idx_submissions_school_id ON submissions(school_id);
 SELECT 'submissions 表修复完成！已添加 school_id 字段和索引。' as message;
 
 
+

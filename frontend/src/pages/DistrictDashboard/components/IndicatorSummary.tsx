@@ -21,6 +21,7 @@ import {
 interface IndicatorSummaryProps {
   districtId: string;
   projectId: string;
+  refreshKey?: number;
 }
 
 // 指标代码到简称映射
@@ -34,7 +35,7 @@ const INDICATOR_SHORT_NAMES: Record<string, string> = {
   L7: '多媒体教室',
 };
 
-const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, projectId }) => {
+const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, projectId, refreshKey }) => {
   const [loading, setLoading] = useState(false);
   const [schoolType, setSchoolType] = useState<string>('小学');
   const [data, setData] = useState<ResourceIndicatorsSummary | null>(null);
@@ -58,7 +59,7 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     };
 
     loadData();
-  }, [districtId, projectId, schoolType]);
+  }, [districtId, projectId, schoolType, refreshKey]);
 
   // 加载政府保障程度指标数据
   useEffect(() => {
@@ -77,7 +78,7 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     };
 
     loadGovData();
-  }, [districtId, projectId]);
+  }, [districtId, projectId, refreshKey]);
 
   if (!projectId) {
     return <Empty description="请先选择项目" />;

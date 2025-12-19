@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Modal, Form, DatePicker, message, Spin, Tag, Popconfirm, Empty } from 'antd';
+import { Button, Input, Select, Modal, Form, DatePicker, message, Spin, Tag, Popconfirm, Empty, Typography } from 'antd';
+
+const { Text } = Typography;
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -24,9 +26,11 @@ import * as projectService from '../../services/projectService';
 import * as indicatorService from '../../services/indicatorService';
 import * as toolService from '../../services/toolService';
 import * as projectToolService from '../../services/projectToolService';
+import * as personnelService from '../../services/personnelService';
+import * as taskService from '../../services/taskService';
 import type { Project } from '../../services/projectService';
 import type { IndicatorSystem } from '../../services/indicatorService';
-import type { DataTool } from '../../services/toolService';
+import type { DataTool, ElementLibrary } from '../../services/toolService';
 import { useUserPermissions } from '../../stores/authStore';
 import styles from './index.module.css';
 
@@ -39,6 +43,7 @@ const ProjectPage: React.FC = () => {
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [filteredList, setFilteredList] = useState<Project[]>([]);
   const [indicatorSystems, setIndicatorSystems] = useState<IndicatorSystem[]>([]);
+  const [elementLibraries, setElementLibraries] = useState<ElementLibrary[]>([]);
   const [dataTools, setDataTools] = useState<DataTool[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,6 +76,16 @@ const ProjectPage: React.FC = () => {
     }
   }, []);
 
+  // 加载要素库列表
+  const loadElementLibraries = useCallback(async () => {
+    try {
+      const data = await toolService.getElementLibraries();
+      setElementLibraries(data.filter(lib => lib.status === 'published'));
+    } catch (error) {
+      console.error('加载要素库失败:', error);
+    }
+  }, []);
+
   // 加载采集工具列表
   const loadDataTools = useCallback(async () => {
     try {
@@ -83,10 +98,10 @@ const ProjectPage: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadProjects(), loadIndicatorSystems(), loadDataTools()]).finally(() => {
+    Promise.all([loadProjects(), loadIndicatorSystems(), loadElementLibraries(), loadDataTools()]).finally(() => {
       setLoading(false);
     });
-  }, [loadProjects, loadIndicatorSystems, loadDataTools]);
+  }, [loadProjects, loadIndicatorSystems, loadElementLibraries, loadDataTools]);
 
   // 计算统计数据
   const projectStats = {
@@ -127,6 +142,8 @@ const ProjectPage: React.FC = () => {
         indicatorSystemId,
         // 预留：未来支持项目绑定多个指标体系时可直接启用
         indicatorSystemIds,
+        // 要素库（单选）
+        elementLibraryId: values.elementLibraryId,
         startDate: values.startDate?.format('YYYY-MM-DD'),
         endDate: values.endDate?.format('YYYY-MM-DD'),
       };
@@ -165,12 +182,79 @@ const ProjectPage: React.FC = () => {
   };
 
   const handlePublish = async (project: Project) => {
+    // 发布前校验
     try {
-      await projectService.publishProject(project.id);
-      message.success('发布成功');
-      await loadProjects();
+      // 1. 校验填报账号是否添加
+      const personnelStats = await personnelService.getPersonnelStats(project.id);
+      if (personnelStats.total === 0) {
+        Modal.warning({
+          title: '无法发布项目',
+          content: '请先添加填报账号后再发布项目。',
+          okText: '知道了',
+        });
+        return;
+      }
+
+      // 2. 校验填报任务是否已分配
+      const taskStats = await taskService.getTaskStats(project.id);
+      if (taskStats.total === 0) {
+        Modal.warning({
+          title: '无法发布项目',
+          content: '请先分配填报任务后再发布项目。',
+          okText: '知道了',
+        });
+        return;
+      }
+
+      // 校验通过，显示确认弹窗
+      Modal.confirm({
+        title: '发布项目',
+        content: (
+          <div>
+            <p>发布后项目将进入填报阶段，部分配置将无法修改。</p>
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              当前配置：{personnelStats.total} 个填报账号，{taskStats.total} 个填报任务
+            </Text>
+            <Text type="secondary">确定要发布项目吗？</Text>
+          </div>
+        ),
+        okText: '确定发布',
+        cancelText: '取消',
+        onOk: async () => {
+          try {
+            // 先发布
+            await projectService.publishProject(project.id);
+            // 再启动填报
+            await projectService.startProject(project.id);
+            message.success('项目发布成功，已启动填报');
+            await loadProjects();
+          } catch (error: any) {
+            message.error(error.message || '发布失败');
+          }
+        },
+      });
     } catch (error: any) {
-      message.error(error.message || '发布失败');
+      // 如果是因为 tasks 表不存在导致的错误，给出友好提示
+      if (error.message?.includes('tasks')) {
+        Modal.confirm({
+          title: '发布项目',
+          content: `发布后项目 "${project.name}" 将进入填报阶段。确定要发布吗？`,
+          okText: '确定发布',
+          cancelText: '取消',
+          onOk: async () => {
+            try {
+              await projectService.publishProject(project.id);
+              await projectService.startProject(project.id);
+              message.success('项目发布成功，已启动填报');
+              await loadProjects();
+            } catch (err: any) {
+              message.error(err.message || '发布失败');
+            }
+          },
+        });
+      } else {
+        message.error('校验失败：' + (error.message || '未知错误'));
+      }
     }
   };
 
@@ -200,6 +284,7 @@ const ProjectPage: React.FC = () => {
           : currentProject.keywords || '',
         description: currentProject.description,
         indicatorSystemIds: currentProject.indicatorSystemId ? [currentProject.indicatorSystemId] : [],
+        elementLibraryId: currentProject.elementLibraryId || undefined,
         startDate: currentProject.startDate ? dayjs(currentProject.startDate) : null,
         endDate: currentProject.endDate ? dayjs(currentProject.endDate) : null,
       });
@@ -223,6 +308,7 @@ const ProjectPage: React.FC = () => {
         keywords: values.keywords ? values.keywords.split(/[,，;；|\s]+/).filter(Boolean) : [],
         description: values.description || '',
         indicatorSystemId,
+        elementLibraryId: values.elementLibraryId,
         startDate: values.startDate?.format('YYYY-MM-DD'),
         endDate: values.endDate?.format('YYYY-MM-DD'),
       });
@@ -362,15 +448,9 @@ const ProjectPage: React.FC = () => {
               style={{ borderLeftColor: getStatusBorderColor(project.status) }}
             >
               <div className={styles.projectCardHeader}>
-                <div className={styles.projectMainInfo}>
+                <div className={styles.projectTitleRow}>
                   <span className={styles.projectName}>{project.name}</span>
                   {getStatusTag(project.status)}
-                  {project.indicatorSystemName && (
-                    <Tag color="cyan">指标体系: {project.indicatorSystemName}</Tag>
-                  )}
-                </div>
-                <div className={styles.projectStats}>
-                  <span>时间: {project.startDate || '-'} ~ {project.endDate || '-'}</span>
                   {project.isPublished ? (
                     <Tag color="green">已发布</Tag>
                   ) : (
@@ -378,12 +458,30 @@ const ProjectPage: React.FC = () => {
                   )}
                 </div>
               </div>
+              <div className={styles.projectInfoRow}>
+                {project.indicatorSystemName && (
+                  <span className={styles.infoItem}>
+                    <span className={styles.infoLabel}>指标体系:</span>
+                    <span className={styles.infoValue}>{project.indicatorSystemName}</span>
+                  </span>
+                )}
+                {project.elementLibraryName && (
+                  <span className={styles.infoItem}>
+                    <span className={styles.infoLabel}>要素库:</span>
+                    <span className={styles.infoValue}>{project.elementLibraryName}</span>
+                  </span>
+                )}
+                <span className={styles.infoItem}>
+                  <span className={styles.infoLabel}>时间:</span>
+                  <span className={styles.infoValue}>{project.startDate || '-'} ~ {project.endDate || '-'}</span>
+                </span>
+              </div>
               <p className={styles.projectDesc}>{project.description || '暂无描述'}</p>
               <div className={styles.projectMeta}>
-                创建时间: {project.createdAt || '-'} &nbsp;&nbsp;
-                创建人: {project.createdBy || '-'} &nbsp;&nbsp;
-                更新时间: {project.updatedAt || '-'} &nbsp;&nbsp;
-                更新人: {project.createdBy || '-'}
+                <span>创建时间: {project.createdAt || '-'}</span>
+                <span>创建人: {project.createdBy || '-'}</span>
+                <span>更新时间: {project.updatedAt || '-'}</span>
+                <span>更新人: {project.createdBy || '-'}</span>
               </div>
               <div className={styles.projectActions}>
                 <span className={styles.actionBtn} onClick={() => handleViewInfo(project)}>
@@ -502,7 +600,39 @@ const ProjectPage: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item label="采集工具" name="toolIds">
+          <Form.Item
+            label="要素库"
+            name="elementLibraryId"
+            rules={[{ required: true, message: '请选择要素库' }]}
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="选择要素库（单选）"
+              optionFilterProp="children"
+            >
+              {elementLibraries.map(lib => (
+                <Select.Option key={lib.id} value={lib.id}>
+                  {lib.name}
+                  <span style={{ color: '#999', marginLeft: 8 }}>
+                    （{lib.elementCount || 0}个要素）
+                  </span>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            label="采集工具"
+            name="toolIds"
+            rules={[
+              {
+                validator: async (_, v) => {
+                  if (Array.isArray(v) && v.length > 0) return;
+                  throw new Error('请选择采集工具');
+                }
+              }
+            ]}
+          >
             <Select
               mode="multiple"
               allowClear
@@ -539,10 +669,20 @@ const ProjectPage: React.FC = () => {
             </Select>
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item label="开始时间" name="startDate" style={{ flex: 1 }}>
+            <Form.Item
+              label="开始时间"
+              name="startDate"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请选择开始时间' }]}
+            >
               <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
             </Form.Item>
-            <Form.Item label="结束时间" name="endDate" style={{ flex: 1 }}>
+            <Form.Item
+              label="结束时间"
+              name="endDate"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请选择结束时间' }]}
+            >
               <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
             </Form.Item>
           </div>
@@ -581,6 +721,9 @@ const ProjectPage: React.FC = () => {
               {getStatusTag(currentProject.status)}
               {currentProject.indicatorSystemName && (
                 <Tag color="cyan">指标体系: {currentProject.indicatorSystemName}</Tag>
+              )}
+              {currentProject.elementLibraryName && (
+                <Tag color="purple">要素库: {currentProject.elementLibraryName}</Tag>
               )}
             </div>
             <div className={styles.infoModalKeywords}>
@@ -659,11 +802,42 @@ const ProjectPage: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item
+            label="要素库"
+            name="elementLibraryId"
+            rules={[{ required: true, message: '请选择要素库' }]}
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="选择要素库（单选）"
+              optionFilterProp="children"
+            >
+              {elementLibraries.map(lib => (
+                <Select.Option key={lib.id} value={lib.id}>
+                  {lib.name}
+                  <span style={{ color: '#999', marginLeft: 8 }}>
+                    （{lib.elementCount || 0}个要素）
+                  </span>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item label="开始时间" name="startDate" style={{ flex: 1 }}>
+            <Form.Item
+              label="开始时间"
+              name="startDate"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请选择开始时间' }]}
+            >
               <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
             </Form.Item>
-            <Form.Item label="结束时间" name="endDate" style={{ flex: 1 }}>
+            <Form.Item
+              label="结束时间"
+              name="endDate"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请选择结束时间' }]}
+            >
               <DatePicker style={{ width: '100%' }} placeholder="年 / 月 / 日" />
             </Form.Item>
           </div>

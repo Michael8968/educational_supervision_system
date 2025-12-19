@@ -28,10 +28,13 @@ import {
   ReloadOutlined,
   AuditOutlined,
   ExclamationCircleOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as projectService from '../../services/projectService';
 import type { Project } from '../../services/projectService';
+import * as personnelService from '../../services/personnelService';
+import * as taskService from '../../services/taskService';
 import { getUsers, SystemUser } from '../../services/userService';
 import styles from './index.module.css';
 
@@ -240,24 +243,84 @@ const ProjectConfig: React.FC = () => {
 
   // ==================== 项目状态流转处理 ====================
 
-  // 启动填报（配置中 → 填报中）
-  const handleStartProject = () => {
-    Modal.confirm({
-      title: '启动填报',
-      icon: <ExclamationCircleOutlined />,
-      content: '启动后项目将进入填报阶段，部分配置将无法修改。确定要启动填报吗？',
-      okText: '确定启动',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await projectService.startProject(projectId!);
-          message.success('项目已启动填报');
-          loadProject();
-        } catch (error: any) {
-          message.error(error.message || '启动失败');
-        }
-      },
-    });
+  // 发布项目（配置中 → 发布 + 启动填报）
+  const handlePublishProject = async () => {
+    // 发布前校验
+    try {
+      // 1. 校验填报账号是否添加
+      const personnelStats = await personnelService.getPersonnelStats(projectId!);
+      if (personnelStats.total === 0) {
+        Modal.warning({
+          title: '无法发布项目',
+          content: '请先添加填报账号后再发布项目。',
+          okText: '知道了',
+        });
+        return;
+      }
+
+      // 2. 校验填报任务是否已分配
+      const taskStats = await taskService.getTaskStats(projectId!);
+      if (taskStats.total === 0) {
+        Modal.warning({
+          title: '无法发布项目',
+          content: '请先分配填报任务后再发布项目。',
+          okText: '知道了',
+        });
+        return;
+      }
+
+      // 校验通过，显示确认弹窗
+      Modal.confirm({
+        title: '发布项目',
+        icon: <ExclamationCircleOutlined />,
+        content: (
+          <div>
+            <p>发布后项目将进入填报阶段，部分配置将无法修改。</p>
+            <p style={{ marginTop: 8, color: '#666' }}>
+              当前配置：{personnelStats.total} 个填报账号，{taskStats.total} 个填报任务
+            </p>
+            <p style={{ color: '#666' }}>确定要发布项目吗？</p>
+          </div>
+        ),
+        okText: '确定发布',
+        cancelText: '取消',
+        onOk: async () => {
+          try {
+            // 先发布
+            await projectService.publishProject(projectId!);
+            // 再启动填报
+            await projectService.startProject(projectId!);
+            message.success('项目发布成功，已启动填报');
+            loadProject();
+          } catch (error: any) {
+            message.error(error.message || '发布失败');
+          }
+        },
+      });
+    } catch (error: any) {
+      // 如果是因为 tasks 表不存在导致的错误，给出友好提示
+      if (error.message?.includes('tasks')) {
+        Modal.confirm({
+          title: '发布项目',
+          icon: <ExclamationCircleOutlined />,
+          content: '发布后项目将进入填报阶段，部分配置将无法修改。确定要发布项目吗？',
+          okText: '确定发布',
+          cancelText: '取消',
+          onOk: async () => {
+            try {
+              await projectService.publishProject(projectId!);
+              await projectService.startProject(projectId!);
+              message.success('项目发布成功，已启动填报');
+              loadProject();
+            } catch (err: any) {
+              message.error(err.message || '发布失败');
+            }
+          },
+        });
+      } else {
+        message.error('校验失败：' + (error.message || '未知错误'));
+      }
+    }
   };
 
   // 进入评审（填报中 → 评审中）
@@ -437,10 +500,10 @@ const ProjectConfig: React.FC = () => {
           {project.status === '配置中' && (
             <Button
               type="primary"
-              icon={<PlayCircleOutlined />}
-              onClick={handleStartProject}
+              icon={<SendOutlined />}
+              onClick={handlePublishProject}
             >
-              启动填报
+              发布项目
             </Button>
           )}
           {project.status === '填报中' && (

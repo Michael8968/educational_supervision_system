@@ -20,6 +20,7 @@ const DistrictDashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('indicator-summary');
+  const [indicatorSummaryRefreshKey, setIndicatorSummaryRefreshKey] = useState(0);
 
   // 从 user 的 currentScope 获取区县信息
   const districtId = user?.currentScope?.type === 'district' ? user.currentScope.id : '';
@@ -60,6 +61,15 @@ const DistrictDashboard: React.FC = () => {
     );
   }
 
+  // Tab 切换处理
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    // 切换到指标汇总时，刷新数据
+    if (key === 'indicator-summary') {
+      setIndicatorSummaryRefreshKey(prev => prev + 1);
+    }
+  };
+
   const tabItems = [
     {
       key: 'indicator-summary',
@@ -68,6 +78,7 @@ const DistrictDashboard: React.FC = () => {
         <IndicatorSummary
           districtId={districtId}
           projectId={selectedProjectId}
+          refreshKey={indicatorSummaryRefreshKey}
         />
       ),
     },
@@ -152,7 +163,7 @@ const DistrictDashboard: React.FC = () => {
         <div className={styles.tabContent}>
           <Tabs
             activeKey={activeTab}
-            onChange={setActiveTab}
+            onChange={handleTabChange}
             items={tabItems}
           />
         </div>

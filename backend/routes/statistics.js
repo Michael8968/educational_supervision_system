@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const {
+  parseFormulaVariables,
+  calculateDerivedValueForSample,
+} = require('../services/aggregationService');
 
 // 数据库连接将在index.js中注入
 let db = null;
@@ -7,6 +11,231 @@ let db = null;
 const setDb = (database) => {
   db = database;
 };
+
+/**
+ * 根据数据指标或要素编码计算指标值
+ * @param {string} code - 数据指标编码（如 D015）或要素编码（如 D015、E063）
+ * @param {string} projectId - 项目ID
+ * @param {string} districtId - 区县ID
+ * @param {Object} districtFormData - 区县填报表单数据
+ * @returns {Promise<{value: number|null, displayValue: string, details: Array}>}
+ */
+async function calculateIndicatorValueFromElements(code, projectId, districtId, districtFormData) {
+  try {
+    // 1. 首先尝试按数据指标编码查找
+    const dataIndicatorResult = await db.query(`
+      SELECT di.id, di.code, di.name, di.threshold
+      FROM data_indicators di
+      WHERE di.code = $1
+      LIMIT 1
+    `, [code]);
+
+    let primaryElement = null;
+    let linkedElements = [];
+
+    if (dataIndicatorResult.rows.length > 0) {
+      // 找到了数据指标，获取其关联的要素
+      const dataIndicator = dataIndicatorResult.rows[0];
+      console.log(`[要素计算] 找到数据指标: ${code}`);
+
+      const elementsResult = await db.query(`
+        SELECT
+          die.id as association_id,
+          die.mapping_type,
+          e.id as element_id,
+          e.code as element_code,
+          e.name as element_name,
+          e.element_type,
+          e.data_type,
+          e.tool_id,
+          e.field_id,
+          e.formula,
+          e.aggregation
+        FROM data_indicator_elements die
+        JOIN elements e ON die.element_id = e.id
+        WHERE die.data_indicator_id = $1
+        ORDER BY die.mapping_type ASC
+      `, [dataIndicator.id]);
+
+      if (elementsResult.rows.length > 0) {
+        linkedElements = elementsResult.rows;
+        primaryElement = linkedElements.find(e => e.mapping_type === 'primary') || linkedElements[0];
+        console.log(`[要素计算] 数据指标关联要素: ${primaryElement.element_code} (${primaryElement.element_name})`);
+      }
+    }
+
+    // 2. 如果没有通过数据指标找到要素，尝试直接按要素编码查找
+    if (!primaryElement) {
+      console.log(`[要素计算] 未通过数据指标找到，尝试直接查找要素: ${code}`);
+      const elementResult = await db.query(`
+        SELECT
+          e.id as element_id,
+          e.code as element_code,
+          e.name as element_name,
+          e.element_type,
+          e.data_type,
+          e.tool_id,
+          e.field_id,
+          e.formula,
+          e.aggregation
+        FROM elements e
+        WHERE e.code = $1
+        LIMIT 1
+      `, [code]);
+
+      if (elementResult.rows.length > 0) {
+        primaryElement = elementResult.rows[0];
+        linkedElements = [primaryElement];
+        console.log(`[要素计算] 找到要素: ${code} (${primaryElement.element_name}), 类型: ${primaryElement.element_type}, 公式: ${primaryElement.formula || '无'}`);
+      }
+    }
+
+    if (!primaryElement) {
+      console.log(`[要素计算] 未找到数据指标或要素: ${code}`);
+      return { value: null, displayValue: '未配置', details: [] };
+    }
+
+    // 3. 获取要素库中所有要素（用于派生要素的公式计算）
+    const allElementsResult = await db.query(`
+      SELECT
+        e.id, e.code, e.name, e.element_type, e.data_type,
+        e.tool_id, e.field_id, e.formula, e.aggregation
+      FROM elements e
+    `);
+    const allElements = allElementsResult.rows;
+
+    // 4. 收集填报数据
+    // 对于区县级数据，从区县填报表单获取
+    // 对于学校汇总数据，需要从学校填报数据汇总
+
+    // 判断主要素的数据来源
+    const primaryElementType = primaryElement.element_type;
+
+    let calculatedValue = null;
+    const details = [];
+
+    if (primaryElementType === '派生要素') {
+      // 派生要素：通过公式计算
+      const formula = primaryElement.formula;
+      if (!formula) {
+        return { value: null, displayValue: '公式未配置', details: [] };
+      }
+
+      // 解析公式中的变量
+      const referencedCodes = parseFormulaVariables(formula);
+
+      // 收集公式所需的基础数据
+      const context = {};
+
+      for (const refCode of referencedCodes) {
+        const refElement = allElements.find(e => e.code === refCode);
+        if (!refElement) {
+          console.log(`[要素计算] 公式引用的要素不存在: ${refCode}`);
+          continue;
+        }
+
+        let refValue = null;
+
+        if (refElement.element_type === '基础要素') {
+          // 基础要素：从填报数据获取
+          const fieldId = refElement.field_id;
+          if (fieldId && districtFormData[fieldId] !== undefined) {
+            refValue = parseFloat(districtFormData[fieldId]);
+          }
+
+          // 如果区县表单没有，尝试从学校汇总获取
+          if (refValue === null || isNaN(refValue)) {
+            // 查询学校填报数据汇总
+            // 注意: s.data 是 text 类型，需要先转换为 jsonb
+            const schoolSumResult = await db.query(`
+              SELECT SUM(
+                CASE
+                  WHEN s.data IS NOT NULL AND s.data != ''
+                  THEN CAST((s.data::jsonb)->>$1 AS NUMERIC)
+                  ELSE NULL
+                END
+              ) as total
+              FROM submissions s
+              JOIN schools sc ON s.school_id = sc.id
+              JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
+              WHERE s.project_id = $2
+                AND sc.district_id = $3
+                AND sc.status = 'active'
+                AND dt.target = '学校'
+                AND s.status IN ('approved', 'submitted')
+            `, [fieldId, projectId, districtId]);
+
+            if (schoolSumResult.rows[0]?.total !== null) {
+              refValue = parseFloat(schoolSumResult.rows[0].total);
+            }
+          }
+        } else if (refElement.element_type === '派生要素') {
+          // 递归计算派生要素
+          const nestedResult = await calculateIndicatorValueFromElements(
+            refElement.code, projectId, districtId, districtFormData
+          );
+          refValue = nestedResult.value;
+        }
+
+        context[refCode] = refValue;
+        details.push({
+          code: refCode,
+          name: refElement.name,
+          value: refValue,
+          displayValue: refValue !== null ? String(refValue) : '待填报'
+        });
+      }
+
+      // 检查是否所有引用的值都存在
+      const hasAllValues = referencedCodes.every(code => {
+        const v = context[code];
+        return v !== null && v !== undefined && !isNaN(v);
+      });
+
+      if (hasAllValues) {
+        // 计算公式
+        try {
+          calculatedValue = calculateDerivedValueForSample(
+            primaryElement.code,
+            allElements.map(e => ({
+              ...e,
+              elementType: e.element_type,
+              fieldId: e.field_id,
+              toolId: e.tool_id
+            })),
+            context,
+            new Map()
+          );
+        } catch (err) {
+          console.error(`[要素计算] 公式计算失败: ${formula}`, err);
+        }
+      }
+    } else if (primaryElementType === '基础要素') {
+      // 基础要素：直接从填报数据获取
+      const fieldId = primaryElement.field_id;
+      if (fieldId && districtFormData[fieldId] !== undefined) {
+        calculatedValue = parseFloat(districtFormData[fieldId]);
+      }
+    }
+
+    // 格式化结果
+    const displayValue = calculatedValue !== null && !isNaN(calculatedValue)
+      ? `${Math.round(calculatedValue * 100) / 100}`
+      : '待填报';
+
+    return {
+      value: calculatedValue !== null && !isNaN(calculatedValue) ? calculatedValue : null,
+      displayValue,
+      details,
+      formula: primaryElement.formula,
+      elementCode: primaryElement.code,
+      elementName: primaryElement.name
+    };
+  } catch (error) {
+    console.error('[要素计算] 计算失败:', error);
+    return { value: null, displayValue: '计算错误', details: [] };
+  }
+}
 
 // 计算差异系数
 function calculateCV(values) {
@@ -2042,13 +2271,14 @@ const GOVERNMENT_GUARANTEE_INDICATORS = [
     code: 'G9',
     name: '教师5年360学时培训完成率达到100%',
     shortName: '培训完成率',
-    type: 'number',
+    type: 'element_linked',
     dataSource: 'district',
-    dataField: 'teacher_training_completion_rate',
+    dataIndicatorCode: 'D015',  // 关联的数据指标编码
+    fallbackField: 'teacher_training_completion_rate',  // 备用：直接从表单获取
     threshold: 100,
     operator: '>=',
     unit: '%',
-    description: '教师5年360学时培训完成率'
+    description: '教师5年360学时培训完成率（通过要素 E063/E004*100 计算）'
   },
   {
     code: 'G10',
@@ -2420,14 +2650,42 @@ router.get('/districts/:districtId/government-guarantee-summary', async (req, re
               break;
 
             case 'number':
-              const numValue = parseFloat(districtFormData[config.dataField]);
+              // 默认：直接从区县填报字段取数值
+              let numValue = parseFloat(districtFormData[config.dataField]);
+
+              // G12 特殊处理：若未直接填报 teacher_certification_rate，则尝试用“持证人数/专任教师数”计算比例
+              // 约定：
+              // - certified_full_time_teacher_count：持有教师资格证的专任教师人数（新增字段）
+              // - primary_teacher_count + junior_teacher_count：区县内小学/初中专任教师数（用于合计分母）
+              if ((isNaN(numValue) || numValue === null) && config.code === 'G12') {
+                const certified = parseFloat(districtFormData.certified_full_time_teacher_count);
+                const primaryTeachers = parseFloat(districtFormData.primary_teacher_count);
+                const juniorTeachers = parseFloat(districtFormData.junior_teacher_count);
+
+                const denom =
+                  (isNaN(primaryTeachers) ? 0 : primaryTeachers) +
+                  (isNaN(juniorTeachers) ? 0 : juniorTeachers);
+
+                if (!isNaN(certified) && denom > 0) {
+                  numValue = (certified / denom) * 100;
+                  indicator.details = [
+                    { name: '持证专任教师数', value: certified, displayValue: `${certified}人` },
+                    { name: '小学专任教师数', value: isNaN(primaryTeachers) ? null : primaryTeachers, displayValue: isNaN(primaryTeachers) ? '待填报' : `${primaryTeachers}人` },
+                    { name: '初中专任教师数', value: isNaN(juniorTeachers) ? null : juniorTeachers, displayValue: isNaN(juniorTeachers) ? '待填报' : `${juniorTeachers}人` },
+                    { name: '计算公式', value: null, displayValue: '持证专任教师数 ÷（小学专任教师数+初中专任教师数）×100' },
+                  ];
+                }
+              }
+
               if (isNaN(numValue)) {
                 indicator.isCompliant = null;
                 indicator.displayValue = '待填报';
                 pendingCount++;
               } else {
-                indicator.value = numValue;
-                indicator.displayValue = `${numValue}${config.unit || ''}`;
+                // 统一显示：保留 2 位小数（百分比/金额等）
+                const rounded = Math.round(numValue * 100) / 100;
+                indicator.value = rounded;
+                indicator.displayValue = `${rounded}${config.unit || ''}`;
                 let isNumCompliant = false;
                 if (config.operator === '>=') isNumCompliant = numValue >= config.threshold;
                 else if (config.operator === '>') isNumCompliant = numValue > config.threshold;
@@ -2436,6 +2694,65 @@ router.get('/districts/:districtId/government-guarantee-summary', async (req, re
                 else if (config.operator === '=') isNumCompliant = numValue === config.threshold;
                 indicator.isCompliant = isNumCompliant;
                 if (isNumCompliant) compliantCount++;
+                else nonCompliantCount++;
+              }
+              break;
+
+            case 'element_linked':
+              // 通过关联的数据指标和要素计算
+              let elementValue = null;
+              let elementDetails = [];
+
+              if (config.dataIndicatorCode) {
+                // 使用要素关联计算
+                const elementResult = await calculateIndicatorValueFromElements(
+                  config.dataIndicatorCode,
+                  projectId,
+                  districtId,
+                  districtFormData
+                );
+                elementValue = elementResult.value;
+                elementDetails = elementResult.details || [];
+
+                // 如果有公式信息，添加到详情
+                if (elementResult.formula) {
+                  indicator.formula = elementResult.formula;
+                }
+                if (elementResult.elementCode) {
+                  indicator.elementCode = elementResult.elementCode;
+                }
+              }
+
+              // 如果要素计算没有结果，尝试备用字段
+              if (elementValue === null && config.fallbackField) {
+                elementValue = parseFloat(districtFormData[config.fallbackField]);
+              }
+
+              if (elementValue === null || isNaN(elementValue)) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                indicator.details = elementDetails.length > 0 ? elementDetails : [
+                  { name: '说明', displayValue: '请确保已关联要素并填报相关数据' }
+                ];
+                pendingCount++;
+              } else {
+                indicator.value = Math.round(elementValue * 100) / 100;
+                indicator.displayValue = `${indicator.value}${config.unit || ''}`;
+
+                let isElementCompliant = false;
+                if (config.operator === '>=') isElementCompliant = elementValue >= config.threshold;
+                else if (config.operator === '>') isElementCompliant = elementValue > config.threshold;
+                else if (config.operator === '<=') isElementCompliant = elementValue <= config.threshold;
+                else if (config.operator === '<') isElementCompliant = elementValue < config.threshold;
+                else if (config.operator === '=') isElementCompliant = elementValue === config.threshold;
+
+                indicator.isCompliant = isElementCompliant;
+                indicator.details = elementDetails.map(d => ({
+                  ...d,
+                  isCompliant: d.value !== null
+                }));
+
+                if (isElementCompliant) compliantCount++;
                 else nonCompliantCount++;
               }
               break;

@@ -29,6 +29,8 @@
   "district_plan_approval_date": "2023-06-15",
   "teacher_avg_salary": 8.56,
   "civil_servant_avg_salary": 8.45,
+  "trained_teacher_count": 1260,
+  "certified_full_time_teacher_count": 1650,
   "exchange_eligible_teacher_count": 450,
   "actual_exchange_teacher_count": 68,
   "actual_exchange_backbone_count": 25,

@@ -45,6 +45,38 @@ router.get('/projects/:projectId/personnel', async (req, res) => {
   }
 });
 
+// 获取人员统计（必须放在 /:id 路由之前，否则 stats 会被当作 id 处理）
+router.get('/projects/:projectId/personnel/stats', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const result = await db.query(`
+      SELECT role, COUNT(*) as count
+      FROM project_personnel
+      WHERE project_id = $1 AND status = 'active'
+      GROUP BY role
+    `, [projectId]);
+
+    const stats = {
+      total: 0,
+      system_admin: 0,
+      city_admin: 0,
+      district_admin: 0,
+      district_reporter: 0,
+      school_reporter: 0
+    };
+
+    result.rows.forEach(row => {
+      stats[row.role] = parseInt(row.count);
+      stats.total += parseInt(row.count);
+    });
+
+    res.json({ code: 200, data: stats });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 // 获取单个人员
 router.get('/projects/:projectId/personnel/:id', async (req, res) => {
   try {
@@ -239,38 +271,6 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
       data: results,
       message: `导入完成：成功 ${results.success} 条，失败 ${results.failed} 条`
     });
-  } catch (error) {
-    res.status(500).json({ code: 500, message: error.message });
-  }
-});
-
-// 获取人员统计
-router.get('/projects/:projectId/personnel/stats', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-
-    const result = await db.query(`
-      SELECT role, COUNT(*) as count
-      FROM project_personnel
-      WHERE project_id = $1 AND status = 'active'
-      GROUP BY role
-    `, [projectId]);
-
-    const stats = {
-      total: 0,
-      system_admin: 0,
-      city_admin: 0,
-      district_admin: 0,
-      district_reporter: 0,
-      school_reporter: 0
-    };
-
-    result.rows.forEach(row => {
-      stats[row.role] = parseInt(row.count);
-      stats.total += parseInt(row.count);
-    });
-
-    res.json({ code: 200, data: stats });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
   }

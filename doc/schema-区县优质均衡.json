@@ -336,6 +336,17 @@
         "description": "近5年内完成360学时培训的专任教师总数（不含民办学校）"
       },
       {
+        "id": "certified_full_time_teacher_count",
+        "type": "number",
+        "label": "持有教师资格证的专任教师人数",
+        "placeholder": "请输入持有教师资格证的专任教师人数",
+        "width": "25%",
+        "required": true,
+        "decimalPlaces": "整数",
+        "unit": "人",
+        "description": "县域内持有教师资格证并在岗的专任教师人数（不含民办学校）"
+      },
+      {
         "id": "divider_exchange",
         "type": "divider",
         "label": "教师交流轮岗",
