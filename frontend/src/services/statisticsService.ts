@@ -292,3 +292,64 @@ export async function getResourceIndicatorsSummary(
   if (schoolType) params.schoolType = schoolType;
   return get<ResourceIndicatorsSummary>(`/districts/${districtId}/resource-indicators-summary`, params);
 }
+
+// ==================== 政府保障程度15项指标汇总 ====================
+
+// 政府保障程度指标详情
+export interface GovernmentGuaranteeIndicatorDetail {
+  id?: string;
+  name: string;
+  value: number | string | null;
+  displayValue: string;
+  threshold?: number | string;
+  unit?: string;
+  isCompliant: boolean | null;
+}
+
+// 政府保障程度单项指标
+export interface GovernmentGuaranteeIndicator {
+  code: string;
+  name: string;
+  shortName: string;
+  type: 'material' | 'boolean' | 'number' | 'comparison' | 'composite' | 'calculated';
+  threshold: string | number;
+  description: string;
+  value: number | string | null;
+  displayValue: string | null;
+  isCompliant: boolean | null;
+  details: GovernmentGuaranteeIndicatorDetail[];
+}
+
+// 政府保障程度指标汇总
+export interface GovernmentGuaranteeSummary {
+  totalCount: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  pendingCount: number;
+  allCompliant: boolean | null;
+  complianceRate: number | null;
+}
+
+// 政府保障程度指标汇总响应
+export interface GovernmentGuaranteeResponse {
+  district: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  submission: {
+    status: string | null;
+    submittedAt: string | null;
+  };
+  summary: GovernmentGuaranteeSummary;
+  indicators: GovernmentGuaranteeIndicator[];
+}
+
+// 获取区县政府保障程度15项指标汇总
+export async function getGovernmentGuaranteeSummary(
+  districtId: string,
+  projectId: string
+): Promise<GovernmentGuaranteeResponse> {
+  const params: Record<string, string> = { projectId };
+  return get<GovernmentGuaranteeResponse>(`/districts/${districtId}/government-guarantee-summary`, params);
+}

@@ -260,6 +260,41 @@ export interface DistrictSubmissionsResponse {
   submissions: DistrictSubmission[];
 }
 
+// 区县自身填报记录（区县级工具）
+export interface DistrictSelfSubmission {
+  id: string;
+  projectId: string;
+  formId: string;
+  schoolId?: string;
+  submitterId?: string;
+  submitterName?: string;
+  submitterOrg?: string;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  formName: string;
+  projectName?: string;
+  formTarget?: string;
+}
+
+export interface DistrictSelfSubmissionsResponse {
+  district: {
+    id: string;
+    name: string;
+  };
+  stats: {
+    total: number;
+    draft: number;
+    submitted: number;
+    approved: number;
+    rejected: number;
+  };
+  submissions: DistrictSelfSubmission[];
+}
+
 // 获取区县下所有学校的指标汇总
 export async function getDistrictSchoolsIndicatorSummary(
   districtId: string,
@@ -364,6 +399,24 @@ export async function getDistrictSubmissions(
   if (filters?.formId) params.formId = filters.formId;
   if (filters?.status) params.status = filters.status;
   return get<DistrictSubmissionsResponse>(`/districts/${districtId}/submissions`, params);
+}
+
+// 获取区县自身填报记录（区县管理员Tab使用）
+export async function getDistrictSelfSubmissions(
+  districtId: string,
+  projectId?: string,
+  filters?: {
+    formId?: string;
+    status?: string;
+    keyword?: string;
+  }
+): Promise<DistrictSelfSubmissionsResponse> {
+  const params: Record<string, string> = {};
+  if (projectId) params.projectId = projectId;
+  if (filters?.formId) params.formId = filters.formId;
+  if (filters?.status) params.status = filters.status;
+  if (filters?.keyword) params.keyword = filters.keyword;
+  return get<DistrictSelfSubmissionsResponse>(`/districts/${districtId}/district-submissions`, params);
 }
 
 // 差异系数指标项

@@ -959,6 +959,87 @@ router.get('/districts/:districtId/submissions', async (req, res) => {
   }
 });
 
+// 获取区县自身填报记录（区县管理员专用：区县级工具 target='区县'）
+router.get('/districts/:districtId/district-submissions', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId, formId, status, keyword } = req.query;
+
+    // 验证区县存在
+    const districtResult = await db.query('SELECT id, name FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    let sql = `
+      SELECT s.id, s.project_id as "projectId",
+             COALESCE(s.form_id, s.tool_id) as "formId",
+             s.school_id as "schoolId",
+             s.submitter_id as "submitterId", s.submitter_name as "submitterName",
+             s.submitter_org as "submitterOrg", s.status, s.reject_reason as "rejectReason",
+             s.created_at as "createdAt", s.updated_at as "updatedAt",
+             s.submitted_at as "submittedAt", s.approved_at as "approvedAt",
+             t.name as "formName", t.target as "formTarget",
+             p.name as "projectName"
+      FROM submissions s
+      LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
+      LEFT JOIN projects p ON s.project_id = p.id
+      WHERE t.target = '区县'
+        AND (s.submitter_org = $1 OR s.submitter_org LIKE $2)
+    `;
+    const params = [district.name, `%${district.name}%`];
+    let paramIndex = 3;
+
+    // 按项目过滤（可选）
+    if (projectId) {
+      sql += ` AND s.project_id = $${paramIndex++}`;
+      params.push(projectId);
+    }
+
+    // 按表单过滤（可选）
+    if (formId) {
+      sql += ` AND COALESCE(s.form_id, s.tool_id) = $${paramIndex++}`;
+      params.push(formId);
+    }
+
+    // 按状态过滤（可选）
+    if (status) {
+      sql += ` AND s.status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    // 关键字（可选）：表单名/填报人/填报单位模糊匹配
+    if (keyword) {
+      sql += ` AND (t.name LIKE $${paramIndex++} OR s.submitter_name LIKE $${paramIndex++} OR s.submitter_org LIKE $${paramIndex++})`;
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+
+    sql += ' ORDER BY s.updated_at DESC';
+
+    const result = await db.query(sql, params);
+
+    const stats = {
+      total: result.rows.length,
+      draft: result.rows.filter(r => r.status === 'draft').length,
+      submitted: result.rows.filter(r => r.status === 'submitted').length,
+      approved: result.rows.filter(r => r.status === 'approved').length,
+      rejected: result.rows.filter(r => r.status === 'rejected').length
+    };
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        stats,
+        submissions: result.rows
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 // 获取单个填报记录（含数据）
 router.get('/submissions/:id', async (req, res) => {
   try {

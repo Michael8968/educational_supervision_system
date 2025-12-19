@@ -23,6 +23,7 @@ import {
   Tooltip,
   List,
   Modal,
+  Checkbox,
 } from 'antd';
 import {
   FormOutlined,
@@ -81,6 +82,8 @@ const CollectorDashboard: React.FC = () => {
   const [currentTaskForIndicator, setCurrentTaskForIndicator] = useState<Task | null>(null);
   const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null);
   const [schoolIndicatorData, setSchoolIndicatorData] = useState<SchoolIndicatorData | null>(null);
+  // 指标详情弹窗：是否仅显示已填报字段（区县端默认开启）
+  const [onlyShowFilled, setOnlyShowFilled] = useState<boolean>(false);
   // 区县数据按学段分开
   const [districtPrimaryData, setDistrictPrimaryData] = useState<DistrictSchoolsIndicatorSummary | null>(null);
   const [districtMiddleData, setDistrictMiddleData] = useState<DistrictSchoolsIndicatorSummary | null>(null);
@@ -189,6 +192,8 @@ const CollectorDashboard: React.FC = () => {
     setCurrentTaskForIndicator(task);
     setIndicatorModalOpen(true);
     setIndicatorLoading(true);
+    // 区县填报端：默认只展示已填报的字段/指标，避免大量“未填写”干扰
+    setOnlyShowFilled(resolvedScope?.type === 'district');
     setCurrentSubmission(null);
     setSchoolIndicatorData(null);
     setDistrictPrimaryData(null);
@@ -891,6 +896,15 @@ const CollectorDashboard: React.FC = () => {
     return currentSubmission.data[fieldId];
   }, [currentSubmission]);
 
+  const isFilledValue = (value: unknown): boolean => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string') return value.trim() !== '';
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value as Record<string, unknown>).length > 0;
+    // number(含0)、boolean(含false) 视为已填写
+    return true;
+  };
+
   // 格式化显示提交的值
   const formatSubmittedValue = (value: unknown, unit?: string): string => {
     if (value === undefined || value === null || value === '') return '未填写';
@@ -902,7 +916,14 @@ const CollectorDashboard: React.FC = () => {
       if (value === 'no') return '否';
       return unit ? `${value} ${unit}` : value;
     }
-    if (Array.isArray(value)) return value.join(', ') || '未填写';
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '未填写';
+      const allPrimitive = value.every(v => v === null || v === undefined || ['string', 'number', 'boolean'].includes(typeof v));
+      if (allPrimitive) {
+        return value.map(v => (v === null || v === undefined ? '' : String(v))).filter(Boolean).join(', ') || '未填写';
+      }
+      return `共 ${value.length} 条`;
+    }
     return String(value);
   };
 
@@ -927,6 +948,12 @@ const CollectorDashboard: React.FC = () => {
 
     const dataIndicators = indicatorsList.filter(i => i.mappingType === 'data_indicator');
     const elements = indicatorsList.filter(i => i.mappingType === 'element');
+    const displayDataIndicators = onlyShowFilled
+      ? dataIndicators.filter((i) => isFilledValue(getSubmittedValue(i.fieldId)))
+      : dataIndicators;
+    const displayElements = onlyShowFilled
+      ? elements.filter((i) => isFilledValue(getSubmittedValue(i.fieldId)))
+      : elements;
 
     return (
       <div>
@@ -958,6 +985,16 @@ const CollectorDashboard: React.FC = () => {
             </Space>
           </div>
         )}
+
+        {/* 显示模式：区县端默认“仅显示已填报”，也允许手动切换 */}
+        <div style={{ marginBottom: 16 }}>
+          <Checkbox checked={onlyShowFilled} onChange={(e) => setOnlyShowFilled(e.target.checked)}>
+            仅显示已填报
+          </Checkbox>
+          <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+            {onlyShowFilled ? '已隐藏未填写项' : '包含未填写项'}
+          </span>
+        </div>
 
         {/* 已评估指标详情（学校端显示） */}
         {resolvedScope?.type === 'school' && schoolIndicatorData?.indicators && schoolIndicatorData.indicators.length > 0 && (
@@ -1343,19 +1380,19 @@ const CollectorDashboard: React.FC = () => {
         )}
 
         {/* 数据指标列表 */}
-        {dataIndicators.length > 0 && (
+        {displayDataIndicators.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <h4 style={{ marginBottom: 12 }}>
               <DatabaseOutlined style={{ marginRight: 8 }} />
-              数据指标 ({dataIndicators.length})
+              数据指标 ({displayDataIndicators.length}{onlyShowFilled ? ` / ${dataIndicators.length}` : ''})
             </h4>
             <List
               size="small"
               bordered
-              dataSource={dataIndicators}
+              dataSource={displayDataIndicators}
               renderItem={(item) => {
                 const submittedValue = getSubmittedValue(item.fieldId);
-                const hasValue = submittedValue !== undefined && submittedValue !== null && submittedValue !== '';
+                const hasValue = isFilledValue(submittedValue);
                 return (
                   <List.Item>
                     <div style={{ width: '100%' }}>
@@ -1396,19 +1433,19 @@ const CollectorDashboard: React.FC = () => {
         )}
 
         {/* 要素列表 */}
-        {elements.length > 0 && (
+        {displayElements.length > 0 && (
           <div>
             <h4 style={{ marginBottom: 12 }}>
               <FileTextOutlined style={{ marginRight: 8 }} />
-              采集要素 ({elements.length})
+              采集要素 ({displayElements.length}{onlyShowFilled ? ` / ${elements.length}` : ''})
             </h4>
             <List
               size="small"
               bordered
-              dataSource={elements}
+              dataSource={displayElements}
               renderItem={(item) => {
                 const submittedValue = getSubmittedValue(item.fieldId);
-                const hasValue = submittedValue !== undefined && submittedValue !== null && submittedValue !== '';
+                const hasValue = isFilledValue(submittedValue);
                 return (
                   <List.Item>
                     <div style={{ width: '100%' }}>
@@ -1447,6 +1484,14 @@ const CollectorDashboard: React.FC = () => {
             />
           </div>
         )}
+
+        {/* 仅显示已填报时的空态 */}
+        {onlyShowFilled &&
+          indicatorsList.length > 0 &&
+          displayDataIndicators.length === 0 &&
+          displayElements.length === 0 && (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已填报的指标/要素" />
+          )}
 
         {/* 无映射提示 */}
         {indicatorsList.length === 0 && (

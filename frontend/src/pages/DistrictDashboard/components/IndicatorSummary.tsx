@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Table, Select, Spin, Empty, Tag, Tooltip } from 'antd';
+import { Row, Col, Card, Table, Select, Spin, Empty, Tag, Tooltip, Collapse } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   QuestionCircleOutlined,
+  FileTextOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import {
   getResourceIndicatorsSummary,
   ResourceIndicatorsSummary,
   CVIndicatorSummary,
   SchoolResourceIndicators,
+  getGovernmentGuaranteeSummary,
+  GovernmentGuaranteeResponse,
+  GovernmentGuaranteeIndicator,
 } from '../../../services/statisticsService';
 
 interface IndicatorSummaryProps {
@@ -33,8 +38,10 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
   const [loading, setLoading] = useState(false);
   const [schoolType, setSchoolType] = useState<string>('小学');
   const [data, setData] = useState<ResourceIndicatorsSummary | null>(null);
+  const [govData, setGovData] = useState<GovernmentGuaranteeResponse | null>(null);
+  const [govLoading, setGovLoading] = useState(false);
 
-  // 加载数据
+  // 加载资源配置指标数据
   useEffect(() => {
     if (!districtId || !projectId) return;
 
@@ -52,6 +59,25 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
 
     loadData();
   }, [districtId, projectId, schoolType]);
+
+  // 加载政府保障程度指标数据
+  useEffect(() => {
+    if (!districtId || !projectId) return;
+
+    const loadGovData = async () => {
+      setGovLoading(true);
+      try {
+        const result = await getGovernmentGuaranteeSummary(districtId, projectId);
+        setGovData(result);
+      } catch (error) {
+        console.error('加载政府保障程度数据失败:', error);
+      } finally {
+        setGovLoading(false);
+      }
+    };
+
+    loadGovData();
+  }, [districtId, projectId]);
 
   if (!projectId) {
     return <Empty description="请先选择项目" />;
@@ -228,6 +254,81 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
 
   const cvThreshold = schoolType === '小学' ? 0.50 : 0.45;
 
+  // 渲染政府保障程度指标状态
+  const renderGovIndicatorStatus = (indicator: GovernmentGuaranteeIndicator) => {
+    if (indicator.isCompliant === null) {
+      return <Tag color="default">{indicator.displayValue || '待填报'}</Tag>;
+    }
+    return indicator.isCompliant ? (
+      <Tag icon={<CheckCircleOutlined />} color="success">达标</Tag>
+    ) : (
+      <Tag icon={<CloseCircleOutlined />} color="error">未达标</Tag>
+    );
+  };
+
+  // 渲染政府保障程度指标卡片
+  const renderGovIndicatorCard = (indicator: GovernmentGuaranteeIndicator) => {
+    const bgColor = indicator.isCompliant === null
+      ? '#f5f5f5'
+      : indicator.isCompliant
+      ? '#f6ffed'
+      : '#fff2f0';
+    const borderColor = indicator.isCompliant === null
+      ? '#d9d9d9'
+      : indicator.isCompliant
+      ? '#b7eb8f'
+      : '#ffccc7';
+
+    return (
+      <Card
+        size="small"
+        style={{ background: bgColor, borderColor, height: '100%' }}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <Tooltip title={indicator.name}>
+            <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>
+              {indicator.code.replace('G', '')}. {indicator.shortName}
+            </span>
+          </Tooltip>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: indicator.isCompliant === null ? '#999' : indicator.isCompliant ? '#52c41a' : '#ff4d4f' }}>
+            {indicator.displayValue || '-'}
+          </span>
+          {renderGovIndicatorStatus(indicator)}
+        </div>
+        {indicator.details && indicator.details.length > 0 && (
+          <Collapse
+            ghost
+            size="small"
+            items={[{
+              key: '1',
+              label: <span style={{ fontSize: 12, color: '#9ca3af' }}>查看详情</span>,
+              children: (
+                <div style={{ fontSize: 12 }}>
+                  {indicator.details.map((detail, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ color: '#666' }}>{detail.name}:</span>
+                      <span style={{
+                        color: detail.isCompliant === null ? '#999' : detail.isCompliant ? '#52c41a' : '#ff4d4f',
+                        fontWeight: 500
+                      }}>
+                        {detail.displayValue || '-'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }]}
+          />
+        )}
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+          标准: {indicator.threshold}
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div>
       {/* 筛选条件 */}
@@ -370,6 +471,7 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
             </div>
           </div>
         }
+        style={{ marginBottom: 24 }}
       >
         {data?.schools && data.schools.length > 0 ? (
           <Table
@@ -386,6 +488,95 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
           />
         ) : (
           <Empty description="暂无学校数据" />
+        )}
+      </Card>
+
+      {/* 政府保障程度15项指标 */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>政府保障程度（15项指标）</span>
+            {govData?.summary && (
+              <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                {govData.summary.allCompliant === null ? (
+                  <Tag icon={<ExclamationCircleOutlined />} color="warning">
+                    {govData.summary.compliantCount}/{govData.summary.totalCount} 项达标，{govData.summary.pendingCount} 项待填报
+                  </Tag>
+                ) : govData.summary.allCompliant ? (
+                  <Tag icon={<CheckCircleOutlined />} color="success">
+                    {govData.summary.compliantCount}/{govData.summary.totalCount} 项全部达标
+                  </Tag>
+                ) : (
+                  <Tag icon={<CloseCircleOutlined />} color="error">
+                    {govData.summary.compliantCount}/{govData.summary.totalCount} 项达标
+                  </Tag>
+                )}
+              </span>
+            )}
+          </div>
+        }
+      >
+        {govLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : govData?.indicators && govData.indicators.length > 0 ? (
+          <Row gutter={[16, 16]}>
+            {govData.indicators.map((indicator) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={indicator.code}>
+                {renderGovIndicatorCard(indicator)}
+              </Col>
+            ))}
+            {/* 综合判定卡片 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Card
+                size="small"
+                style={{
+                  background: govData.summary.allCompliant === null
+                    ? '#fffbe6'
+                    : govData.summary.allCompliant
+                    ? '#f6ffed'
+                    : '#fff2f0',
+                  borderColor: govData.summary.allCompliant === null
+                    ? '#ffe58f'
+                    : govData.summary.allCompliant
+                    ? '#b7eb8f'
+                    : '#ffccc7',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合判定</div>
+                  <div style={{ fontSize: 32, fontWeight: 600, marginBottom: 8 }}>
+                    {govData.summary.compliantCount}/{govData.summary.totalCount}
+                  </div>
+                  {govData.summary.pendingCount > 0 && (
+                    <div style={{ fontSize: 12, color: '#faad14', marginBottom: 8 }}>
+                      {govData.summary.pendingCount} 项待填报
+                    </div>
+                  )}
+                  {govData.summary.allCompliant === null ? (
+                    <Tag icon={<ExclamationCircleOutlined />} color="warning" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      待完善
+                    </Tag>
+                  ) : govData.summary.allCompliant ? (
+                    <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      全部达标
+                    </Tag>
+                  ) : (
+                    <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      未全部达标
+                    </Tag>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        ) : (
+          <Empty description="暂无政府保障程度数据" />
         )}
       </Card>
     </div>

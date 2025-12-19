@@ -5,6 +5,7 @@ import { getProjects } from '../../services/submissionService';
 import IndicatorSummary from './components/IndicatorSummary';
 import SchoolIndicators from './components/SchoolIndicators';
 import SubmissionList from './components/SubmissionList';
+import DistrictSelfSubmissionList from './components/DistrictSelfSubmissionList';
 import styles from './index.module.css';
 
 interface Project {
@@ -85,6 +86,16 @@ const DistrictDashboard: React.FC = () => {
       label: '填报明细',
       children: (
         <SubmissionList
+          districtId={districtId}
+          projectId={selectedProjectId}
+        />
+      ),
+    },
+    {
+      key: 'district-submissions',
+      label: '区县填报',
+      children: (
+        <DistrictSelfSubmissionList
           districtId={districtId}
           projectId={selectedProjectId}
         />

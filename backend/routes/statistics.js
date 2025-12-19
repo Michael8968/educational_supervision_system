@@ -1949,4 +1949,540 @@ router.get('/districts/:districtId/resource-indicators-summary', async (req, res
   }
 });
 
+// ==================== 政府保障程度15项指标汇总（区县管理员专用） ====================
+
+// 政府保障程度15项指标定义
+const GOVERNMENT_GUARANTEE_INDICATORS = [
+  {
+    code: 'G1',
+    name: '县域内义务教育学校规划布局合理，符合国家规定要求',
+    shortName: '规划布局',
+    type: 'material', // 只需佐证材料
+    materialField: 'school_layout_material',
+    threshold: '需提供佐证材料',
+    description: '需提供规划布局、批复与实施等佐证资料'
+  },
+  {
+    code: 'G2',
+    name: '城乡义务教育学校建设标准统一',
+    shortName: '统一标准',
+    type: 'composite', // 复合指标
+    dataFields: [
+      { id: 'primary_public_funding_standard', name: '小学生均公用经费标准', threshold: 1150, unit: '元', schoolType: '小学' },
+      { id: 'junior_public_funding_standard', name: '初中生均公用经费标准', threshold: 1350, unit: '元', schoolType: '初中' }
+    ],
+    materialField: 'unified_standard_material',
+    threshold: '小学≥1150元，初中≥1350元',
+    description: '生均公用经费基准定额不低于市级标准'
+  },
+  {
+    code: 'G3',
+    name: '每12个班级配备音乐、美术专用教室1间以上且面积达标',
+    shortName: '音美教室',
+    type: 'boolean',
+    dataField: 'music_art_classroom_compliant',
+    threshold: '达标',
+    description: '所有小学、初中每12个班级配备音乐、美术专用教室1间以上'
+  },
+  {
+    code: 'G4',
+    name: '学校规模控制达标',
+    shortName: '规模控制',
+    type: 'composite',
+    dataFields: [
+      { id: 'over_scale_primary_count', name: '超规模学校数(小学)', threshold: 0, operator: '=', unit: '所' },
+      { id: 'over_scale_junior_count', name: '超规模学校数(初中)', threshold: 0, operator: '=', unit: '所' },
+      { id: 'over_scale_nine_year_count', name: '超规模学校数(九年一贯制)', threshold: 0, operator: '=', unit: '所' }
+    ],
+    threshold: '超规模学校数=0',
+    description: '小学/初中≤2000人，九年一贯制≤2500人'
+  },
+  {
+    code: 'G5',
+    name: '班级学生数控制达标',
+    shortName: '班额控制',
+    type: 'composite',
+    dataFields: [
+      { id: 'over_45_primary_class_count', name: '超45人小学班级数', threshold: 0, operator: '=', unit: '个' },
+      { id: 'over_50_junior_class_count', name: '超50人初中班级数', threshold: 0, operator: '=', unit: '个' }
+    ],
+    threshold: '超标班级数=0',
+    description: '小学≤45人/班，初中≤50人/班'
+  },
+  {
+    code: 'G6',
+    name: '不足100人的规模较小学校按不低于100人核定公用经费',
+    shortName: '小规模学校经费',
+    type: 'boolean',
+    dataField: 'small_school_funding_compliant',
+    threshold: '达标',
+    description: '小规模学校按不低于100人核定公用经费'
+  },
+  {
+    code: 'G7',
+    name: '特殊教育学校生均公用经费不低于8000元',
+    shortName: '特教经费',
+    type: 'number',
+    dataField: 'special_edu_per_student_funding',
+    threshold: 8000,
+    operator: '>=',
+    unit: '元',
+    description: '特殊教育学校生均公用经费不低于8000元'
+  },
+  {
+    code: 'G8',
+    name: '义务教育学校教师平均工资不低于当地公务员平均工资',
+    shortName: '教师工资',
+    type: 'comparison',
+    dataFields: [
+      { id: 'teacher_avg_salary', name: '教师年平均工资' },
+      { id: 'civil_servant_avg_salary', name: '公务员年平均工资' }
+    ],
+    threshold: '教师工资≥公务员工资',
+    description: '教师年平均工资收入水平不低于当地公务员'
+  },
+  {
+    code: 'G9',
+    name: '教师5年360学时培训完成率达到100%',
+    shortName: '培训完成率',
+    type: 'number',
+    dataField: 'teacher_training_completion_rate',
+    threshold: 100,
+    operator: '>=',
+    unit: '%',
+    description: '教师5年360学时培训完成率'
+  },
+  {
+    code: 'G10',
+    name: '县级教育行政部门统筹分配各校教职工编制和岗位数量',
+    shortName: '编制统筹',
+    type: 'material',
+    materialField: 'staff_quota_allocation_material',
+    threshold: '需提供佐证材料',
+    description: '需提供编制核定、岗位设置与分配文件'
+  },
+  {
+    code: 'G11',
+    name: '教师交流轮岗比例达标',
+    shortName: '交流轮岗',
+    type: 'composite',
+    dataFields: [
+      { id: 'teacher_exchange_rate', name: '交流轮岗教师比例', threshold: 10, operator: '>=', unit: '%' },
+      { id: 'backbone_teacher_exchange_rate', name: '交流轮岗骨干教师比例', threshold: 20, operator: '>=', unit: '%' }
+    ],
+    threshold: '交流≥10%，骨干≥20%',
+    description: '交流轮岗教师比例不低于10%，其中骨干教师不低于20%'
+  },
+  {
+    code: 'G12',
+    name: '专任教师持证上岗率达到100%',
+    shortName: '持证上岗',
+    type: 'number',
+    dataField: 'teacher_certification_rate',
+    threshold: 100,
+    operator: '>=',
+    unit: '%',
+    description: '专任教师持有教师资格证上岗率'
+  },
+  {
+    code: 'G13',
+    name: '就近划片入学比例达标',
+    shortName: '就近入学',
+    type: 'composite',
+    dataFields: [
+      { id: 'primary_nearby_enrollment_rate', name: '小学就近划片入学比例', threshold: 100, operator: '>=', unit: '%', schoolType: '小学' },
+      { id: 'junior_nearby_enrollment_rate', name: '初中就近划片入学比例', threshold: 95, operator: '>=', unit: '%', schoolType: '初中' }
+    ],
+    threshold: '小学100%，初中≥95%',
+    description: '城区和镇区公办小学、初中就近划片入学比例'
+  },
+  {
+    code: 'G14',
+    name: '优质高中招生名额分配比例不低于50%并向农村初中倾斜',
+    shortName: '高中名额分配',
+    type: 'calculated',
+    dataFields: [
+      { id: 'quality_high_school_quota_allocation', name: '分配指标数' },
+      { id: 'quality_high_school_enrollment_plan', name: '招生计划总数' }
+    ],
+    threshold: 50,
+    operator: '>=',
+    unit: '%',
+    description: '优质高中招生名额分配比例'
+  },
+  {
+    code: 'G15',
+    name: '留守儿童关爱体系健全，随迁子女就读比例不低于85%',
+    shortName: '随迁子女',
+    type: 'calculated',
+    dataFields: [
+      { id: 'migrant_in_public_school_count', name: '公办学校随迁子女数' },
+      { id: 'migrant_in_private_school_count', name: '购买服务民办学校随迁子女数' },
+      { id: 'eligible_migrant_children_count', name: '符合条件随迁子女总数' }
+    ],
+    threshold: 85,
+    operator: '>=',
+    unit: '%',
+    description: '随迁子女在公办学校和政府购买服务的民办学校就读比例'
+  }
+];
+
+// 获取区县政府保障程度15项指标汇总
+router.get('/districts/:districtId/government-guarantee-summary', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取区县信息
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    // 获取区县填报的数据（从submissions表中获取区县级别的填报）
+    // 区县填报通过submitter_org匹配区县名称，或者通过特定的form_id标识区县表单
+    const submissionResult = await db.query(`
+      SELECT s.id, s.data as form_data, s.status, s.submitted_at, s.approved_at,
+             dt.name as form_name, dt.target as form_target
+      FROM submissions s
+      JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
+      WHERE s.project_id = $1
+        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND s.status IN ('approved', 'submitted', 'rejected')
+      ORDER BY
+        CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
+        s.submitted_at DESC
+      LIMIT 1
+    `, [projectId, district.name]);
+
+    let formData = {};
+    let submissionStatus = null;
+    let submittedAt = null;
+    const hasSubmission = submissionResult.rows.length > 0;
+
+    if (hasSubmission && submissionResult.rows[0].form_data) {
+      submissionStatus = submissionResult.rows[0].status;
+      submittedAt = submissionResult.rows[0].submitted_at;
+      const rawData = submissionResult.rows[0].form_data;
+      if (typeof rawData === 'string') {
+        try {
+          formData = JSON.parse(rawData);
+        } catch (e) {
+          formData = {};
+        }
+      } else {
+        formData = rawData || {};
+      }
+    }
+
+    // 计算每个指标的达标情况
+    const indicators = [];
+    let compliantCount = 0;
+    let nonCompliantCount = 0;
+    let pendingCount = 0;
+
+    for (const config of GOVERNMENT_GUARANTEE_INDICATORS) {
+      const indicator = {
+        code: config.code,
+        name: config.name,
+        shortName: config.shortName,
+        type: config.type,
+        threshold: config.threshold,
+        description: config.description,
+        value: null,
+        displayValue: null,
+        isCompliant: null,
+        details: []
+      };
+
+      if (!hasSubmission) {
+        indicator.isCompliant = null;
+        indicator.displayValue = '暂无数据';
+        pendingCount++;
+      } else {
+        switch (config.type) {
+          case 'material':
+            // 佐证材料类型 - 检查是否有上传文件
+            const materialValue = formData[config.materialField];
+            const hasMaterial = materialValue && (
+              (Array.isArray(materialValue) && materialValue.length > 0) ||
+              (typeof materialValue === 'string' && materialValue.trim() !== '')
+            );
+            indicator.isCompliant = hasMaterial ? true : null;
+            indicator.displayValue = hasMaterial ? '已上传' : '待上传';
+            if (hasMaterial) compliantCount++;
+            else pendingCount++;
+            break;
+
+          case 'boolean':
+            // 布尔/逻辑类型
+            const boolValue = formData[config.dataField];
+            if (boolValue === undefined || boolValue === null || boolValue === '') {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待填报';
+              pendingCount++;
+            } else {
+              const isCompliant = boolValue === true || boolValue === '达标' || boolValue === 'yes' || boolValue === 1;
+              indicator.isCompliant = isCompliant;
+              indicator.value = boolValue;
+              indicator.displayValue = isCompliant ? '达标' : '不达标';
+              if (isCompliant) compliantCount++;
+              else nonCompliantCount++;
+            }
+            break;
+
+          case 'number':
+            // 数值类型
+            const numValue = parseFloat(formData[config.dataField]);
+            if (isNaN(numValue)) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待填报';
+              pendingCount++;
+            } else {
+              indicator.value = numValue;
+              indicator.displayValue = `${numValue}${config.unit}`;
+              let isNumCompliant = false;
+              if (config.operator === '>=') isNumCompliant = numValue >= config.threshold;
+              else if (config.operator === '>') isNumCompliant = numValue > config.threshold;
+              else if (config.operator === '<=') isNumCompliant = numValue <= config.threshold;
+              else if (config.operator === '<') isNumCompliant = numValue < config.threshold;
+              else if (config.operator === '=') isNumCompliant = numValue === config.threshold;
+              indicator.isCompliant = isNumCompliant;
+              if (isNumCompliant) compliantCount++;
+              else nonCompliantCount++;
+            }
+            break;
+
+          case 'comparison':
+            // 比较类型（如教师工资vs公务员工资）
+            const field1 = parseFloat(formData[config.dataFields[0].id]);
+            const field2 = parseFloat(formData[config.dataFields[1].id]);
+            if (isNaN(field1) || isNaN(field2)) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待填报';
+              indicator.details = config.dataFields.map(f => ({
+                name: f.name,
+                value: formData[f.id] || null,
+                displayValue: isNaN(parseFloat(formData[f.id])) ? '待填报' : `${formData[f.id]}万元`
+              }));
+              pendingCount++;
+            } else {
+              const isCompCompliant = field1 >= field2;
+              indicator.isCompliant = isCompCompliant;
+              indicator.displayValue = isCompCompliant ? '达标' : '不达标';
+              indicator.details = [
+                { name: config.dataFields[0].name, value: field1, displayValue: `${field1}万元` },
+                { name: config.dataFields[1].name, value: field2, displayValue: `${field2}万元` }
+              ];
+              if (isCompCompliant) compliantCount++;
+              else nonCompliantCount++;
+            }
+            break;
+
+          case 'composite':
+            // 复合类型（多个子指标）
+            let allSubCompliant = true;
+            let hasAnyData = false;
+            let allDataPresent = true;
+            const subDetails = [];
+
+            for (const subField of config.dataFields) {
+              const subValue = parseFloat(formData[subField.id]);
+              const subDetail = {
+                id: subField.id,
+                name: subField.name,
+                value: null,
+                displayValue: '待填报',
+                threshold: subField.threshold,
+                unit: subField.unit,
+                isCompliant: null
+              };
+
+              if (!isNaN(subValue)) {
+                hasAnyData = true;
+                subDetail.value = subValue;
+                subDetail.displayValue = `${subValue}${subField.unit || ''}`;
+
+                let subCompliant = false;
+                const op = subField.operator || '>=';
+                if (op === '>=') subCompliant = subValue >= subField.threshold;
+                else if (op === '>') subCompliant = subValue > subField.threshold;
+                else if (op === '<=') subCompliant = subValue <= subField.threshold;
+                else if (op === '<') subCompliant = subValue < subField.threshold;
+                else if (op === '=') subCompliant = subValue === subField.threshold;
+
+                subDetail.isCompliant = subCompliant;
+                if (!subCompliant) allSubCompliant = false;
+              } else {
+                allDataPresent = false;
+              }
+              subDetails.push(subDetail);
+            }
+
+            indicator.details = subDetails;
+
+            if (!hasAnyData) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待填报';
+              pendingCount++;
+            } else if (!allDataPresent) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '部分填报';
+              pendingCount++;
+            } else {
+              indicator.isCompliant = allSubCompliant;
+              indicator.displayValue = allSubCompliant ? '全部达标' : '部分未达标';
+              if (allSubCompliant) compliantCount++;
+              else nonCompliantCount++;
+            }
+            break;
+
+          case 'calculated':
+            // 计算类型（需要根据公式计算）
+            if (config.code === 'G14') {
+              // 优质高中招生名额分配比例
+              const quota = parseFloat(formData['quality_high_school_quota_allocation']);
+              const plan = parseFloat(formData['quality_high_school_enrollment_plan']);
+              if (isNaN(quota) || isNaN(plan) || plan === 0) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                indicator.details = [
+                  { name: '分配指标数', value: formData['quality_high_school_quota_allocation'] || null },
+                  { name: '招生计划总数', value: formData['quality_high_school_enrollment_plan'] || null }
+                ];
+                pendingCount++;
+              } else {
+                const rate = (quota / plan) * 100;
+                indicator.value = Math.round(rate * 100) / 100;
+                indicator.displayValue = `${indicator.value}%`;
+                indicator.isCompliant = rate >= config.threshold;
+                indicator.details = [
+                  { name: '分配指标数', value: quota, displayValue: `${quota}人` },
+                  { name: '招生计划总数', value: plan, displayValue: `${plan}人` }
+                ];
+                if (indicator.isCompliant) compliantCount++;
+                else nonCompliantCount++;
+              }
+            } else if (config.code === 'G15') {
+              // 随迁子女就读比例
+              const publicCount = parseFloat(formData['migrant_in_public_school_count']) || 0;
+              const privateCount = parseFloat(formData['migrant_in_private_school_count']) || 0;
+              const totalEligible = parseFloat(formData['eligible_migrant_children_count']);
+              if (isNaN(totalEligible) || totalEligible === 0) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                indicator.details = [
+                  { name: '公办学校随迁子女数', value: formData['migrant_in_public_school_count'] || null },
+                  { name: '购买服务民办学校随迁子女数', value: formData['migrant_in_private_school_count'] || null },
+                  { name: '符合条件随迁子女总数', value: formData['eligible_migrant_children_count'] || null }
+                ];
+                pendingCount++;
+              } else {
+                const rate = ((publicCount + privateCount) / totalEligible) * 100;
+                indicator.value = Math.round(rate * 100) / 100;
+                indicator.displayValue = `${indicator.value}%`;
+                indicator.isCompliant = rate >= config.threshold;
+                indicator.details = [
+                  { name: '公办学校随迁子女数', value: publicCount, displayValue: `${publicCount}人` },
+                  { name: '购买服务民办学校随迁子女数', value: privateCount, displayValue: `${privateCount}人` },
+                  { name: '符合条件随迁子女总数', value: totalEligible, displayValue: `${totalEligible}人` }
+                ];
+                if (indicator.isCompliant) compliantCount++;
+                else nonCompliantCount++;
+              }
+            }
+            break;
+
+          default:
+            indicator.isCompliant = null;
+            indicator.displayValue = '待填报';
+            pendingCount++;
+        }
+      }
+
+      indicators.push(indicator);
+    }
+
+    // 计算交流轮岗比例（G11需要特殊处理 - 从基础数据计算）
+    const g11Index = indicators.findIndex(i => i.code === 'G11');
+    if (g11Index !== -1 && hasSubmission) {
+      const eligibleCount = parseFloat(formData['exchange_eligible_teacher_count']);
+      const actualCount = parseFloat(formData['actual_exchange_teacher_count']);
+      const backboneCount = parseFloat(formData['actual_exchange_backbone_count']);
+
+      if (!isNaN(eligibleCount) && eligibleCount > 0 && !isNaN(actualCount)) {
+        const exchangeRate = (actualCount / eligibleCount) * 100;
+        const backboneRate = actualCount > 0 && !isNaN(backboneCount) ? (backboneCount / actualCount) * 100 : 0;
+
+        indicators[g11Index].details = [
+          {
+            id: 'teacher_exchange_rate',
+            name: '交流轮岗教师比例',
+            value: Math.round(exchangeRate * 100) / 100,
+            displayValue: `${Math.round(exchangeRate * 100) / 100}%`,
+            threshold: 10,
+            unit: '%',
+            isCompliant: exchangeRate >= 10
+          },
+          {
+            id: 'backbone_teacher_exchange_rate',
+            name: '交流轮岗骨干教师比例',
+            value: Math.round(backboneRate * 100) / 100,
+            displayValue: `${Math.round(backboneRate * 100) / 100}%`,
+            threshold: 20,
+            unit: '%',
+            isCompliant: backboneRate >= 20
+          }
+        ];
+
+        const isG11Compliant = exchangeRate >= 10 && backboneRate >= 20;
+        const wasCompliant = indicators[g11Index].isCompliant;
+        indicators[g11Index].isCompliant = isG11Compliant;
+        indicators[g11Index].displayValue = isG11Compliant ? '全部达标' : '部分未达标';
+
+        // 更新计数
+        if (wasCompliant === null) {
+          pendingCount--;
+          if (isG11Compliant) compliantCount++;
+          else nonCompliantCount++;
+        }
+      }
+    }
+
+    // 整体达标判定：15项全部达标
+    const totalCount = indicators.length;
+    const allCompliant = compliantCount === totalCount;
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        submission: {
+          status: submissionStatus,
+          submittedAt
+        },
+        summary: {
+          totalCount,
+          compliantCount,
+          nonCompliantCount,
+          pendingCount,
+          allCompliant: pendingCount === 0 ? allCompliant : null,
+          complianceRate: totalCount > 0 && pendingCount === 0
+            ? Math.round((compliantCount / totalCount) * 10000) / 100
+            : null
+        },
+        indicators
+      }
+    });
+  } catch (error) {
+    console.error('获取政府保障程度指标汇总失败:', error);
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 module.exports = { router, setDb };
