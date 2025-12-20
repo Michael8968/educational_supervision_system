@@ -111,6 +111,12 @@ export interface Element {
   toolId?: string;
   fieldId?: string;
   fieldLabel?: string;
+  // 采集来源级别：school（学校）| district（区县）| auto（自动判断）
+  collectionLevel?: 'school' | 'district' | 'auto';
+  // 计算级别：school（学校级）| district（区县级），用于派生要素
+  calculationLevel?: 'school' | 'district';
+  // 数据来源说明（如：区县汇总、区县填报、学校填报等）
+  dataSource?: string;
   // 多填报汇总配置
   aggregation?: AggregationConfig;
 }

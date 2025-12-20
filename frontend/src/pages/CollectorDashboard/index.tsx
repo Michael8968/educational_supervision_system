@@ -1461,6 +1461,14 @@ const CollectorDashboard: React.FC = () => {
                           {item.targetInfo.dataType && (
                             <Tag color="default">{item.targetInfo.dataType}</Tag>
                           )}
+                          {((item.targetInfo as any).collectionLevel || (item.targetInfo as any).collection_level) && (
+                            <Tag color="blue">
+                              {((item.targetInfo as any).collectionLevel || (item.targetInfo as any).collection_level) === 'school' ? '学校' : 
+                               ((item.targetInfo as any).collectionLevel || (item.targetInfo as any).collection_level) === 'district' ? '区县' : 
+                               ((item.targetInfo as any).collectionLevel || (item.targetInfo as any).collection_level) === 'auto' ? '自动' : 
+                               ((item.targetInfo as any).collectionLevel || (item.targetInfo as any).collection_level)}
+                            </Tag>
+                          )}
                         </Space>
                       </div>
                       {item.targetInfo.formula && (

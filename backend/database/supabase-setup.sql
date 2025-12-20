@@ -152,6 +152,9 @@ CREATE TABLE IF NOT EXISTS elements (
   formula TEXT,
   formula_elements TEXT,
   description TEXT,
+  collection_level TEXT,             -- 采集来源级别：school（学校）| district（区县）| auto（自动判断）
+  calculation_level TEXT,            -- 计算级别：school（学校级）| district（区县级），用于派生要素
+  data_source TEXT,                  -- 数据来源说明（如：区县汇总、区县填报、学校填报等）
   sort_order INTEGER DEFAULT 0,
   created_at TEXT,
   updated_at TEXT

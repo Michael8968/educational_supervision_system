@@ -31,6 +31,12 @@ interface FlattenedField {
 // 要素类型
 type ElementType = '基础要素' | '派生要素';
 
+// 采集来源级别
+type CollectionLevel = 'school' | 'district' | 'auto';
+
+// 计算级别
+type CalculationLevel = 'school' | 'district';
+
 // 数据类型
 type DataType = '文本' | '数字' | '日期' | '时间' | '逻辑' | '数组' | '文件';
 
@@ -330,6 +336,9 @@ const IndicatorEdit: React.FC = () => {
         fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
         fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
         formula: values.elementType === '派生要素' ? values.formula : undefined,
+        collectionLevel: values.collectionLevel,
+        calculationLevel: values.calculationLevel,
+        dataSource: values.dataSource,
         aggregation, // 未启用时为 undefined，会自动清除聚合配置
       });
 
@@ -348,8 +357,11 @@ const IndicatorEdit: React.FC = () => {
         toolId: values.elementType === '基础要素' ? values.toolId : undefined,
         fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
         fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
+        collectionLevel: values.collectionLevel,
+        calculationLevel: values.calculationLevel,
+        dataSource: values.dataSource,
         aggregation,
-      };
+      } as any;
 
       const updatedLibrary = {
         ...library,
@@ -388,6 +400,9 @@ const IndicatorEdit: React.FC = () => {
       formula: element.formula,
       toolId: element.toolId,
       fieldId: element.fieldId,
+      collectionLevel: (element as any).collectionLevel || (element as any).collection_level,
+      calculationLevel: (element as any).calculationLevel || (element as any).calculation_level,
+      dataSource: (element as any).dataSource || (element as any).data_source,
       // 聚合配置 - 确保正确处理 aggregation 字段
       aggregationMethod: element.aggregation?.enabled ? (element.aggregation?.method || 'sum') : 'sum',
       filterField: element.aggregation?.enabled && element.aggregation?.scope?.level === 'custom' 
@@ -445,6 +460,9 @@ const IndicatorEdit: React.FC = () => {
         fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
         fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
         formula: values.elementType === '派生要素' ? values.formula : undefined,
+        collectionLevel: values.collectionLevel,
+        calculationLevel: values.calculationLevel,
+        dataSource: values.dataSource,
         aggregation, // 未启用时为 undefined，会自动清除聚合配置
       });
 
@@ -479,6 +497,9 @@ const IndicatorEdit: React.FC = () => {
             toolId: values.elementType === '基础要素' ? values.toolId : undefined,
             fieldId: values.elementType === '基础要素' ? values.fieldId : undefined,
             fieldLabel: values.elementType === '基础要素' ? fieldLabel : undefined,
+            collectionLevel: values.collectionLevel,
+            calculationLevel: values.calculationLevel,
+            dataSource: values.dataSource,
             aggregation,
           };
         }
@@ -1138,6 +1159,17 @@ const IndicatorEdit: React.FC = () => {
                     {element.elementType}
                   </Tag>
                   <span className={styles.elementDataType}># {element.dataType}</span>
+                  {(element as any).collectionLevel && (
+                    <Tag color="blue" style={{ fontSize: 11 }}>
+                      {(element as any).collectionLevel === 'school' ? '学校' : 
+                       (element as any).collectionLevel === 'district' ? '区县' : '自动'}
+                    </Tag>
+                  )}
+                  {(element as any).calculationLevel && (
+                    <Tag color="green" style={{ fontSize: 11 }}>
+                      计算: {(element as any).calculationLevel === 'school' ? '学校级' : '区县级'}
+                    </Tag>
+                  )}
                   {element.elementType === '基础要素' && (
                     <LinkOutlined
                       className={normalizeOptionalId(element.fieldId) ? styles.linkedIcon : styles.unlinkedIcon}
@@ -1216,6 +1248,30 @@ const IndicatorEdit: React.FC = () => {
                 <label>数据类型</label>
                 <span className={styles.propertyValue}>{selectedElement.dataType}</span>
               </div>
+              {(selectedElement as any).collectionLevel && (
+                <div className={styles.propertyItem}>
+                  <label>采集来源级别</label>
+                  <Tag color="blue">
+                    {(selectedElement as any).collectionLevel === 'school' ? '学校（school）' : 
+                     (selectedElement as any).collectionLevel === 'district' ? '区县（district）' : 
+                     '自动判断（auto）'}
+                  </Tag>
+                </div>
+              )}
+              {(selectedElement as any).calculationLevel && (
+                <div className={styles.propertyItem}>
+                  <label>计算级别</label>
+                  <Tag color="green">
+                    {(selectedElement as any).calculationLevel === 'school' ? '学校级（school）' : '区县级（district）'}
+                  </Tag>
+                </div>
+              )}
+              {(selectedElement as any).dataSource && (
+                <div className={styles.propertyItem}>
+                  <label>数据来源说明</label>
+                  <span className={styles.propertyValue}>{(selectedElement as any).dataSource}</span>
+                </div>
+              )}
               {selectedElement.formula && (
                 <>
                   <div className={styles.propertyItem}>
@@ -1564,6 +1620,46 @@ const IndicatorEdit: React.FC = () => {
             </>
           )}
 
+          {/* 采集来源配置 */}
+          <Divider style={{ margin: '16px 0 12px' }}>采集来源配置</Divider>
+          <Form.Item
+            label="采集来源级别"
+            name="collectionLevel"
+            tooltip="基础要素：数据采集的来源级别；派生要素：通常为 auto（自动判断）"
+          >
+            <Select placeholder="请选择采集来源级别" allowClear>
+              <Select.Option value="school">学校（school）</Select.Option>
+              <Select.Option value="district">区县（district）</Select.Option>
+              <Select.Option value="auto">自动判断（auto）</Select.Option>
+            </Select>
+          </Form.Item>
+          <div className={styles.formHint}>
+            {addFormElementType === '基础要素' 
+              ? '基础要素通常为 school（学校）或 district（区县）'
+              : '派生要素通常为 auto（根据计算公式自动判断）'}
+          </div>
+
+          {addFormElementType === '派生要素' && (
+            <Form.Item
+              label="计算级别"
+              name="calculationLevel"
+              tooltip="派生要素的计算级别：school（学校级）或 district（区县级）"
+            >
+              <Select placeholder="请选择计算级别" allowClear>
+                <Select.Option value="school">学校级（school）</Select.Option>
+                <Select.Option value="district">区县级（district）</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label="数据来源说明"
+            name="dataSource"
+            tooltip="数据来源的详细说明，如：学校填报、区县填报、区县汇总等"
+          >
+            <Input placeholder="如：学校填报、区县填报、区县汇总（基于学校填报数据）" />
+          </Form.Item>
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 24 }}>
             <Button style={{ marginRight: 8 }} onClick={() => setAddModalVisible(false)}>
               取消
@@ -1779,6 +1875,46 @@ const IndicatorEdit: React.FC = () => {
               )}
             </>
           )}
+
+          {/* 采集来源配置 */}
+          <Divider style={{ margin: '16px 0 12px' }}>采集来源配置</Divider>
+          <Form.Item
+            label="采集来源级别"
+            name="collectionLevel"
+            tooltip="基础要素：数据采集的来源级别；派生要素：通常为 auto（自动判断）"
+          >
+            <Select placeholder="请选择采集来源级别" allowClear>
+              <Select.Option value="school">学校（school）</Select.Option>
+              <Select.Option value="district">区县（district）</Select.Option>
+              <Select.Option value="auto">自动判断（auto）</Select.Option>
+            </Select>
+          </Form.Item>
+          <div className={styles.formHint}>
+            {editFormElementType === '基础要素' 
+              ? '基础要素通常为 school（学校）或 district（区县）'
+              : '派生要素通常为 auto（根据计算公式自动判断）'}
+          </div>
+
+          {editFormElementType === '派生要素' && (
+            <Form.Item
+              label="计算级别"
+              name="calculationLevel"
+              tooltip="派生要素的计算级别：school（学校级）或 district（区县级）"
+            >
+              <Select placeholder="请选择计算级别" allowClear>
+                <Select.Option value="school">学校级（school）</Select.Option>
+                <Select.Option value="district">区县级（district）</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label="数据来源说明"
+            name="dataSource"
+            tooltip="数据来源的详细说明，如：学校填报、区县填报、区县汇总等"
+          >
+            <Input placeholder="如：学校填报、区县填报、区县汇总（基于学校填报数据）" />
+          </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 24 }}>
             <Button style={{ marginRight: 8 }} onClick={() => {

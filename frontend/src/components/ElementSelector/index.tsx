@@ -131,6 +131,33 @@ const ElementSelector: React.FC<ElementSelectorProps> = ({
       width: 80,
     },
     {
+      title: '采集来源',
+      key: 'collectionLevel',
+      width: 120,
+      render: (_: any, record: toolService.ElementWithLibrary) => {
+        const collectionLevel = (record as any).collectionLevel || (record as any).collection_level;
+        const dataSource = (record as any).dataSource || (record as any).data_source;
+        if (collectionLevel) {
+          const levelText = collectionLevel === 'school' ? '学校' : 
+                           collectionLevel === 'district' ? '区县' : 
+                           collectionLevel === 'auto' ? '自动' : collectionLevel;
+          return (
+            <div>
+              <Tag color="blue" style={{ marginBottom: 4 }}>
+                {levelText}
+              </Tag>
+              {dataSource && (
+                <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                  {dataSource.length > 15 ? `${dataSource.substring(0, 15)}...` : dataSource}
+                </div>
+              )}
+            </div>
+          );
+        }
+        return '-';
+      },
+    },
+    {
       title: '计算公式',
       dataIndex: 'formula',
       key: 'formula',
@@ -153,7 +180,7 @@ const ElementSelector: React.FC<ElementSelectorProps> = ({
       title="选择要素"
       open={visible}
       onCancel={onCancel}
-      width={900}
+      width={1000}
       footer={null}
       destroyOnClose
     >
@@ -196,7 +223,7 @@ const ElementSelector: React.FC<ElementSelectorProps> = ({
         rowKey="id"
         loading={loading}
         size="small"
-        scroll={{ y: 400 }}
+        scroll={{ y: 400, x: 1000 }}
         pagination={{
           pageSize: 10,
           showSizeChanger: false,

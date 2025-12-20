@@ -24,7 +24,6 @@
       "1.6-D2": "D010",
       "1.7-D1": "D028",
       "1.7-D2": "D029",
-
       "1.8-D01": "D039",
       "1.8-D1": "D039",
       "1.8-D02": "D040",
@@ -48,7 +47,6 @@
       "1.8-D12": "D050",
       "1.8-D13": "D051",
       "1.8-D14": "D052",
-
       "2.2-D1": "E185",
       "2.2-D2": "E186",
       "2.3-D1": "D073",
@@ -68,7 +66,6 @@
       "2.13-D2": "E163",
       "2.14-D1": "D036",
       "2.15-D1": "D037",
-
       "3.1-D1": "D060",
       "3.2-D1": "D038",
       "3.4-D1": "D016",
@@ -85,7 +82,6 @@
       "3.9-D10": "E175",
       "3.9-D11": "E176",
       "3.9-D12": "E177",
-
       "4.1-D1": "E210",
       "4.1-D2": "E211"
     },
@@ -145,7 +141,9 @@
       "dataType": "数字",
       "fieldId": "student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E002",
@@ -154,7 +152,9 @@
       "dataType": "数字",
       "fieldId": "primary_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E003",
@@ -163,7 +163,9 @@
       "dataType": "数字",
       "fieldId": "junior_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E004",
@@ -173,7 +175,9 @@
       "fieldId": "full_time_teacher_count",
       "category": "资源配置",
       "unit": "人",
-      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段"
+      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E005",
@@ -182,7 +186,9 @@
       "dataType": "数字",
       "fieldId": "primary_full_time_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E006",
@@ -191,7 +197,9 @@
       "dataType": "数字",
       "fieldId": "junior_full_time_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E011",
@@ -200,7 +208,9 @@
       "dataType": "数字",
       "fieldId": "primary_college_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E012",
@@ -209,7 +219,9 @@
       "dataType": "数字",
       "fieldId": "primary_bachelor_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E013",
@@ -218,7 +230,9 @@
       "dataType": "数字",
       "fieldId": "primary_master_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E014",
@@ -227,7 +241,9 @@
       "dataType": "数字",
       "fieldId": "primary_doctor_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E007",
@@ -236,7 +252,9 @@
       "dataType": "数字",
       "fieldId": "junior_doctor_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E015",
@@ -245,7 +263,9 @@
       "dataType": "数字",
       "fieldId": "junior_bachelor_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E016",
@@ -254,7 +274,9 @@
       "dataType": "数字",
       "fieldId": "junior_master_degree_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E017",
@@ -264,7 +286,9 @@
       "fieldId": "county_backbone_teacher_count",
       "category": "资源配置",
       "unit": "人",
-      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段"
+      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E018",
@@ -273,7 +297,9 @@
       "dataType": "数字",
       "fieldId": "primary_county_backbone_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E019",
@@ -282,7 +308,9 @@
       "dataType": "数字",
       "fieldId": "junior_county_backbone_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E020",
@@ -291,7 +319,9 @@
       "dataType": "数字",
       "fieldId": "teaching_auxiliary_area",
       "category": "资源配置",
-      "unit": "平方米"
+      "unit": "平方米",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E021",
@@ -301,7 +331,9 @@
       "fieldId": "primary_teaching_auxiliary_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "根据学校总面积按学生人数加权比例自动拆分"
+      "description": "根据学校总面积按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E022",
@@ -311,7 +343,9 @@
       "fieldId": "junior_teaching_auxiliary_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "根据学校总面积按学生人数加权比例自动拆分"
+      "description": "根据学校总面积按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E023",
@@ -321,7 +355,9 @@
       "fieldId": "sports_venue_total_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "包含运动场地、校内其他专用运动场地、室内体育用房、就近便利到达的校外周边体育场馆面积之和"
+      "description": "包含运动场地、校内其他专用运动场地、室内体育用房、就近便利到达的校外周边体育场馆面积之和",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E024",
@@ -331,7 +367,9 @@
       "fieldId": "primary_sports_venue_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "根据学校总面积按学生人数加权比例自动拆分"
+      "description": "根据学校总面积按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E025",
@@ -341,7 +379,9 @@
       "fieldId": "junior_sports_venue_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "根据学校总面积按学生人数加权比例自动拆分"
+      "description": "根据学校总面积按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E026",
@@ -350,7 +390,9 @@
       "dataType": "数字",
       "fieldId": "teaching_equipment_value",
       "category": "资源配置",
-      "unit": "万元"
+      "unit": "万元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E027",
@@ -360,7 +402,9 @@
       "fieldId": "primary_teaching_equipment_value",
       "category": "资源配置",
       "unit": "万元",
-      "description": "根据学校总资产值按学生人数加权比例自动拆分"
+      "description": "根据学校总资产值按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E028",
@@ -370,7 +414,9 @@
       "fieldId": "junior_teaching_equipment_value",
       "category": "资源配置",
       "unit": "万元",
-      "description": "根据学校总资产值按学生人数加权比例自动拆分"
+      "description": "根据学校总资产值按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E029",
@@ -379,7 +425,9 @@
       "dataType": "数字",
       "fieldId": "computer_total_count",
       "category": "基本指标",
-      "unit": "台"
+      "unit": "台",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E030",
@@ -388,7 +436,9 @@
       "dataType": "数字",
       "fieldId": "primary_computer_count",
       "category": "资源配置",
-      "unit": "台"
+      "unit": "台",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E031",
@@ -397,7 +447,9 @@
       "dataType": "数字",
       "fieldId": "junior_computer_count",
       "category": "资源配置",
-      "unit": "台"
+      "unit": "台",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E032",
@@ -406,7 +458,9 @@
       "dataType": "数字",
       "fieldId": "library_books_count",
       "category": "基本指标",
-      "unit": "册"
+      "unit": "册",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E033",
@@ -415,7 +469,9 @@
       "dataType": "数字",
       "fieldId": "multimedia_classroom_count",
       "category": "资源配置",
-      "unit": "间"
+      "unit": "间",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E034",
@@ -425,7 +481,9 @@
       "fieldId": "primary_multimedia_classroom_count",
       "category": "资源配置",
       "unit": "间",
-      "description": "根据学校总间数按学生人数加权比例自动拆分"
+      "description": "根据学校总间数按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E035",
@@ -435,7 +493,9 @@
       "fieldId": "junior_multimedia_classroom_count",
       "category": "资源配置",
       "unit": "间",
-      "description": "根据学校总间数按学生人数加权比例自动拆分"
+      "description": "根据学校总间数按学生人数加权比例自动拆分",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E040",
@@ -444,7 +504,9 @@
       "dataType": "数字",
       "fieldId": "primary_pe_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E041",
@@ -453,7 +515,9 @@
       "dataType": "数字",
       "fieldId": "primary_music_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E042",
@@ -462,7 +526,9 @@
       "dataType": "数字",
       "fieldId": "primary_art_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E043",
@@ -471,7 +537,9 @@
       "dataType": "数字",
       "fieldId": "junior_pe_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E044",
@@ -480,7 +548,9 @@
       "dataType": "数字",
       "fieldId": "junior_music_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E045",
@@ -489,7 +559,9 @@
       "dataType": "数字",
       "fieldId": "junior_art_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E046",
@@ -499,7 +571,9 @@
       "fieldId": "certified_teacher_count",
       "category": "资源配置",
       "unit": "人",
-      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段"
+      "description": "当前 schema 未配置该字段（用于派生要素公式引用），如需计算请在表单中补充对应字段",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E047",
@@ -508,7 +582,9 @@
       "dataType": "数字",
       "fieldId": "primary_class_count",
       "category": "资源配置",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E048",
@@ -517,7 +593,9 @@
       "dataType": "数字",
       "fieldId": "junior_class_count",
       "category": "资源配置",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E049",
@@ -525,7 +603,9 @@
       "elementType": "基础要素",
       "dataType": "数组",
       "fieldId": "primary_class_student_list",
-      "category": "资源配置"
+      "category": "资源配置",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E050",
@@ -533,7 +613,9 @@
       "elementType": "基础要素",
       "dataType": "数组",
       "fieldId": "junior_class_student_list",
-      "category": "资源配置"
+      "category": "资源配置",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E051",
@@ -542,7 +624,9 @@
       "dataType": "数字",
       "fieldId": "migrant_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E052",
@@ -551,7 +635,9 @@
       "dataType": "数字",
       "fieldId": "migrant_worker_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E053",
@@ -560,7 +646,9 @@
       "dataType": "数字",
       "fieldId": "inclusive_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E054",
@@ -569,7 +657,9 @@
       "dataType": "数字",
       "fieldId": "home_teaching_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E055",
@@ -578,7 +668,9 @@
       "dataType": "数字",
       "fieldId": "special_education_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E056",
@@ -587,7 +679,9 @@
       "dataType": "数字",
       "fieldId": "special_education_funding",
       "category": "政府保障",
-      "unit": "元"
+      "unit": "元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E057",
@@ -596,7 +690,9 @@
       "dataType": "数字",
       "fieldId": "staff_total_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E058",
@@ -605,7 +701,9 @@
       "dataType": "数字",
       "fieldId": "staff_quota",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E059",
@@ -614,7 +712,9 @@
       "dataType": "数字",
       "fieldId": "staff_position_total",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E060",
@@ -623,7 +723,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E061",
@@ -632,7 +734,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_on_post_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E062",
@@ -641,7 +745,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_teacher_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E063",
@@ -650,7 +756,9 @@
       "dataType": "数字",
       "fieldId": "trained_teacher_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E064",
@@ -659,7 +767,9 @@
       "dataType": "数字",
       "fieldId": "local_student_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E065",
@@ -667,7 +777,9 @@
       "elementType": "基础要素",
       "dataType": "数组",
       "fieldId": "music_classroom_list",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E066",
@@ -675,7 +787,9 @@
       "elementType": "基础要素",
       "dataType": "数组",
       "fieldId": "art_classroom_list",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E067",
@@ -684,7 +798,9 @@
       "dataType": "数字",
       "fieldId": "graduate_count",
       "category": "教育质量",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E068",
@@ -693,7 +809,9 @@
       "dataType": "数字",
       "fieldId": "primary_graduate_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E069",
@@ -702,7 +820,9 @@
       "dataType": "数字",
       "fieldId": "junior_graduate_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E070",
@@ -711,7 +831,9 @@
       "dataType": "数字",
       "fieldId": "grade7_student_count_3years_ago",
       "category": "教育质量",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E071",
@@ -720,7 +842,9 @@
       "dataType": "数字",
       "fieldId": "junior_grade7_student_count_3years_ago",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E072",
@@ -729,7 +853,9 @@
       "dataType": "数字",
       "fieldId": "transfer_in_count_3years",
       "category": "教育质量",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E073",
@@ -738,7 +864,9 @@
       "dataType": "数字",
       "fieldId": "junior_transfer_in_count_3years",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E074",
@@ -747,7 +875,9 @@
       "dataType": "数字",
       "fieldId": "transfer_out_count_3years",
       "category": "教育质量",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E075",
@@ -756,7 +886,9 @@
       "dataType": "数字",
       "fieldId": "junior_transfer_out_count_3years",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E076",
@@ -765,7 +897,9 @@
       "dataType": "数字",
       "fieldId": "deceased_count_3years",
       "category": "教育质量",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E077",
@@ -774,7 +908,9 @@
       "dataType": "数字",
       "fieldId": "junior_deceased_count_3years",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E078",
@@ -783,7 +919,9 @@
       "dataType": "数字",
       "fieldId": "health_test_student_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E079",
@@ -792,7 +930,9 @@
       "dataType": "数字",
       "fieldId": "health_excellent_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E080",
@@ -801,7 +941,9 @@
       "dataType": "数字",
       "fieldId": "health_good_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E081",
@@ -810,7 +952,9 @@
       "dataType": "数字",
       "fieldId": "health_pass_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E082",
@@ -819,7 +963,9 @@
       "dataType": "数字",
       "fieldId": "health_fail_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E083",
@@ -828,7 +974,9 @@
       "dataType": "数字",
       "fieldId": "public_funding_total",
       "category": "教育质量",
-      "unit": "万元"
+      "unit": "万元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E084",
@@ -838,7 +986,9 @@
       "fieldId": "public_funding_budget",
       "category": "教育质量",
       "unit": "万元",
-      "description": "用于计算生均公用经费"
+      "description": "用于计算生均公用经费",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E085",
@@ -847,7 +997,9 @@
       "dataType": "数字",
       "fieldId": "public_funding_settlement",
       "category": "教育质量",
-      "unit": "万元"
+      "unit": "万元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E086",
@@ -857,7 +1009,9 @@
       "fieldId": "teacher_training_budget",
       "category": "教育质量",
       "unit": "万元",
-      "description": "用于计算教师培训经费占比（培训经费预算÷公用经费预算×100%≥5%）"
+      "description": "用于计算教师培训经费占比（培训经费预算÷公用经费预算×100%≥5%）",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E087",
@@ -866,7 +1020,9 @@
       "dataType": "数字",
       "fieldId": "teacher_training_funding",
       "category": "教育质量",
-      "unit": "万元"
+      "unit": "万元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E088",
@@ -874,7 +1030,9 @@
       "elementType": "基础要素",
       "dataType": "文本",
       "fieldId": "school_type",
-      "category": "基本信息"
+      "category": "基本信息",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E089",
@@ -882,7 +1040,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "is_teaching_point",
-      "category": "基本信息"
+      "category": "基本信息",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E090",
@@ -890,7 +1050,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "is_special_education",
-      "category": "基本信息"
+      "category": "基本信息",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E091",
@@ -898,7 +1060,9 @@
       "elementType": "基础要素",
       "dataType": "日期",
       "fieldId": "founding_year",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E092",
@@ -907,7 +1071,9 @@
       "dataType": "数字",
       "fieldId": "building_area",
       "category": "基本指标",
-      "unit": "平方米"
+      "unit": "平方米",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E093",
@@ -916,7 +1082,9 @@
       "dataType": "数字",
       "fieldId": "senior_positive_teacher_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E094",
@@ -925,7 +1093,9 @@
       "dataType": "数字",
       "fieldId": "senior_deputy_teacher_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E095",
@@ -934,7 +1104,9 @@
       "dataType": "数字",
       "fieldId": "intermediate_teacher_count",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E096",
@@ -943,7 +1115,9 @@
       "dataType": "数字",
       "fieldId": "government_purchased_seats",
       "category": "其他",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E097",
@@ -952,7 +1126,9 @@
       "dataType": "数字",
       "fieldId": "migrant_worker_seats",
       "category": "其他",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E098",
@@ -961,7 +1137,9 @@
       "dataType": "数字",
       "fieldId": "special_edu_funding_per_student",
       "category": "基本信息",
-      "unit": "元"
+      "unit": "元",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E099",
@@ -969,7 +1147,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "special_edu_rehabilitation_room",
-      "category": "基本信息"
+      "category": "基本信息",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E100",
@@ -977,7 +1157,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "special_edu_resource_room",
-      "category": "基本信息"
+      "category": "基本信息",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E101",
@@ -986,7 +1168,9 @@
       "dataType": "数字",
       "fieldId": "special_edu_teacher_count",
       "category": "基本信息",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E102",
@@ -994,7 +1178,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "is_rural_small_school",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E103",
@@ -1002,7 +1188,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "is_high_density_city_school",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E104",
@@ -1010,7 +1198,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "is_small_class_rural_school",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E105",
@@ -1019,7 +1209,9 @@
       "dataType": "数字",
       "fieldId": "physics_chemistry_biology_lab_count",
       "category": "基本指标",
-      "unit": "间"
+      "unit": "间",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E106",
@@ -1028,7 +1220,9 @@
       "dataType": "数字",
       "fieldId": "physics_chemistry_biology_lab_auxiliary_count",
       "category": "基本指标",
-      "unit": "间"
+      "unit": "间",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E107",
@@ -1037,7 +1231,9 @@
       "dataType": "数字",
       "fieldId": "comprehensive_practice_room_count",
       "category": "基本指标",
-      "unit": "套"
+      "unit": "套",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E108",
@@ -1045,7 +1241,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "counseling_room_individual_area_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E109",
@@ -1053,7 +1251,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "counseling_room_group_area_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E110",
@@ -1061,7 +1261,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "counseling_room_office_area_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E111",
@@ -1069,7 +1271,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "network_speed_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E112",
@@ -1077,7 +1281,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "network_coverage_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E113",
@@ -1085,7 +1291,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "security_room_area_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E114",
@@ -1093,7 +1301,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "security_system_qualified",
-      "category": "基本指标"
+      "category": "基本指标",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E115",
@@ -1103,7 +1313,9 @@
       "fieldId": "sports_field_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "明细项，用于汇总到体育运动场馆总面积"
+      "description": "明细项，用于汇总到体育运动场馆总面积",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E116",
@@ -1113,7 +1325,9 @@
       "fieldId": "other_sports_field_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "明细项，用于汇总到体育运动场馆总面积"
+      "description": "明细项，用于汇总到体育运动场馆总面积",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E117",
@@ -1123,7 +1337,9 @@
       "fieldId": "indoor_sports_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "明细项，用于汇总到体育运动场馆总面积"
+      "description": "明细项，用于汇总到体育运动场馆总面积",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E118",
@@ -1133,7 +1349,9 @@
       "fieldId": "nearby_sports_venue_area",
       "category": "资源配置",
       "unit": "平方米",
-      "description": "明细项，用于汇总到体育运动场馆总面积"
+      "description": "明细项，用于汇总到体育运动场馆总面积",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E119",
@@ -1142,7 +1360,9 @@
       "dataType": "数字",
       "fieldId": "junior_physics_chemistry_biology_lab_count",
       "category": "资源配置",
-      "unit": "间"
+      "unit": "间",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E120",
@@ -1151,7 +1371,9 @@
       "dataType": "逻辑",
       "fieldId": "has_senior_section",
       "category": "资源配置",
-      "description": "高中部数据非必填，仅用于扩展；义务教育评估只汇总小学/初中数据"
+      "description": "高中部数据非必填，仅用于扩展；义务教育评估只汇总小学/初中数据",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E121",
@@ -1160,7 +1382,9 @@
       "dataType": "数字",
       "fieldId": "senior_student_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E122",
@@ -1169,7 +1393,9 @@
       "dataType": "数字",
       "fieldId": "senior_class_count",
       "category": "资源配置",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E123",
@@ -1178,7 +1404,9 @@
       "dataType": "数字",
       "fieldId": "senior_full_time_teacher_count",
       "category": "资源配置",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E124",
@@ -1187,7 +1415,9 @@
       "dataType": "数字",
       "fieldId": "senior_teaching_auxiliary_area",
       "category": "资源配置",
-      "unit": "平方米"
+      "unit": "平方米",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E125",
@@ -1195,7 +1425,9 @@
       "elementType": "基础要素",
       "dataType": "逻辑",
       "fieldId": "migrant_student_over_50_percent",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E126",
@@ -1204,7 +1436,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_other_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E127",
@@ -1213,7 +1447,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_off_post_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E128",
@@ -1222,7 +1458,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_off_post_teacher_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E129",
@@ -1231,7 +1469,9 @@
       "dataType": "数字",
       "fieldId": "staff_in_quota_off_post_other_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E130",
@@ -1240,7 +1480,9 @@
       "dataType": "数字",
       "fieldId": "staff_on_post_off_quota_count",
       "category": "政府保障",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E131",
@@ -1249,7 +1491,9 @@
       "dataType": "附件",
       "fieldId": "staff_in_quota_off_post_explanation",
       "category": "政府保障",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E132",
@@ -1258,7 +1502,9 @@
       "dataType": "附件",
       "fieldId": "staff_on_post_off_quota_explanation",
       "category": "政府保障",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E133",
@@ -1267,7 +1513,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_under_24",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E134",
@@ -1276,7 +1524,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_25_29",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E135",
@@ -1285,7 +1535,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_30_34",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E136",
@@ -1294,7 +1546,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_35_39",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E137",
@@ -1303,7 +1557,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_40_44",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E138",
@@ -1312,7 +1568,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_45_49",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E139",
@@ -1321,7 +1579,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_50_54",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E140",
@@ -1330,7 +1590,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_55_59",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E141",
@@ -1339,7 +1601,9 @@
       "dataType": "数字",
       "fieldId": "teacher_age_over_60",
       "category": "其他",
-      "unit": "人"
+      "unit": "人",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E142",
@@ -1347,7 +1611,9 @@
       "elementType": "基础要素",
       "dataType": "数组",
       "fieldId": "grade_student_list",
-      "category": "其他"
+      "category": "其他",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E143",
@@ -1356,7 +1622,9 @@
       "dataType": "数字",
       "fieldId": "digital_terminal_count",
       "category": "其他",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E144",
@@ -1365,7 +1633,9 @@
       "dataType": "数字",
       "fieldId": "teacher_terminal_count",
       "category": "其他",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E145",
@@ -1374,7 +1644,9 @@
       "dataType": "数字",
       "fieldId": "student_terminal_count",
       "category": "其他",
-      "unit": "个"
+      "unit": "个",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E146",
@@ -1383,7 +1655,9 @@
       "dataType": "附件",
       "fieldId": "school_charter_material",
       "category": "其他",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E147",
@@ -1392,7 +1666,9 @@
       "dataType": "附件",
       "fieldId": "teacher_it_skill_material",
       "category": "其他",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E148",
@@ -1401,7 +1677,9 @@
       "dataType": "附件",
       "fieldId": "moral_education_material",
       "category": "其他",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E149",
@@ -1410,7 +1688,9 @@
       "dataType": "附件",
       "fieldId": "curriculum_material",
       "category": "其他",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E150",
@@ -1419,7 +1699,9 @@
       "dataType": "附件",
       "fieldId": "workload_material",
       "category": "其他",
-      "description": "5个文件，单个文件大小不超过20M"
+      "description": "5个文件，单个文件大小不超过20M",
+      "collectionLevel": "school",
+      "dataSource": "学校填报"
     },
     {
       "code": "E151",
@@ -1429,7 +1711,9 @@
       "fieldId": "teacher_avg_salary",
       "category": "政府保障",
       "unit": "万元",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E152",
@@ -1439,7 +1723,9 @@
       "fieldId": "civil_servant_avg_salary",
       "category": "政府保障",
       "unit": "万元",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E153",
@@ -1449,7 +1735,9 @@
       "fieldId": "exchange_eligible_teacher_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E154",
@@ -1459,7 +1747,9 @@
       "fieldId": "actual_exchange_teacher_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E155",
@@ -1469,7 +1759,9 @@
       "fieldId": "actual_exchange_backbone_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E156",
@@ -1479,7 +1771,9 @@
       "fieldId": "quality_high_school_enrollment_plan",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E157",
@@ -1489,7 +1783,9 @@
       "fieldId": "quality_high_school_quota_allocation",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E158",
@@ -1499,7 +1795,9 @@
       "fieldId": "quality_high_school_rural_quota",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E159",
@@ -1509,7 +1807,9 @@
       "fieldId": "eligible_migrant_children_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E160",
@@ -1519,7 +1819,9 @@
       "fieldId": "migrant_in_public_school_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E161",
@@ -1529,7 +1831,9 @@
       "fieldId": "migrant_in_private_school_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E162",
@@ -1539,7 +1843,9 @@
       "fieldId": "primary_nearby_enrollment_rate",
       "category": "政府保障",
       "unit": "%",
-      "description": "区县填报（doc/schema-区县优质均衡.json）。指标体系口径为小学=100%。"
+      "description": "区县填报（doc/schema-区县优质均衡.json）。指标体系口径为小学=100%。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E163",
@@ -1549,7 +1855,9 @@
       "fieldId": "junior_nearby_enrollment_rate",
       "category": "政府保障",
       "unit": "%",
-      "description": "区县填报（doc/schema-区县优质均衡.json）。指标体系口径为初中>=95%。"
+      "description": "区县填报（doc/schema-区县优质均衡.json）。指标体系口径为初中>=95%。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E164",
@@ -1559,7 +1867,9 @@
       "fieldId": "disabled_children_population",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E165",
@@ -1569,7 +1879,9 @@
       "fieldId": "disabled_children_enrollment",
       "category": "教育质量",
       "unit": "人",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E166",
@@ -1578,7 +1890,9 @@
       "dataType": "文本",
       "fieldId": "chinese_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E167",
@@ -1588,7 +1902,9 @@
       "fieldId": "chinese_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E168",
@@ -1597,7 +1913,9 @@
       "dataType": "文本",
       "fieldId": "math_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E169",
@@ -1607,7 +1925,9 @@
       "fieldId": "math_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E170",
@@ -1616,7 +1936,9 @@
       "dataType": "文本",
       "fieldId": "science_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E171",
@@ -1626,7 +1948,9 @@
       "fieldId": "science_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E172",
@@ -1635,7 +1959,9 @@
       "dataType": "文本",
       "fieldId": "pe_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E173",
@@ -1645,7 +1971,9 @@
       "fieldId": "pe_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E174",
@@ -1654,7 +1982,9 @@
       "dataType": "文本",
       "fieldId": "art_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E175",
@@ -1664,7 +1994,9 @@
       "fieldId": "art_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E176",
@@ -1673,7 +2005,9 @@
       "dataType": "文本",
       "fieldId": "moral_achievement_level",
       "category": "教育质量",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E177",
@@ -1683,7 +2017,9 @@
       "fieldId": "moral_difference_rate",
       "category": "教育质量",
       "unit": "%",
-      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
+      "description": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15",
+      "collectionLevel": "district",
+      "dataSource": "区县填报/国家出数（doc/schema-区县优质均衡.json），指标口径为 <0.15"
     },
     {
       "code": "E178",
@@ -1692,7 +2028,9 @@
       "dataType": "逻辑",
       "fieldId": "social_recognition_over_85",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json）"
+      "description": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
     },
     {
       "code": "E179",
@@ -1701,7 +2039,9 @@
       "dataType": "逻辑",
       "fieldId": "has_exam_enrollment",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E180",
@@ -1710,7 +2050,9 @@
       "dataType": "逻辑",
       "fieldId": "has_illegal_school_choice",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E181",
@@ -1719,7 +2061,9 @@
       "dataType": "逻辑",
       "fieldId": "has_key_school_or_class",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E182",
@@ -1728,7 +2072,9 @@
       "dataType": "逻辑",
       "fieldId": "has_unfilled_positions",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E183",
@@ -1737,7 +2083,9 @@
       "dataType": "逻辑",
       "fieldId": "has_major_incident",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E184",
@@ -1746,7 +2094,9 @@
       "dataType": "逻辑",
       "fieldId": "has_training_regulation_failure",
       "category": "社会认可度",
-      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
+      "description": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素",
+      "collectionLevel": "district",
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json），可作为“一票否决/风险”类要素"
     },
     {
       "code": "E185",
@@ -1756,7 +2106,9 @@
       "fieldId": "primary_public_funding_standard",
       "category": "政府保障",
       "unit": "元",
-      "description": "指标体系口径：小学>=1150。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。"
+      "description": "指标体系口径：小学>=1150。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E186",
@@ -1766,7 +2118,9 @@
       "fieldId": "junior_public_funding_standard",
       "category": "政府保障",
       "unit": "元",
-      "description": "指标体系口径：初中>=1350。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。"
+      "description": "指标体系口径：初中>=1350。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E187",
@@ -1776,7 +2130,9 @@
       "fieldId": "special_education_funding_total",
       "category": "政府保障",
       "unit": "元",
-      "description": "用于计算特殊教育学校生均公用经费>=8000。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。"
+      "description": "用于计算特殊教育学校生均公用经费>=8000。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E188",
@@ -1786,7 +2142,9 @@
       "fieldId": "special_education_student_count",
       "category": "政府保障",
       "unit": "人",
-      "description": "用于计算特殊教育学校生均公用经费>=8000。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。"
+      "description": "用于计算特殊教育学校生均公用经费>=8000。当前 doc/schema-区县优质均衡.json 未配置该字段，需要在区县表单补充。",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D001",
@@ -1795,7 +2153,10 @@
       "dataType": "数字",
       "formula": "E002 / E005",
       "standard": "≤17:1",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D002",
@@ -1804,7 +2165,10 @@
       "dataType": "数字",
       "formula": "E003 / E006",
       "standard": "≤13.5:1",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D003",
@@ -1814,7 +2178,10 @@
       "formula": "(E011 + E012 + E013 + E014) / E002 * 100",
       "standard": "≥4.2人",
       "description": "口径对齐指标体系：小学为“大专及以上”（含博士及以上）。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D004",
@@ -1824,7 +2191,10 @@
       "formula": "(E015 + E016 + E007) / E003 * 100",
       "standard": "≥5.3人",
       "description": "初中要求本科及以上学历，高于规定即硕士及以上（含博士及以上）",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D005",
@@ -1835,7 +2205,10 @@
       "standard": "≥4.5平方米",
       "unit": "平方米",
       "description": "口径对齐指标体系：生均教学及辅助用房面积=(教学及辅助用房面积-室内体育用房面积)/学生数。对一贯制/完全中学需先按拆分规则得到小学部用房面积及对应的室内体育用房面积。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D006",
@@ -1846,7 +2219,10 @@
       "standard": "≥5.8平方米",
       "unit": "平方米",
       "description": "口径对齐指标体系：生均教学及辅助用房面积=(教学及辅助用房面积-室内体育用房面积)/学生数。对一贯制/完全中学需先按拆分规则得到初中部用房面积及对应的室内体育用房面积。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D007",
@@ -1857,7 +2233,10 @@
       "standard": "≥7.5平方米",
       "unit": "平方米",
       "description": "口径对齐指标体系：小学>=7.5㎡。体育运动场馆面积可包含体育馆、校内体育场、室内体育用房、校内其他专用运动场地；中心城区学校可加计校外周边租赁场馆。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D008",
@@ -1868,7 +2247,10 @@
       "standard": "≥10.2平方米",
       "unit": "平方米",
       "description": "口径对齐指标体系：初中>=10.2㎡。体育运动场馆面积口径同 D007。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D009",
@@ -1879,7 +2261,10 @@
       "standard": "≥2000元",
       "unit": "元",
       "description": "口径对齐指标体系：账面原值口径，且小学>=2000元/生。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D010",
@@ -1890,7 +2275,10 @@
       "standard": "≥2500元",
       "unit": "元",
       "description": "口径对齐指标体系：账面原值口径，且初中>=2500元/生。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D028",
@@ -1900,7 +2288,10 @@
       "formula": "E034 / E002 * 100",
       "standard": "≥2.3间",
       "unit": "间/百名学生",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D029",
@@ -1910,7 +2301,10 @@
       "formula": "E035 / E003 * 100",
       "standard": "≥2.4间",
       "unit": "间/百名学生",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D030",
@@ -1920,7 +2314,10 @@
       "formula": "E018 / E002 * 100",
       "standard": "≥1人",
       "unit": "人/百名学生",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D031",
@@ -1930,7 +2327,10 @@
       "formula": "E019 / E003 * 100",
       "standard": "≥1人",
       "unit": "人/百名学生",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D032",
@@ -1941,7 +2341,10 @@
       "standard": "≥0.9人",
       "unit": "人/百名学生",
       "description": "对50-100人乡村小规模学校可加计交流轮岗/走教教师（当前 schema 未配置到校教师字段，需补字段后纳入）。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D033",
@@ -1952,7 +2355,10 @@
       "standard": "≥0.9人",
       "unit": "人/百名学生",
       "description": "对50-100人乡村小规模学校可加计交流轮岗/走教教师（当前 schema 未配置到校教师字段，需补字段后纳入）。",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D034",
@@ -1962,7 +2368,10 @@
       "formula": "E154 / E153 * 100",
       "standard": "≥10%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报",
+      "calculationLevel": "school"
     },
     {
       "code": "D035",
@@ -1972,7 +2381,10 @@
       "formula": "E155 / E154 * 100",
       "standard": "≥20%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报",
+      "calculationLevel": "school"
     },
     {
       "code": "D036",
@@ -1982,7 +2394,10 @@
       "formula": "E157 / E156 * 100",
       "standard": "≥50%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报",
+      "calculationLevel": "school"
     },
     {
       "code": "D037",
@@ -1992,7 +2407,10 @@
       "formula": "((E160 + E161) / E159) * 100",
       "standard": "≥85%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报",
+      "calculationLevel": "school"
     },
     {
       "code": "D038",
@@ -2002,7 +2420,10 @@
       "formula": "E165 / E164 * 100",
       "standard": "≥95%",
       "unit": "%",
-      "category": "教育质量"
+      "category": "教育质量",
+      "collectionLevel": "district",
+      "dataSource": "区县填报",
+      "calculationLevel": "school"
     },
     {
       "code": "D011",
@@ -2012,7 +2433,10 @@
       "formula": "E030 / E002 * 100",
       "standard": "≥9台",
       "unit": "台",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D012",
@@ -2022,7 +2446,10 @@
       "formula": "E031 / E003 * 100",
       "standard": "≥8台",
       "unit": "台",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D013",
@@ -2032,7 +2459,10 @@
       "formula": "E032 / E002",
       "standard": "≥85册",
       "unit": "册",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D014",
@@ -2042,7 +2472,10 @@
       "formula": "E032 / E003",
       "standard": "≥13册",
       "unit": "册",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D015",
@@ -2052,7 +2485,10 @@
       "formula": "E063 / E004 * 100",
       "standard": "≥90%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D016",
@@ -2062,7 +2498,10 @@
       "formula": "E086 / E084 * 100",
       "standard": "≥5%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D017",
@@ -2072,7 +2511,10 @@
       "formula": "E051 / E001 * 100",
       "standard": "≥85%",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D018",
@@ -2081,7 +2523,10 @@
       "dataType": "数字",
       "formula": "E064 / E001 * 100",
       "unit": "%",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D019",
@@ -2091,7 +2536,10 @@
       "formula": "(E079 + E080 + E081) / E078 * 100",
       "standard": "≥95%",
       "unit": "%",
-      "category": "教育质量"
+      "category": "教育质量",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D020",
@@ -2100,7 +2548,10 @@
       "dataType": "数字",
       "formula": "(E079 + E080) / E078 * 100",
       "unit": "%",
-      "category": "教育质量"
+      "category": "教育质量",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D021",
@@ -2111,7 +2562,10 @@
       "standard": "100%",
       "unit": "%",
       "description": "控辍保学率 = 毕业人数 ÷ (三年前初一人数 + 转入 - 转出 - 死亡) × 100%",
-      "category": "教育质量"
+      "category": "教育质量",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D022",
@@ -2120,7 +2574,10 @@
       "dataType": "数字",
       "formula": "E084 * 10000 / E001",
       "unit": "元",
-      "category": "教育质量"
+      "category": "教育质量",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D023",
@@ -2129,7 +2586,10 @@
       "dataType": "数字",
       "formula": "E017 / E004 * 100",
       "unit": "%",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D024",
@@ -2138,7 +2598,10 @@
       "dataType": "数字",
       "formula": "E018 / E005 * 100",
       "unit": "%",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D025",
@@ -2147,7 +2610,10 @@
       "dataType": "数字",
       "formula": "E019 / E006 * 100",
       "unit": "%",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D026",
@@ -2157,7 +2623,10 @@
       "formula": "E046 / E004 * 100",
       "standard": "100%",
       "unit": "%",
-      "category": "资源配置"
+      "category": "资源配置",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D027",
@@ -2166,7 +2635,10 @@
       "dataType": "数字",
       "formula": "(E093 + E094) / E004 * 100",
       "unit": "%",
-      "category": "其他"
+      "category": "其他",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "E189",
@@ -2178,7 +2650,8 @@
       "unit": "所",
       "description": "区县汇总：小学学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有小学数据统计。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "E190",
@@ -2190,7 +2663,8 @@
       "unit": "所",
       "description": "区县汇总：初中学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有初中数据统计。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "E191",
@@ -2202,7 +2676,8 @@
       "unit": "所",
       "description": "区县汇总：九年一贯制/十二年一贯制义务教育阶段学生数超过2500人（或特殊标准3000人）的学校数量。需基于全区县所有一贯制学校数据统计。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "E192",
@@ -2214,7 +2689,8 @@
       "unit": "个",
       "description": "区县汇总：小学班级人数>45的班级个数。需基于全区县所有小学班级数据统计（可由分段班额统计汇总）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "E193",
@@ -2226,7 +2702,8 @@
       "unit": "个",
       "description": "区县汇总：初中班级人数>50的班级个数。需基于全区县所有初中班级数据统计（可由分段班额统计汇总）。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "D077",
@@ -2237,7 +2714,9 @@
       "category": "政府保障",
       "unit": "人",
       "description": "派生计算：区县小学专任教师数(E205) + 区县初中专任教师数(E206)。用于计算教师培训完成率、持证上岗率等。",
-      "calculationLevel": "district"
+      "calculationLevel": "district",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E195",
@@ -2249,7 +2728,8 @@
       "unit": "人",
       "description": "区县填报：近5年完成360学时培训的专任教师总数（不含民办学校）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district"
     },
     {
       "code": "E196",
@@ -2261,7 +2741,8 @@
       "unit": "人",
       "description": "区县汇总：全县持有教师资格证的专任教师总数。需基于全区县所有学校数据汇总。",
       "calculationLevel": "district",
-      "dataSource": "区县汇总（基于学校填报数据）"
+      "dataSource": "区县汇总（基于学校填报数据）",
+      "collectionLevel": "district"
     },
     {
       "code": "E197",
@@ -2282,10 +2763,16 @@
           "filter": {
             "field": "school_type",
             "operator": "in",
-            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E198",
@@ -2306,10 +2793,16 @@
           "filter": {
             "field": "school_type",
             "operator": "in",
-            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E199",
@@ -2330,10 +2823,16 @@
           "filter": {
             "field": "school_type",
             "operator": "in",
-            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E200",
@@ -2354,10 +2853,16 @@
           "filter": {
             "field": "school_type",
             "operator": "in",
-            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E201",
@@ -2378,10 +2883,16 @@
           "filter": {
             "field": "school_type",
             "operator": "in",
-            "value": ["junior", "nine_year", "twelve_year", "complete_secondary"]
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E202",
@@ -2405,7 +2916,8 @@
             "value": 100
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E203",
@@ -2430,7 +2942,8 @@
           }
         },
         "sourceField": "public_funding_budget"
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E204",
@@ -2454,7 +2967,8 @@
             "value": 100
           }
         }
-      }
+      },
+      "collectionLevel": "district"
     },
     {
       "code": "E205",
@@ -2466,7 +2980,8 @@
       "unit": "人",
       "description": "区县填报：全县小学专任教师总数（不含民办学校）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district"
     },
     {
       "code": "E206",
@@ -2478,7 +2993,8 @@
       "unit": "人",
       "description": "区县填报：全县初中专任教师总数（不含民办学校）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（doc/schema-区县优质均衡.json）"
+      "dataSource": "区县填报（doc/schema-区县优质均衡.json）",
+      "collectionLevel": "district"
     },
     {
       "code": "D039",
@@ -2498,9 +3014,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D040",
@@ -2520,9 +3042,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D041",
@@ -2542,9 +3070,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D042",
@@ -2564,9 +3098,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D043",
@@ -2586,9 +3126,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D044",
@@ -2608,9 +3154,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D045",
@@ -2630,9 +3182,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D046",
@@ -2652,9 +3210,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D047",
@@ -2674,9 +3238,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D048",
@@ -2696,9 +3266,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D049",
@@ -2718,9 +3294,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D050",
@@ -2740,9 +3322,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D051",
@@ -2762,9 +3350,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "primary" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D052",
@@ -2784,9 +3378,15 @@
         "method": "cv",
         "scope": {
           "level": "custom",
-          "filter": { "field": "school_type", "operator": "eq", "value": "junior" }
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
         }
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D053",
@@ -2797,7 +3397,9 @@
       "standard": "达标",
       "description": "超规模学校数（小学）应为0。需基于全区县所有小学数据统计。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D054",
@@ -2808,7 +3410,9 @@
       "standard": "达标",
       "description": "超规模学校数（初中）应为0。需基于全区县所有初中数据统计。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D055",
@@ -2819,7 +3423,9 @@
       "standard": "达标",
       "description": "超规模学校数（一贯制义务教育阶段）应为0。需基于全区县所有一贯制学校数据统计。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D056",
@@ -2830,7 +3436,9 @@
       "standard": "达标",
       "description": "超45人小学班级数应为0。需基于全区县所有小学班级数据统计。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D057",
@@ -2841,7 +3449,9 @@
       "standard": "达标",
       "description": "超50人初中班级数应为0。需基于全区县所有初中班级数据统计。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D058",
@@ -2854,7 +3464,9 @@
       "precision": 2,
       "description": "全县完成360学时培训教师数 ÷ 全县教师数 × 100。需基于全区县所有学校数据汇总计算。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D059",
@@ -2867,7 +3479,9 @@
       "precision": 2,
       "description": "全县持证专任教师数 ÷ 全县专任教师总数 × 100。需基于全区县所有学校数据汇总计算。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D060",
@@ -2880,7 +3494,9 @@
       "precision": 2,
       "description": "（毕业学生数 - 三年转入 + 三年转出）÷（三年前初一在校生数 - 三年死亡）×100。需基于全区县所有初中数据汇总计算。",
       "calculationLevel": "district",
-      "category": "教育质量"
+      "category": "教育质量",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D061",
@@ -2890,7 +3506,10 @@
       "formula": "CEIL(E047 / 12)",
       "unit": "间",
       "description": "小学部每12个班级需配备音乐、美术专用教室各1间，向上取整。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D062",
@@ -2900,7 +3519,10 @@
       "formula": "CEIL(E048 / 12)",
       "unit": "间",
       "description": "初中部每12个班级需配备音乐、美术专用教室各1间，向上取整。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D063",
@@ -2910,7 +3532,10 @@
       "formula": "IF(E104 == 'yes', IF(E047 > 0, 54, 61), IF(YEAR(E091) <= 2016, 73, 96))",
       "unit": "平方米",
       "description": "根据学校条件确定的音乐教室面积标准：农村小规模小学54㎡/初中61㎡，2016年前建校73㎡，其他96㎡。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D064",
@@ -2920,7 +3545,10 @@
       "formula": "IF(E104 == 'yes', IF(E047 > 0, 54, 61), IF(YEAR(E091) <= 2016, 67, 90))",
       "unit": "平方米",
       "description": "根据学校条件确定的美术教室面积标准：农村小规模小学54㎡/初中61㎡，2016年前建校67㎡，其他90㎡。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D065",
@@ -2930,7 +3558,10 @@
       "formula": "LEN(E065)",
       "unit": "间",
       "description": "学校音乐教室总间数（数组长度）。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D066",
@@ -2940,7 +3571,10 @@
       "formula": "LEN(E066)",
       "unit": "间",
       "description": "学校美术教室总间数（数组长度）。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D067",
@@ -2950,7 +3584,10 @@
       "formula": "COUNT_IF(E065, 'music_room_area', '>=', D063)",
       "unit": "间",
       "description": "面积达到标准的音乐教室数量。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D068",
@@ -2960,7 +3597,10 @@
       "formula": "COUNT_IF(E066, 'art_room_area', '>=', D064)",
       "unit": "间",
       "description": "面积达到标准的美术教室数量。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D069",
@@ -2970,7 +3610,10 @@
       "formula": "E047 == 0 OR D067 >= D061",
       "standard": "达标",
       "description": "小学音乐教室数量和面积是否均达标。无小学部时默认达标。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D070",
@@ -2980,7 +3623,10 @@
       "formula": "E047 == 0 OR D068 >= D061",
       "standard": "达标",
       "description": "小学美术教室数量和面积是否均达标。无小学部时默认达标。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D071",
@@ -2990,7 +3636,10 @@
       "formula": "E048 == 0 OR D067 >= D062",
       "standard": "达标",
       "description": "初中音乐教室数量和面积是否均达标。无初中部时默认达标。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D072",
@@ -3000,7 +3649,10 @@
       "formula": "E048 == 0 OR D068 >= D062",
       "standard": "达标",
       "description": "初中美术教室数量和面积是否均达标。无初中部时默认达标。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D073",
@@ -3010,7 +3662,10 @@
       "formula": "D069 AND D070 AND D071 AND D072",
       "standard": "达标",
       "description": "学校音乐美术教室配置综合达标判定。小学部和初中部的音乐、美术教室均需达标。",
-      "category": "政府保障"
+      "category": "政府保障",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D074",
@@ -3023,7 +3678,9 @@
       "precision": 2,
       "description": "区县特殊教育学校生均公用经费。计算方式：上年度特殊教育学生生均公用经费拨付总金额(E056) ÷ 特殊教育学校学生人数(E188)。达标标准：≥8000元。",
       "calculationLevel": "district",
-      "category": "政府保障"
+      "category": "政府保障",
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D075",
@@ -3039,7 +3696,9 @@
         "condition": "E204 == 0 || (E203 * 10000) / (E204 * 100) >= E185",
         "passValue": true,
         "failValue": false
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "D076",
@@ -3055,7 +3714,9 @@
         "condition": "E151 >= E152",
         "passValue": true,
         "failValue": false
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E207",
@@ -3066,7 +3727,8 @@
       "category": "政府保障",
       "description": "对应指标2.1：提供县域义务教育学校布局规划、调整方案、批复文件、规划图等佐证材料（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（规划/批复/实施材料）"
+      "dataSource": "区县填报（规划/批复/实施材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E208",
@@ -3077,7 +3739,8 @@
       "category": "政府保障",
       "description": "对应指标2.10：提供编制核定、岗位设置与分配文件、年度调整记录及执行说明等佐证材料（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（人事/编制/岗位文件）"
+      "dataSource": "区县填报（人事/编制/岗位文件）",
+      "collectionLevel": "district"
     },
     {
       "code": "E209",
@@ -3088,7 +3751,8 @@
       "category": "政府保障",
       "description": "对应指标2.15中“留守儿童关爱体系健全”：提供关爱工作制度、责任清单、走访记录、个案台账等佐证材料（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（关爱制度/台账/走访材料）"
+      "dataSource": "区县填报（关爱制度/台账/走访材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E210",
@@ -3101,7 +3765,8 @@
       "description": "对应指标4.1-D1：满意问卷数 ÷ 有效问卷数 × 100（区县填报/第三方调查出数）。",
       "calculationLevel": "district",
       "dataSource": "问卷系统/第三方调查",
-      "precision": 2
+      "precision": 2,
+      "collectionLevel": "district"
     },
     {
       "code": "E211",
@@ -3114,7 +3779,8 @@
       "description": "对应指标4.1-D2：走访满意人数 ÷ 走访人数 × 100（区县填报/第三方调查出数）。",
       "calculationLevel": "district",
       "dataSource": "实地走访记录/第三方调查",
-      "precision": 2
+      "precision": 2,
+      "collectionLevel": "district"
     },
     {
       "code": "D078",
@@ -3126,7 +3792,10 @@
       "unit": "%",
       "precision": 2,
       "description": "对应指标3.4-D2：教师培训经费决算总额(E087) ÷ 公用经费决算总额(E085) × 100。",
-      "category": "教育质量"
+      "category": "教育质量",
+      "calculationLevel": "school",
+      "dataSource": "学校填报",
+      "collectionLevel": "auto"
     },
     {
       "code": "D079",
@@ -3142,7 +3811,9 @@
         "condition": "E210 >= 85 && E211 >= 85",
         "passValue": true,
         "failValue": false
-      }
+      },
+      "collectionLevel": "district",
+      "dataSource": "区县填报"
     },
     {
       "code": "E212",
@@ -3152,7 +3823,8 @@
       "category": "资源配置",
       "description": "对应指标1.1-M1：提供教师学历统计表、学历证书复印件等佐证材料（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（教师学历统计/证明材料）"
+      "dataSource": "区县填报（教师学历统计/证明材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E213",
@@ -3162,7 +3834,8 @@
       "category": "资源配置",
       "description": "对应指标1.2-M1：提供县级及以上骨干教师认定文件/名单及学校统计表，说明认定依据与口径。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（骨干教师认定及统计材料）"
+      "dataSource": "区县填报（骨干教师认定及统计材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E214",
@@ -3172,7 +3845,8 @@
       "category": "资源配置",
       "description": "对应指标1.3-M1：提供体育/音乐/美术/艺术教师名单、岗位性质说明；如加计到校教师，提供交流轮岗/走教协议、课表或到校记录等。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（体育艺术教师配备与到校服务佐证）"
+      "dataSource": "区县填报（体育艺术教师配备与到校服务佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E215",
@@ -3182,7 +3856,8 @@
       "category": "资源配置",
       "description": "对应指标1.4-M1：提供房产/不动产权证、竣工验收资料/平面图、用房面积统计表等佐证，并明确室内体育用房面积口径。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（用房面积统计及证明材料）"
+      "dataSource": "区县填报（用房面积统计及证明材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E216",
@@ -3192,7 +3867,8 @@
       "category": "资源配置",
       "description": "对应指标1.5-M1：提供体育场地/场馆面积统计表、平面图、照片；如加计校外租赁场馆，提供租赁合同与专用时间保障说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（体育场馆面积与可用性佐证材料）"
+      "dataSource": "区县填报（体育场馆面积与可用性佐证材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E217",
@@ -3202,7 +3878,8 @@
       "category": "资源配置",
       "description": "对应指标1.6-M1：提供固定资产台账、设备清单、财务审计/决算相关佐证（含账面原值口径说明）。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（教学仪器设备资产台账/审计材料）"
+      "dataSource": "区县填报（教学仪器设备资产台账/审计材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E218",
@@ -3212,7 +3889,8 @@
       "category": "资源配置",
       "description": "对应指标1.7-M1：提供多媒体教室清单、设备配置说明及现场照片等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（多媒体教室清单与照片）"
+      "dataSource": "区县填报（多媒体教室清单与照片）",
+      "collectionLevel": "district"
     },
     {
       "code": "E219",
@@ -3222,7 +3900,8 @@
       "category": "资源配置",
       "description": "对应指标1.8-M1：提供县域资源配置指标差异系数计算过程（含参与学校、数据口径、公式、结果），支持追溯。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（差异系数计算过程表）"
+      "dataSource": "区县填报（差异系数计算过程表）",
+      "collectionLevel": "district"
     },
     {
       "code": "E220",
@@ -3232,7 +3911,8 @@
       "category": "政府保障",
       "description": "对应指标2.11-M1：提供交流轮岗政策文件、教师名单、去向与周期、骨干教师认定依据等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（交流轮岗台账与政策佐证）"
+      "dataSource": "区县填报（交流轮岗台账与政策佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E221",
@@ -3242,7 +3922,8 @@
       "category": "政府保障",
       "description": "对应指标2.12-M1：提供持证教师名单、资格证编号/截图抽查材料、在岗情况说明等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（教师资格证与在岗证明）"
+      "dataSource": "区县填报（教师资格证与在岗证明）",
+      "collectionLevel": "district"
     },
     {
       "code": "E222",
@@ -3252,7 +3933,8 @@
       "category": "政府保障",
       "description": "对应指标2.13-M1：提供年度划片方案、招生政策、学籍/居住地核验统计与抽查材料等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（划片方案与学籍统计佐证）"
+      "dataSource": "区县填报（划片方案与学籍统计佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E223",
@@ -3262,7 +3944,8 @@
       "category": "政府保障",
       "description": "对应指标2.14-M1：提供年度招生政策文件、名额分配表及向农村倾斜的说明材料。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（招生方案与名额分配表）"
+      "dataSource": "区县填报（招生方案与名额分配表）",
+      "collectionLevel": "district"
     },
     {
       "code": "E224",
@@ -3272,7 +3955,8 @@
       "category": "政府保障",
       "description": "对应指标2.15-M1：提供关爱工作制度、责任清单、走访记录、个案台账等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（留守儿童关爱制度与台账）"
+      "dataSource": "区县填报（留守儿童关爱制度与台账）",
+      "collectionLevel": "district"
     },
     {
       "code": "E225",
@@ -3282,7 +3966,8 @@
       "category": "政府保障",
       "description": "对应指标2.15-M2：提供符合条件随迁子女总数、公办与购买服务民办就读人数统计、口径说明及抽查凭证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（随迁子女入学统计与证明材料）"
+      "dataSource": "区县填报（随迁子女入学统计与证明材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E226",
@@ -3292,7 +3977,8 @@
       "category": "政府保障",
       "description": "对应指标2.2-M1：提供建设标准、编制标准、公用经费基准定额、基本装备配置标准等相关政策文件及执行说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（统一标准与政策文件佐证）"
+      "dataSource": "区县填报（统一标准与政策文件佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E227",
@@ -3302,7 +3988,8 @@
       "category": "政府保障",
       "description": "对应指标2.3-M1：提供各校音乐/美术教室清单、面积测算/平面图、现场照片及特殊情形（2016年前/小规模学校）说明材料。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（音乐/美术教室清单与面积佐证）"
+      "dataSource": "区县填报（音乐/美术教室清单与面积佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E228",
@@ -3312,7 +3999,8 @@
       "category": "政府保障",
       "description": "对应指标2.3-M2：对暂按特殊标准评估的学校，提供三年内达到规定标准的建设规划、进度与复查机制材料。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（持续达标建设规划与跟踪材料）"
+      "dataSource": "区县填报（持续达标建设规划与跟踪材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E229",
@@ -3322,7 +4010,8 @@
       "category": "政府保障",
       "description": "对应指标2.4-M1：提供各校学生数统计（含学籍口径）、特殊标准适用学校清单及建设规划/复查机制等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（学籍规模统计与说明材料）"
+      "dataSource": "区县填报（学籍规模统计与说明材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E230",
@@ -3332,7 +4021,8 @@
       "category": "政府保障",
       "description": "对应指标2.5-M1：提供班级花名册/学籍导出统计、班额分段汇总表等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（班额统计与学籍佐证）"
+      "dataSource": "区县填报（班额统计与学籍佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E231",
@@ -3342,7 +4032,8 @@
       "category": "政府保障",
       "description": "对应指标2.6-M1：提供小规模学校名单、核定依据、拨付凭证与测算表等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（核定与拨付依据材料）"
+      "dataSource": "区县填报（核定与拨付依据材料）",
+      "collectionLevel": "district"
     },
     {
       "code": "E232",
@@ -3352,7 +4043,8 @@
       "category": "政府保障",
       "description": "对应指标2.7-M1：提供特殊教育经费拨付/决算凭证、学生数统计与口径说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（特殊教育经费与学生数佐证）"
+      "dataSource": "区县填报（特殊教育经费与学生数佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E233",
@@ -3362,7 +4054,8 @@
       "category": "政府保障",
       "description": "对应指标2.8-M1：提供教师/公务员年平均工资统计表、来源口径说明及绩效工资核定依据等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（教师与公务员年平均工资统计佐证）"
+      "dataSource": "区县填报（教师与公务员年平均工资统计佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E234",
@@ -3372,7 +4065,8 @@
       "category": "政府保障",
       "description": "对应指标2.9-M1：提供培训平台导出、教师名单与学时统计、抽查凭证等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（教师培训记录与统计佐证）"
+      "dataSource": "区县填报（教师培训记录与统计佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E235",
@@ -3382,7 +4076,8 @@
       "category": "教育质量",
       "description": "对应指标3.1-M1：提供初中毕业班学生数、三年前入学数、转入转出、死亡等学籍统计与计算过程表。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（巩固率计算与学籍佐证）"
+      "dataSource": "区县填报（巩固率计算与学籍佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E236",
@@ -3392,7 +4087,8 @@
       "category": "教育质量",
       "description": "对应指标3.2-M1：提供适龄残疾儿童少年总数、入学人数、就读去向（特教/随班/送教）统计与口径说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（残疾儿童少年入学统计佐证）"
+      "dataSource": "区县填报（残疾儿童少年入学统计佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E237",
@@ -3402,7 +4098,8 @@
       "category": "教育质量",
       "description": "对应指标3.4-M1：提供公用经费与培训经费预算/决算报表、拨付凭证与口径说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（预算决算与培训经费佐证）"
+      "dataSource": "区县填报（预算决算与培训经费佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E238",
@@ -3412,7 +4109,8 @@
       "category": "教育质量",
       "description": "对应指标3.9-M1：提供国家义务教育质量监测结果通报、科目水平等级证明、校际差异率计算/来源说明等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（国家质量监测结果与差异率佐证）"
+      "dataSource": "区县填报（国家质量监测结果与差异率佐证）",
+      "collectionLevel": "district"
     },
     {
       "code": "E239",
@@ -3422,7 +4120,8 @@
       "category": "社会认可度",
       "description": "对应指标4.1-M1：提供问卷样本、调查说明、原始数据与统计分析报告等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（问卷数据与分析报告）"
+      "dataSource": "区县填报（问卷数据与分析报告）",
+      "collectionLevel": "district"
     },
     {
       "code": "E240",
@@ -3432,7 +4131,8 @@
       "category": "社会认可度",
       "description": "对应指标4.1-M2：提供走访方案、对象清单、记录表、照片及满意度统计汇总等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
-      "dataSource": "区县填报（实地走访记录与汇总）"
+      "dataSource": "区县填报（实地走访记录与汇总）",
+      "collectionLevel": "district"
     }
   ]
 }

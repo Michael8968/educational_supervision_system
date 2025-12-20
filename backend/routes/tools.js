@@ -856,7 +856,10 @@ router.delete('/element-libraries/:id', async (req, res) => {
 // 添加要素
 router.post('/element-libraries/:id/elements', async (req, res) => {
   try {
-    const { code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel } = req.body;
+    const { 
+      code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel,
+      collectionLevel, calculationLevel, dataSource 
+    } = req.body;
     const id = generateId();
     const libraryId = req.params.id;
     const timestamp = now();
@@ -877,7 +880,7 @@ router.post('/element-libraries/:id/elements', async (req, res) => {
     const maxOrderResult = await db.query('SELECT MAX(sort_order) as "maxOrder" FROM elements WHERE library_id = $1', [libraryId]);
     const sortOrder = (maxOrderResult.rows[0]?.maxOrder ?? -1) + 1;
 
-    // 新库支持 tool_id/field_id/field_label；旧库没有这些列时，回退插入基础字段
+    // 新库支持 tool_id/field_id/field_label/collection_level/calculation_level/data_source；旧库没有这些列时，回退插入基础字段
     try {
       const { data: inserted, error: insErr } = await db
         .from('elements')
@@ -892,6 +895,9 @@ router.post('/element-libraries/:id/elements', async (req, res) => {
           field_id: normalizeNullableText(fieldId),
           field_label: normalizeNullableText(fieldLabel),
           formula: formula || null,
+          collection_level: normalizeNullableText(collectionLevel),
+          calculation_level: normalizeNullableText(calculationLevel),
+          data_source: normalizeNullableText(dataSource),
           sort_order: sortOrder,
           created_at: timestamp,
           updated_at: timestamp,
@@ -987,35 +993,76 @@ router.post('/element-libraries/:id/elements/import', async (req, res) => {
 
         const id = generateId();
 
-        const { error: insErr } = await db
-          .from('elements')
-          .insert({
-            id,
-            library_id: libraryId,
-            code: element.code,
-            name: element.name,
-            element_type: element.elementType,
-            data_type: element.dataType,
-            tool_id: normalizeNullableText(element.toolId),
-            field_id: normalizeNullableText(element.fieldId),
-            field_label: normalizeNullableText(element.fieldLabel),
-            formula: element.formula || null,
-            aggregation: element.aggregation || null,
-            sort_order: sortOrder++,
-            created_at: timestamp,
-            updated_at: timestamp,
-          });
+        // 尝试插入，如果新字段不存在则回退到基础字段
+        let insErr = null;
+        try {
+          const { error: err } = await db
+            .from('elements')
+            .insert({
+              id,
+              library_id: libraryId,
+              code: element.code,
+              name: element.name,
+              element_type: element.elementType,
+              data_type: element.dataType,
+              tool_id: normalizeNullableText(element.toolId),
+              field_id: normalizeNullableText(element.fieldId),
+              field_label: normalizeNullableText(element.fieldLabel),
+              formula: element.formula || null,
+              collection_level: normalizeNullableText(element.collectionLevel || element.collection_level),
+              calculation_level: normalizeNullableText(element.calculationLevel || element.calculation_level),
+              data_source: normalizeNullableText(element.dataSource || element.data_source),
+              aggregation: element.aggregation || null,
+              sort_order: sortOrder++,
+              created_at: timestamp,
+              updated_at: timestamp,
+            });
+          insErr = err;
+        } catch (e) {
+          // 如果插入失败，尝试使用基础字段（不包含新字段）
+          try {
+            const { error: err } = await db
+              .from('elements')
+              .insert({
+                id,
+                library_id: libraryId,
+                code: element.code,
+                name: element.name,
+                element_type: element.elementType,
+                data_type: element.dataType,
+                tool_id: normalizeNullableText(element.toolId),
+                field_id: normalizeNullableText(element.fieldId),
+                field_label: normalizeNullableText(element.fieldLabel),
+                formula: element.formula || null,
+                aggregation: element.aggregation || null,
+                sort_order: sortOrder++,
+                created_at: timestamp,
+                updated_at: timestamp,
+              });
+            insErr = err;
+            if (!insErr) {
+              console.warn(`[导入] 要素 ${element.code} 使用基础字段插入（新字段可能不存在）`);
+            }
+          } catch (fallbackErr) {
+            insErr = fallbackErr;
+          }
+        }
 
         if (insErr) {
           // 检测 schema cache 错误，给出更友好的提示
-          const errMsg = insErr.message || '';
+          const errMsg = insErr.message || String(insErr);
           if (errMsg.includes('aggregation') && errMsg.includes('schema cache')) {
             errors.push({ 
               code: element.code, 
               error: '数据库表 elements 缺少字段 aggregation（或 PostgREST schema cache 未刷新）。请在 Supabase SQL Editor 执行：ALTER TABLE elements ADD COLUMN IF NOT EXISTS aggregation JSONB; NOTIFY pgrst, \'reload schema\';' 
             });
+          } else if (errMsg.includes('collection_level') || errMsg.includes('calculation_level') || errMsg.includes('data_source')) {
+            errors.push({ 
+              code: element.code, 
+              error: `数据库表 elements 缺少新字段（collection_level/calculation_level/data_source）。请执行数据库迁移脚本添加这些字段。错误详情: ${errMsg.substring(0, 200)}` 
+            });
           } else {
-            errors.push({ code: element.code, error: insErr.message });
+            errors.push({ code: element.code, error: errMsg.substring(0, 500) });
           }
         } else {
           insertedIds.push({ id, code: element.code });
@@ -1055,7 +1102,10 @@ router.post('/element-libraries/:id/elements/import', async (req, res) => {
 // 更新要素
 router.put('/elements/:id', async (req, res) => {
   try {
-    const { code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel, aggregation } = req.body;
+    const { 
+      code, name, elementType, dataType, formula, toolId, fieldId, fieldLabel, 
+      collectionLevel, calculationLevel, dataSource, aggregation 
+    } = req.body;
     const timestamp = now();
 
     // 程序层面枚举验证
@@ -1067,7 +1117,7 @@ router.put('/elements/:id', async (req, res) => {
 
     let data;
     let error;
-    // 新库支持 tool_id/field_id/field_label/aggregation；旧库没有这些列时，回退更新基础字段
+    // 新库支持 tool_id/field_id/field_label/aggregation/collection_level/calculation_level/data_source；旧库没有这些列时，回退更新基础字段
     try {
       const result = await db
         .from('elements')
@@ -1080,6 +1130,9 @@ router.put('/elements/:id', async (req, res) => {
           field_id: normalizeNullableOrUndefined(fieldId),
           field_label: normalizeNullableOrUndefined(fieldLabel),
           formula: formula || null,
+          collection_level: normalizeNullableOrUndefined(collectionLevel),
+          calculation_level: normalizeNullableOrUndefined(calculationLevel),
+          data_source: normalizeNullableOrUndefined(dataSource),
           aggregation: aggregation || null,
           updated_at: timestamp,
         })
@@ -1296,28 +1349,34 @@ router.post('/tools/:id/field-mappings', async (req, res) => {
       return res.status(400).json({ code: 400, message: e.message });
     }
 
-    // 检查是否已存在映射
-    const { data: existing, error: exErr } = await db
+    // 检查是否已存在映射（使用 limit(1) 避免 maybeSingle 的问题）
+    const { data: existingList, error: exErr } = await db
       .from('field_mappings')
       .select('id')
       .eq('tool_id', toolId)
       .eq('field_id', fieldId)
-      .maybeSingle();
+      .limit(1);
     if (exErr) throw exErr;
 
+    const existing = existingList && existingList.length > 0 ? existingList[0] : null;
     const id = generateId();
     const timestamp = now();
 
     if (existing?.id) {
+      // 更新已存在的映射
       const { data, error } = await db
         .from('field_mappings')
         .update({ mapping_type: mappingType, target_id: targetId, updated_at: timestamp })
         .eq('id', existing.id)
         .select('id');
       if (error) throw error;
-      return res.json({ code: 200, data: { id: data?.[0]?.id || existing.id }, message: '保存成功' });
+      if (!data || data.length === 0) {
+        return res.json({ code: 200, data: { id: existing.id }, message: '保存成功' });
+      }
+      return res.json({ code: 200, data: { id: data[0]?.id || existing.id }, message: '保存成功' });
     }
 
+    // 插入新映射
     const { data, error } = await db
       .from('field_mappings')
       .insert({
@@ -1330,9 +1389,33 @@ router.post('/tools/:id/field-mappings', async (req, res) => {
         updated_at: timestamp,
       })
       .select('id');
-    if (error) throw error;
+    if (error) {
+      // 如果插入失败（可能是唯一约束冲突），尝试更新
+      if (error.message && (error.message.includes('duplicate') || error.message.includes('unique') || error.message.includes('violates unique constraint'))) {
+        const { data: existing2, error: exErr2 } = await db
+          .from('field_mappings')
+          .select('id')
+          .eq('tool_id', toolId)
+          .eq('field_id', fieldId)
+          .limit(1);
+        if (exErr2) throw exErr2;
+        if (existing2 && existing2.length > 0) {
+          const { data: updateData, error: updateErr } = await db
+            .from('field_mappings')
+            .update({ mapping_type: mappingType, target_id: targetId, updated_at: timestamp })
+            .eq('id', existing2[0].id)
+            .select('id');
+          if (updateErr) throw updateErr;
+          return res.json({ code: 200, data: { id: updateData?.[0]?.id || existing2[0].id }, message: '保存成功' });
+        }
+      }
+      throw error;
+    }
 
-    return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '保存成功' });
+    if (!data || data.length === 0) {
+      return res.json({ code: 200, data: { id }, message: '保存成功' });
+    }
+    return res.json({ code: 200, data: { id: data[0]?.id || id }, message: '保存成功' });
   } catch (error) {
     return res.status(500).json({ code: 500, message: error.message });
   }
@@ -1583,6 +1666,9 @@ router.get('/elements', async (req, res) => {
         e.element_type as "elementType",
         e.data_type as "dataType",
         e.formula,
+        e.collection_level as "collectionLevel",
+        e.calculation_level as "calculationLevel",
+        e.data_source as "dataSource",
         el.name as "libraryName"
       FROM elements e
       LEFT JOIN element_libraries el ON e.library_id = el.id

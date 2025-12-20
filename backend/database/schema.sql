@@ -105,6 +105,9 @@ CREATE TABLE IF NOT EXISTS elements (
   field_id TEXT,                     -- 基础要素可选：关联表单控件
   field_label TEXT,                  -- 可选：控件展示路径（用于回显）
   formula TEXT,
+  collection_level TEXT,             -- 采集来源级别：school（学校）| district（区县）| auto（自动判断）
+  calculation_level TEXT,            -- 计算级别：school（学校级）| district（区县级），用于派生要素
+  data_source TEXT,                  -- 数据来源说明（如：区县汇总、区县填报、学校填报等）
   aggregation JSONB,                 -- 多填报汇总配置（JSON格式）
   sort_order INTEGER DEFAULT 0,
   created_at TEXT,
