@@ -19,6 +19,9 @@ import {
   Tooltip,
   Modal,
   Select,
+  Upload,
+  Alert,
+  Switch,
   Space,
   message,
 } from 'antd';
@@ -38,8 +41,9 @@ import {
   FilterOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
+import type { UploadFile } from 'antd/es/upload/interface';
 import * as indicatorService from '../../../services/indicatorService';
-import type { Indicator, DataIndicator, SupportingMaterial, DataIndicatorWithElements } from '../../../services/indicatorService';
+import type { Indicator, DataIndicator, SupportingMaterial, DataIndicatorWithElements, ElementAssociation } from '../../../services/indicatorService';
 import * as toolService from '../../../services/toolService';
 import ElementAssociationDrawer from './ElementAssociationDrawer';
 import styles from '../index.module.css';
@@ -66,6 +70,8 @@ type AutoLinkResult = {
   skippedNoMatch: number;
   failed: number;
 };
+
+type IndicatorElementMappings = Record<string, string>;
 
 // 要素关联统计
 interface ElementAssociationStats {
@@ -111,11 +117,16 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
-  // 要素关联编辑状态
+  // 要素关联编辑状态（数据指标）
   const [elementAssociations, setElementAssociations] = useState<Map<string, DataIndicatorWithElements>>(new Map());
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedDataIndicator, setSelectedDataIndicator] = useState<DataIndicator | null>(null);
   const [selectedIndicatorName, setSelectedIndicatorName] = useState<string>('');
+
+  // 佐证材料要素关联编辑状态
+  const [materialDrawerVisible, setMaterialDrawerVisible] = useState(false);
+  const [selectedSupportingMaterial, setSelectedSupportingMaterial] = useState<SupportingMaterial | null>(null);
+  const [materialElementAssociations, setMaterialElementAssociations] = useState<Map<string, ElementAssociation[]>>(new Map());
 
   // 要素关联统计
   const [stats, setStats] = useState<ElementAssociationStats>({ total: 0, associated: 0, unassociated: 0 });
@@ -127,6 +138,11 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   const [autoLinkModalVisible, setAutoLinkModalVisible] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
   const [elementLibraries, setElementLibraries] = useState<toolService.ElementLibrary[]>([]);
+  const [autoLinkFileList, setAutoLinkFileList] = useState<UploadFile[]>([]);
+  const [autoLinkMappings, setAutoLinkMappings] = useState<MappingsResult | null>(null);
+  const [autoLinkMappingsError, setAutoLinkMappingsError] = useState<string>('');
+  const [selectedLibraryIdForAutoLink, setSelectedLibraryIdForAutoLink] = useState<string | undefined>(undefined);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   // 加载指标体系树和要素关联
   const loadData = useCallback(async () => {
@@ -153,12 +169,44 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
 
       setIndicators(treeData);
 
-      // 构建要素关联映射
+      // 构建数据指标要素关联映射
       const assocMap = new Map<string, DataIndicatorWithElements>();
       elementsData.forEach(di => {
         assocMap.set(di.id, di);
       });
       setElementAssociations(assocMap);
+
+      // 加载所有佐证材料的要素关联
+      if (!USE_MOCK) {
+        const materialIds: string[] = [];
+        const collectMaterials = (indicatorList: Indicator[]) => {
+          indicatorList.forEach(ind => {
+            if (ind.supportingMaterials) {
+              ind.supportingMaterials.forEach((material) => {
+                materialIds.push(material.id);
+              });
+            }
+            if (ind.children) {
+              collectMaterials(ind.children);
+            }
+          });
+        };
+        collectMaterials(treeData);
+        // 批量加载所有佐证材料的要素关联
+        const materialAssocMap = new Map<string, ElementAssociation[]>();
+        await Promise.all(
+          materialIds.map(async (materialId) => {
+            try {
+              const assoc = await indicatorService.getSupportingMaterialElements(materialId);
+              materialAssocMap.set(materialId, assoc);
+            } catch (error) {
+              console.error(`加载佐证材料 ${materialId} 的要素关联失败:`, error);
+              materialAssocMap.set(materialId, []);
+            }
+          })
+        );
+        setMaterialElementAssociations(materialAssocMap);
+      }
 
       // 统计数据指标和要素关联
       let totalDataIndicators = 0;
@@ -260,26 +308,83 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       return;
     }
     await loadElementLibraries();
+    // 默认优先使用项目绑定的要素库
+    setSelectedLibraryIdForAutoLink(elementLibraryId);
+    // Reset state
+    setAutoLinkFileList([]);
+    setAutoLinkMappings(null);
+    setAutoLinkMappingsError('');
+    setOverwriteExisting(false);
     setAutoLinkModalVisible(true);
   };
 
-  const autoLinkByLibrary = useCallback(
-    async (libraryId: string): Promise<AutoLinkResult> => {
-      const allDataIndicators = collectDataIndicators();
-      if (allDataIndicators.length === 0) {
-        return { linked: 0, skippedAlreadyAssociated: 0, skippedNoMatch: 0, failed: 0 };
-      }
+  type MappingsResult = {
+    dataIndicators: IndicatorElementMappings;
+    supportingMaterials: IndicatorElementMappings;
+  };
 
+  const parseMappingsFromJsonText = (text: string): MappingsResult => {
+    let obj: any;
+    try {
+      obj = JSON.parse(text);
+    } catch {
+      throw new Error('JSON 解析失败，请确认文件是合法 JSON');
+    }
+    const mappingsObj = obj?.indicatorElementMappings;
+    if (!mappingsObj || typeof mappingsObj !== 'object') {
+      throw new Error('未找到 indicatorElementMappings（需要顶层字段：indicatorElementMappings）');
+    }
+    // 解析 dataIndicators 映射
+    const dataIndicatorsMappings = mappingsObj?.dataIndicators;
+    const dataIndicatorsCleaned: IndicatorElementMappings = {};
+    if (dataIndicatorsMappings && typeof dataIndicatorsMappings === 'object') {
+      Object.entries(dataIndicatorsMappings).forEach(([k, v]) => {
+        if (typeof k === 'string' && typeof v === 'string' && k.trim() && v.trim()) {
+          dataIndicatorsCleaned[k.trim()] = v.trim();
+        }
+      });
+    }
+    // 解析 supportingMaterials 映射
+    const supportingMaterialsMappings = mappingsObj?.supportingMaterials;
+    const supportingMaterialsCleaned: IndicatorElementMappings = {};
+    if (supportingMaterialsMappings && typeof supportingMaterialsMappings === 'object') {
+      Object.entries(supportingMaterialsMappings).forEach(([k, v]) => {
+        if (typeof k === 'string' && typeof v === 'string' && k.trim() && v.trim()) {
+          supportingMaterialsCleaned[k.trim()] = v.trim();
+        }
+      });
+    }
+    return {
+      dataIndicators: dataIndicatorsCleaned,
+      supportingMaterials: supportingMaterialsCleaned,
+    };
+  };
+
+  // 收集所有佐证材料
+  const collectSupportingMaterials = useCallback((): Array<{ material: SupportingMaterial; indicatorName: string }> => {
+    const result: Array<{ material: SupportingMaterial; indicatorName: string }> = [];
+    const walk = (list: Indicator[]) => {
+      list.forEach(ind => {
+        if (ind.supportingMaterials?.length) {
+          ind.supportingMaterials.forEach(material => {
+            result.push({ material, indicatorName: ind.name });
+          });
+        }
+        if (ind.children?.length) walk(ind.children);
+      });
+    };
+    walk(indicators);
+    return result;
+  }, [indicators]);
+
+  const autoLinkByJsonMappings = useCallback(
+    async (libraryId: string, mappings: MappingsResult, overwrite: boolean): Promise<AutoLinkResult> => {
+      const allDataIndicators = collectDataIndicators();
+      const allMaterials = collectSupportingMaterials();
       const elements = await toolService.getElements({ libraryId });
       const codeMap = new Map<string, toolService.ElementWithLibrary>();
-      const nameMap = new Map<string, toolService.ElementWithLibrary[]>();
       elements.forEach(el => {
         if (el.code) codeMap.set(normalizeText(el.code), el);
-        const nk = normalizeText(el.name);
-        if (!nk) return;
-        const prev = nameMap.get(nk) || [];
-        prev.push(el);
-        nameMap.set(nk, prev);
       });
 
       let linked = 0;
@@ -287,42 +392,77 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       let skippedNoMatch = 0;
       let failed = 0;
 
-      const tasks = allDataIndicators.map(({ di }) => di);
+      // 关联数据指标
+      if (allDataIndicators.length > 0) {
+        const tasks = allDataIndicators.map(({ di }) => di);
+        await runWithConcurrency(tasks, 5, async (di) => {
+          try {
+            const existing = elementAssociations.get(di.id)?.elements || [];
+            if (!overwrite && existing.length > 0) {
+              skippedAlreadyAssociated++;
+              return;
+            }
 
-      await runWithConcurrency(tasks, 5, async (di) => {
-        try {
-          const existing = elementAssociations.get(di.id)?.elements || [];
-          if (existing.length > 0) {
-            skippedAlreadyAssociated++;
-            return;
+            const targetElementCode = mappings.dataIndicators[di.code];
+            if (!targetElementCode) {
+              skippedNoMatch++;
+              return;
+            }
+
+            const matched = codeMap.get(normalizeText(targetElementCode));
+            if (!matched) {
+              skippedNoMatch++;
+              return;
+            }
+
+            await indicatorService.saveDataIndicatorElements(di.id, [
+              { elementId: matched.id, mappingType: 'primary', description: '' },
+            ]);
+            linked++;
+          } catch (e) {
+            failed++;
+            console.error('自动关联数据指标失败:', di, e);
           }
+        });
+      }
 
-          const byCode = codeMap.get(normalizeText(di.code));
-          let matched: toolService.ElementWithLibrary | undefined = byCode;
+      // 关联佐证材料
+      if (allMaterials.length > 0 && Object.keys(mappings.supportingMaterials).length > 0) {
+        const materialTasks = allMaterials.map(({ material }) => material);
+        await runWithConcurrency(materialTasks, 5, async (material) => {
+          try {
+            const existing = materialElementAssociations.get(material.id) || [];
+            if (!overwrite && existing.length > 0) {
+              skippedAlreadyAssociated++;
+              return;
+            }
 
-          if (!matched) {
-            const candidates = nameMap.get(normalizeText(di.name)) || [];
-            if (candidates.length === 1) matched = candidates[0];
+            const targetElementCode = mappings.supportingMaterials[material.code];
+            if (!targetElementCode) {
+              skippedNoMatch++;
+              return;
+            }
+
+            const matched = codeMap.get(normalizeText(targetElementCode));
+            if (!matched) {
+              skippedNoMatch++;
+              return;
+            }
+
+            await indicatorService.saveSupportingMaterialElements(material.id, [
+              { elementId: matched.id, mappingType: 'primary', description: '' },
+            ]);
+            linked++;
+          } catch (e) {
+            failed++;
+            console.error('自动关联佐证材料失败:', material, e);
           }
-
-          if (!matched) {
-            skippedNoMatch++;
-            return;
-          }
-
-          await indicatorService.saveDataIndicatorElements(di.id, [
-            { elementId: matched.id, mappingType: 'primary', description: '' },
-          ]);
-          linked++;
-        } catch (e) {
-          failed++;
-          console.error('自动关联失败:', di, e);
-        }
-      });
+        });
+      }
 
       return { linked, skippedAlreadyAssociated, skippedNoMatch, failed };
     },
-    [collectDataIndicators, elementAssociations]
+    [collectDataIndicators, collectSupportingMaterials, elementAssociations, materialElementAssociations]
   );
 
   // 打开要素关联编辑抽屉
@@ -419,8 +559,34 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
     );
   };
 
+  // 获取佐证材料的要素关联数量
+  const getMaterialElementCount = (materialId: string): number => {
+    const assoc = materialElementAssociations.get(materialId);
+    return assoc?.length || 0;
+  };
+
+  // 获取佐证材料关联的要素信息列表
+  const getMaterialElementInfos = (materialId: string): Array<{ name: string; library: string }> => {
+    const assoc = materialElementAssociations.get(materialId);
+    return assoc?.map(e => ({
+      name: e.elementName,
+      library: e.libraryName || '未知要素库',
+    })) || [];
+  };
+
+  // 打开佐证材料要素关联编辑抽屉
+  const handleEditMaterialElementAssociation = (material: SupportingMaterial, indicatorName: string) => {
+    setSelectedSupportingMaterial(material);
+    setSelectedIndicatorName(indicatorName);
+    setMaterialDrawerVisible(true);
+  };
+
   // 渲染佐证资料节点
-  const renderMaterialNode = (material: SupportingMaterial) => {
+  const renderMaterialNode = (material: SupportingMaterial, indicatorId: string, indicatorName: string) => {
+    const elementCount = getMaterialElementCount(material.id);
+    const elementInfos = getMaterialElementInfos(material.id);
+    const hasElements = elementCount > 0;
+
     return (
       <div className={styles.materialNode}>
         <FileTextOutlined className={styles.materialIcon} />
@@ -433,6 +599,55 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         <span className={styles.materialTypes}>
           {material.fileTypes} | {material.maxSize}
         </span>
+        {/* 要素关联状态 */}
+        <Tooltip
+          title={
+            hasElements
+              ? (
+                <div>
+                  <div>已关联 {elementCount} 个评估要素：</div>
+                  <ul style={{ margin: '4px 0 0 0', paddingLeft: 16, listStyle: 'none' }}>
+                    {elementInfos.map((info, idx) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>
+                        <span>{info.name}</span>
+                        <span style={{ color: '#8c8c8c', fontSize: 12, marginLeft: 8 }}>
+                          [{info.library}]
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {disabled && <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 12 }}>点击查看详情</div>}
+                </div>
+              )
+              : disabled ? '未关联要素（点击查看详情）' : '点击关联评估要素'
+          }
+        >
+          <Tag
+            color={hasElements ? 'success' : 'warning'}
+            icon={hasElements ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+            style={{ cursor: 'pointer', marginLeft: 8 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditMaterialElementAssociation(material, indicatorName);
+            }}
+          >
+            <DatabaseOutlined style={{ marginRight: 4 }} />
+            {hasElements ? `已关联 ${elementCount} 个要素` : '未关联要素'}
+          </Tag>
+        </Tooltip>
+        {/* 编辑/查看按钮 */}
+        <Tooltip title={disabled ? '查看要素关联' : '编辑要素关联'}>
+          <Button
+            type="link"
+            size="small"
+            icon={disabled ? <EyeOutlined /> : <EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditMaterialElementAssociation(material, indicatorName);
+            }}
+            style={{ marginLeft: 4 }}
+          />
+        </Tooltip>
       </div>
     );
   };
@@ -512,7 +727,7 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
           selectable: false,
           children: indicator.supportingMaterials.map(material => ({
             key: `material-${material.id}`,
-            title: renderMaterialNode(material),
+            title: renderMaterialNode(material, indicator.id, indicator.name),
             isLeaf: true,
             selectable: false,
           })),
@@ -547,28 +762,34 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
     });
   };
 
-  // 收集所有可展开节点的key
-  const collectAllExpandableKeys = useCallback((treeData: DataNode[]): React.Key[] => {
+  // 收集可展开节点 key（从指标数据直接计算，避免依赖 buildTreeData）
+  const collectExpandableKeysFromIndicators = useCallback((list: Indicator[]): React.Key[] => {
     const keys: React.Key[] = [];
-    const traverse = (nodes: DataNode[]) => {
-      nodes.forEach(node => {
-        if (node.children && node.children.length > 0) {
-          keys.push(node.key);
-          traverse(node.children);
+    const walk = (items: Indicator[]) => {
+      items.forEach((ind) => {
+        // 指标节点本身可展开（只要有 children / dataIndicators / supportingMaterials 任一存在）
+        const hasChildren = !!(ind.children && ind.children.length > 0);
+        const hasDataIndicators = !!(ind.dataIndicators && ind.dataIndicators.length > 0);
+        const hasMaterials = !!(ind.supportingMaterials && ind.supportingMaterials.length > 0);
+        if (hasChildren || hasDataIndicators || hasMaterials) {
+          keys.push(ind.id);
         }
+        // 分组节点也需要展开
+        if (hasDataIndicators) keys.push(`${ind.id}-data-indicators`);
+        if (hasMaterials) keys.push(`${ind.id}-materials`);
+        if (hasChildren) walk(ind.children!);
       });
     };
-    traverse(treeData);
+    walk(list);
     return keys;
   }, []);
 
   // 展开/收起全部节点
   const handleExpandAll = useCallback(() => {
     const filteredIndicators = filterIndicatorsByMode(indicators);
-    const treeData = buildTreeData(filteredIndicators);
-    const allKeys = collectAllExpandableKeys(treeData);
+    const allKeys = collectExpandableKeysFromIndicators(filteredIndicators);
     setExpandedKeys(allKeys);
-  }, [indicators, collectAllExpandableKeys, filterIndicatorsByMode]);
+  }, [indicators, collectExpandableKeysFromIndicators, filterIndicatorsByMode]);
 
   const handleCollapseAll = useCallback(() => {
     setExpandedKeys([]);
@@ -578,10 +799,9 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   const isAllExpanded = useCallback(() => {
     const filteredIndicators = filterIndicatorsByMode(indicators);
     if (filteredIndicators.length === 0) return false;
-    const treeData = buildTreeData(filteredIndicators);
-    const allKeys = collectAllExpandableKeys(treeData);
+    const allKeys = collectExpandableKeysFromIndicators(filteredIndicators);
     return allKeys.length > 0 && allKeys.every(key => expandedKeys.includes(key));
-  }, [indicators, expandedKeys, collectAllExpandableKeys, filterIndicatorsByMode]);
+  }, [indicators, expandedKeys, collectExpandableKeysFromIndicators, filterIndicatorsByMode]);
 
   // 如果没有关联指标体系
   if (!indicatorSystemId) {
@@ -744,7 +964,7 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         </Spin>
       </div>
 
-      {/* 要素关联编辑抽屉 */}
+      {/* 数据指标要素关联编辑抽屉 */}
       <ElementAssociationDrawer
         visible={drawerVisible}
         onClose={() => {
@@ -752,6 +972,20 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
           setSelectedDataIndicator(null);
         }}
         dataIndicator={selectedDataIndicator}
+        indicatorName={selectedIndicatorName}
+        onSaved={loadData}
+        readonly={disabled}
+        allowedLibraryIds={elementLibraryId ? [elementLibraryId] : undefined}
+      />
+
+      {/* 佐证材料要素关联编辑抽屉 */}
+      <ElementAssociationDrawer
+        visible={materialDrawerVisible}
+        onClose={() => {
+          setMaterialDrawerVisible(false);
+          setSelectedSupportingMaterial(null);
+        }}
+        supportingMaterial={selectedSupportingMaterial}
         indicatorName={selectedIndicatorName}
         onSaved={loadData}
         readonly={disabled}
@@ -769,42 +1003,139 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
         destroyOnClose
       >
         <div style={{ color: '#595959', marginBottom: 12, lineHeight: '22px' }}>
-          选择要素库后将自动为<strong>未关联</strong>的“数据指标”匹配并关联要素（优先按编码匹配，其次按名称匹配）。
+          请选择一个<strong>要素列表 JSON</strong> 文件（包含顶层字段 <code>indicatorElementMappings</code>，形如
+          <code>{"{\"3.1-D1\":\"D060\"}"}</code>），系统将按映射将“数据指标”关联到对应要素。
         </div>
-        <Select
-          placeholder="选择要素库后开始自动关联"
-          style={{ width: '100%' }}
-          showSearch
-          optionFilterProp="label"
+
+        {!elementLibraryId && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: '#595959', marginBottom: 6 }}>选择要素库（用于按要素编码定位 elementId）：</div>
+            <Select
+              placeholder="请选择要素库"
+              style={{ width: '100%' }}
+              showSearch
+              optionFilterProp="label"
+              disabled={autoLinking}
+              value={selectedLibraryIdForAutoLink}
+              options={elementLibraries.map(lib => ({
+                value: lib.id,
+                label: lib.name,
+              }))}
+              onChange={(v) => setSelectedLibraryIdForAutoLink(v)}
+            />
+          </div>
+        )}
+
+        {!!elementLibraryId && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="已使用项目绑定的要素库进行解析"
+            description={`当前项目已关联要素库（ID：${elementLibraryId}），自动关联将仅在该要素库中按编码查找要素。`}
+          />
+        )}
+
+        <Upload
+          accept=".json,application/json"
+          maxCount={1}
+          fileList={autoLinkFileList}
           disabled={autoLinking}
-          options={elementLibraries.map(lib => ({
-            value: lib.id,
-            label: lib.name,
-          }))}
-          onChange={async (libraryId) => {
-            if (!libraryId) return;
-            setAutoLinking(true);
-            const hide = message.loading('正在自动关联要素，请稍候...', 0);
-            try {
-              const res = await autoLinkByLibrary(libraryId);
-              await loadData();
-              setAutoLinkModalVisible(false);
-              message.success(
-                `自动关联完成：成功关联 ${res.linked} 项，已有关联跳过 ${res.skippedAlreadyAssociated} 项，未匹配 ${res.skippedNoMatch} 项，失败 ${res.failed} 项`
-              );
-            } catch (error) {
-              console.error('自动关联要素失败:', error);
-              message.error('自动关联要素失败');
-            } finally {
-              hide();
-              setAutoLinking(false);
-            }
+          beforeUpload={(file) => {
+            setAutoLinkMappingsError('');
+            const reader = new FileReader();
+            reader.onload = () => {
+              try {
+                const text = String(reader.result || '');
+                const parsed = parseMappingsFromJsonText(text);
+                setAutoLinkMappings(parsed);
+                setAutoLinkMappingsError('');
+                const totalMappings = Object.keys(parsed.dataIndicators).length + Object.keys(parsed.supportingMaterials).length;
+                message.success(
+                  `已读取映射：数据指标 ${Object.keys(parsed.dataIndicators).length} 条，佐证材料 ${Object.keys(parsed.supportingMaterials).length} 条，共 ${totalMappings} 条`
+                );
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                setAutoLinkMappings(null);
+                setAutoLinkMappingsError(msg);
+              }
+            };
+            reader.onerror = () => {
+              setAutoLinkMappings(null);
+              setAutoLinkMappingsError('读取文件失败');
+            };
+            reader.readAsText(file);
+            setAutoLinkFileList([{ uid: file.uid, name: file.name, status: 'done' }]);
+            // 阻止默认上传
+            return false;
           }}
-        />
-        <div style={{ marginTop: 12, textAlign: 'right' }}>
-          <Button onClick={() => setAutoLinkModalVisible(false)} disabled={autoLinking}>
-            关闭
-          </Button>
+          onRemove={() => {
+            setAutoLinkFileList([]);
+            setAutoLinkMappings(null);
+            setAutoLinkMappingsError('');
+          }}
+        >
+          <Button disabled={autoLinking}>选择要素列表 JSON</Button>
+        </Upload>
+
+        {autoLinkMappingsError && (
+          <Alert type="error" showIcon style={{ marginTop: 12 }} message={autoLinkMappingsError} />
+        )}
+
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space>
+            <Switch
+              checked={overwriteExisting}
+              disabled={autoLinking}
+              onChange={setOverwriteExisting}
+            />
+            <span style={{ color: '#595959' }}>覆盖已有 primary 关联</span>
+          </Space>
+
+          <Space>
+            <Button onClick={() => setAutoLinkModalVisible(false)} disabled={autoLinking}>
+              关闭
+            </Button>
+            <Button
+              type="primary"
+              disabled={
+                autoLinking ||
+                !autoLinkMappings ||
+                !!autoLinkMappingsError ||
+                !(selectedLibraryIdForAutoLink || elementLibraryId)
+              }
+              loading={autoLinking}
+              onClick={async () => {
+                const libraryId = (elementLibraryId || selectedLibraryIdForAutoLink) as string | undefined;
+                if (!libraryId) {
+                  message.warning('请先选择要素库');
+                  return;
+                }
+                if (!autoLinkMappings) {
+                  message.warning('请先选择要素列表 JSON');
+                  return;
+                }
+                setAutoLinking(true);
+                const hide = message.loading('正在按 JSON 映射自动关联要素，请稍候...', 0);
+                try {
+                  const res = await autoLinkByJsonMappings(libraryId, autoLinkMappings, overwriteExisting);
+                  await loadData();
+                  setAutoLinkModalVisible(false);
+                  message.success(
+                    `自动关联完成：成功关联 ${res.linked} 项，已有关联跳过 ${res.skippedAlreadyAssociated} 项，未匹配 ${res.skippedNoMatch} 项，失败 ${res.failed} 项`
+                  );
+                } catch (error) {
+                  console.error('自动关联要素失败:', error);
+                  message.error('自动关联要素失败');
+                } finally {
+                  hide();
+                  setAutoLinking(false);
+                }
+              }}
+            >
+              开始自动关联
+            </Button>
+          </Space>
         </div>
       </Modal>
     </div>

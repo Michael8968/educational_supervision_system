@@ -40,7 +40,8 @@ import styles from '../index.module.css';
 interface ElementAssociationDrawerProps {
   visible: boolean;
   onClose: () => void;
-  dataIndicator: DataIndicator | null;
+  dataIndicator?: DataIndicator | null;
+  supportingMaterial?: import('../../../services/indicatorService').SupportingMaterial | null;
   indicatorName?: string;
   onSaved?: () => void;
   readonly?: boolean; // 只读模式，隐藏编辑操作
@@ -67,6 +68,7 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
   visible,
   onClose,
   dataIndicator,
+  supportingMaterial,
   indicatorName,
   onSaved,
   readonly = false,
@@ -78,13 +80,18 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
   const [elementSelectorVisible, setElementSelectorVisible] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
+  const targetId = dataIndicator?.id || supportingMaterial?.id;
+  const isSupportingMaterial = !!supportingMaterial;
+
   // 加载关联数据
   const loadAssociations = useCallback(async () => {
-    if (!dataIndicator?.id) return;
+    if (!targetId) return;
 
     setLoading(true);
     try {
-      const data = await indicatorService.getDataIndicatorElements(dataIndicator.id);
+      const data = isSupportingMaterial
+        ? await indicatorService.getSupportingMaterialElements(targetId)
+        : await indicatorService.getDataIndicatorElements(targetId);
       setAssociations(data.map(a => ({
         id: a.id,
         elementId: a.elementId,
@@ -103,13 +110,13 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [dataIndicator?.id]);
+  }, [targetId, isSupportingMaterial]);
 
   useEffect(() => {
-    if (visible && dataIndicator?.id) {
+    if (visible && targetId) {
       loadAssociations();
     }
-  }, [visible, dataIndicator?.id, loadAssociations]);
+  }, [visible, targetId, loadAssociations]);
 
   // 重置状态
   useEffect(() => {
@@ -166,18 +173,29 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
 
   // 保存所有关联
   const handleSave = async () => {
-    if (!dataIndicator?.id) return;
+    if (!targetId) return;
 
     setSaving(true);
     try {
-      await indicatorService.saveDataIndicatorElements(
-        dataIndicator.id,
-        associations.map(a => ({
-          elementId: a.elementId,
-          mappingType: a.mappingType,
-          description: a.description,
-        }))
-      );
+      if (isSupportingMaterial) {
+        await indicatorService.saveSupportingMaterialElements(
+          targetId,
+          associations.map(a => ({
+            elementId: a.elementId,
+            mappingType: a.mappingType,
+            description: a.description,
+          }))
+        );
+      } else {
+        await indicatorService.saveDataIndicatorElements(
+          targetId,
+          associations.map(a => ({
+            elementId: a.elementId,
+            mappingType: a.mappingType,
+            description: a.description,
+          }))
+        );
+      }
       message.success('保存成功');
       onSaved?.();
       onClose();
@@ -333,7 +351,7 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
           )
         }
       >
-        {/* 数据指标信息 */}
+        {/* 数据指标/佐证材料信息 */}
         {dataIndicator && (
           <>
             <Descriptions size="small" column={2} bordered>
@@ -352,6 +370,40 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
               {dataIndicator.description && (
                 <Descriptions.Item label="描述" span={2}>
                   {dataIndicator.description}
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+            <Divider />
+          </>
+        )}
+        {supportingMaterial && (
+          <>
+            <Descriptions size="small" column={2} bordered>
+              <Descriptions.Item label="佐证材料编码">
+                <code>{supportingMaterial.code}</code>
+              </Descriptions.Item>
+              <Descriptions.Item label="佐证材料名称">
+                {supportingMaterial.name}
+              </Descriptions.Item>
+              <Descriptions.Item label="是否必传">
+                {supportingMaterial.required ? <Tag color="red">必传</Tag> : <Tag>选传</Tag>}
+              </Descriptions.Item>
+              <Descriptions.Item label="所属指标">
+                {indicatorName || '-'}
+              </Descriptions.Item>
+              {supportingMaterial.fileTypes && (
+                <Descriptions.Item label="文件类型">
+                  {supportingMaterial.fileTypes}
+                </Descriptions.Item>
+              )}
+              {supportingMaterial.maxSize && (
+                <Descriptions.Item label="最大大小">
+                  {supportingMaterial.maxSize}
+                </Descriptions.Item>
+              )}
+              {supportingMaterial.description && (
+                <Descriptions.Item label="描述" span={2}>
+                  {supportingMaterial.description}
                 </Descriptions.Item>
               )}
             </Descriptions>

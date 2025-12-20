@@ -11,6 +11,7 @@
     "dev": "ts-node src/index.ts",
     "dev:legacy": "node index.js",
     "init-db": "node database/init.js",
+    "import:mappings": "node scripts/import_indicator_element_mappings.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --reporters=default",

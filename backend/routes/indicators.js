@@ -887,4 +887,159 @@ router.get('/indicator-systems/:systemId/data-indicator-elements', async (req, r
   }
 });
 
+// ==================== 佐证材料-评估要素关联 ====================
+
+// 获取佐证材料的要素关联列表
+router.get('/supporting-materials/:supportingMaterialId/elements', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        sme.id, sme.supporting_material_id as "supportingMaterialId", sme.element_id as "elementId",
+        sme.mapping_type as "mappingType", sme.description,
+        sme.created_by as "createdBy", sme.created_at as "createdAt",
+        e.code as "elementCode", e.name as "elementName", e.element_type as "elementType",
+        e.data_type as "dataType", e.formula,
+        el.id as "libraryId", el.name as "libraryName"
+      FROM supporting_material_elements sme
+      JOIN elements e ON sme.element_id = e.id
+      JOIN element_libraries el ON e.library_id = el.id
+      WHERE sme.supporting_material_id = $1
+      ORDER BY sme.created_at DESC
+    `, [req.params.supportingMaterialId]);
+
+    res.json({ code: 200, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 添加佐证材料-要素关联
+router.post('/supporting-materials/:supportingMaterialId/elements', async (req, res) => {
+  try {
+    const { elementId, mappingType, description } = req.body;
+    const supportingMaterialId = req.params.supportingMaterialId;
+    const id = generateId();
+    const timestamp = now();
+
+    // 检查佐证材料是否存在
+    const materialResult = await db.query('SELECT id FROM supporting_materials WHERE id = $1', [supportingMaterialId]);
+    if (!materialResult.rows[0]) {
+      return res.status(404).json({ code: 404, message: '佐证材料不存在' });
+    }
+
+    // 检查要素是否存在
+    const elementResult = await db.query('SELECT id FROM elements WHERE id = $1', [elementId]);
+    if (!elementResult.rows[0]) {
+      return res.status(404).json({ code: 404, message: '要素不存在' });
+    }
+
+    // 检查是否已存在关联
+    const existingResult = await db.query(`
+      SELECT id FROM supporting_material_elements WHERE supporting_material_id = $1 AND element_id = $2
+    `, [supportingMaterialId, elementId]);
+    if (existingResult.rows[0]) {
+      return res.status(400).json({ code: 400, message: '该关联已存在' });
+    }
+
+    const { error } = await db.from('supporting_material_elements').insert({
+      id,
+      supporting_material_id: supportingMaterialId,
+      element_id: elementId,
+      mapping_type: mappingType || 'primary',
+      description: description || '',
+      created_by: 'admin',
+      created_at: timestamp,
+      updated_at: timestamp,
+    });
+    if (error) throw error;
+
+    return res.json({ code: 200, data: { id }, message: '关联成功' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 更新佐证材料-要素关联
+router.put('/supporting-materials/:supportingMaterialId/elements/:associationId', async (req, res) => {
+  try {
+    const { mappingType, description } = req.body;
+    const timestamp = now();
+
+    const { data, error } = await db
+      .from('supporting_material_elements')
+      .update({
+        mapping_type: mappingType,
+        description: description || '',
+        updated_at: timestamp,
+      })
+      .eq('id', req.params.associationId)
+      .eq('supporting_material_id', req.params.supportingMaterialId)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '关联不存在' });
+    }
+
+    return res.json({ code: 200, message: '更新成功' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 删除佐证材料-要素关联
+router.delete('/supporting-materials/:supportingMaterialId/elements/:associationId', async (req, res) => {
+  try {
+    const { data, error } = await db
+      .from('supporting_material_elements')
+      .delete()
+      .eq('id', req.params.associationId)
+      .eq('supporting_material_id', req.params.supportingMaterialId)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.status(404).json({ code: 404, message: '关联不存在' });
+    }
+
+    return res.json({ code: 200, message: '删除成功' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 批量保存佐证材料-要素关联
+router.put('/supporting-materials/:supportingMaterialId/elements', async (req, res) => {
+  const supportingMaterialId = req.params.supportingMaterialId;
+  const associations = req.body.associations || [];
+  const timestamp = now();
+
+  try {
+    const { error: delErr } = await db
+      .from('supporting_material_elements')
+      .delete()
+      .eq('supporting_material_id', supportingMaterialId);
+    if (delErr) throw delErr;
+
+    if (associations && Array.isArray(associations) && associations.length > 0) {
+      const records = associations.map(a => ({
+        id: a.id || generateId(),
+        supporting_material_id: supportingMaterialId,
+        element_id: a.elementId,
+        mapping_type: a.mappingType || 'primary',
+        description: a.description || '',
+        created_by: 'admin',
+        created_at: timestamp,
+        updated_at: timestamp,
+      }));
+      const { error: insErr } = await db.from('supporting_material_elements').insert(records);
+      if (insErr) throw insErr;
+    }
+
+    return res.json({ code: 200, message: '保存成功' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 module.exports = { router, setDb };

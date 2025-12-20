@@ -195,3 +195,43 @@ export async function saveDataIndicatorElements(
 export async function getSystemDataIndicatorElements(systemId: string): Promise<DataIndicatorWithElements[]> {
   return get<DataIndicatorWithElements[]>(`/indicator-systems/${systemId}/data-indicator-elements`);
 }
+
+// ==================== 佐证材料-评估要素关联 ====================
+
+// 获取佐证材料的要素关联列表
+export async function getSupportingMaterialElements(supportingMaterialId: string): Promise<ElementAssociation[]> {
+  return get<ElementAssociation[]>(`/supporting-materials/${supportingMaterialId}/elements`);
+}
+
+// 添加佐证材料-要素关联
+export async function addSupportingMaterialElement(
+  supportingMaterialId: string,
+  data: { elementId: string; mappingType?: string; description?: string }
+): Promise<{ id: string }> {
+  return post<{ id: string }>(`/supporting-materials/${supportingMaterialId}/elements`, data);
+}
+
+// 更新佐证材料-要素关联
+export async function updateSupportingMaterialElement(
+  supportingMaterialId: string,
+  associationId: string,
+  data: { mappingType?: string; description?: string }
+): Promise<void> {
+  return put(`/supporting-materials/${supportingMaterialId}/elements/${associationId}`, data);
+}
+
+// 删除佐证材料-要素关联
+export async function deleteSupportingMaterialElement(
+  supportingMaterialId: string,
+  associationId: string
+): Promise<void> {
+  return del(`/supporting-materials/${supportingMaterialId}/elements/${associationId}`);
+}
+
+// 批量保存佐证材料-要素关联
+export async function saveSupportingMaterialElements(
+  supportingMaterialId: string,
+  associations: Array<{ elementId: string; mappingType?: string; description?: string }>
+): Promise<void> {
+  return put(`/supporting-materials/${supportingMaterialId}/elements`, { associations });
+}

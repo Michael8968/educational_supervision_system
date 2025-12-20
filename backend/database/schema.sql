@@ -380,10 +380,26 @@ CREATE TABLE IF NOT EXISTS data_indicator_elements (
   UNIQUE (data_indicator_id, element_id)
 );
 
+-- 佐证材料与要素关联表
+CREATE TABLE IF NOT EXISTS supporting_material_elements (
+  id TEXT PRIMARY KEY,
+  supporting_material_id TEXT NOT NULL,    -- 关联 supporting_materials.id，由程序验证
+  element_id TEXT NOT NULL,                -- 关联 elements.id，由程序验证
+  mapping_type TEXT DEFAULT 'primary',     -- 关联类型，由程序验证: primary | reference
+  description TEXT,                        -- 关联说明
+  created_by TEXT,                         -- 创建人
+  created_at TEXT,
+  updated_at TEXT,
+  UNIQUE (supporting_material_id, element_id)
+);
+
 -- 数据指标-要素关联索引
 CREATE INDEX IF NOT EXISTS idx_di_elements_indicator ON data_indicator_elements(data_indicator_id);
 CREATE INDEX IF NOT EXISTS idx_di_elements_element ON data_indicator_elements(element_id);
 CREATE INDEX IF NOT EXISTS idx_di_elements_type ON data_indicator_elements(mapping_type);
+CREATE INDEX IF NOT EXISTS idx_sm_elements_material ON supporting_material_elements(supporting_material_id);
+CREATE INDEX IF NOT EXISTS idx_sm_elements_element ON supporting_material_elements(element_id);
+CREATE INDEX IF NOT EXISTS idx_sm_elements_type ON supporting_material_elements(mapping_type);
 
 -- ============================================================================
 -- 达标判定规则引擎相关表

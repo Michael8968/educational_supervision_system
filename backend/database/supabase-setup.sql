@@ -169,6 +169,18 @@ CREATE TABLE IF NOT EXISTS data_indicator_elements (
   updated_at TEXT
 );
 
+-- 佐证材料与要素关联表
+CREATE TABLE IF NOT EXISTS supporting_material_elements (
+  id TEXT PRIMARY KEY,
+  supporting_material_id TEXT NOT NULL,
+  element_id TEXT NOT NULL,
+  mapping_type TEXT DEFAULT 'primary',
+  description TEXT,
+  created_by TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+
 -- 采集工具表
 CREATE TABLE IF NOT EXISTS data_tools (
   id TEXT PRIMARY KEY,
