@@ -353,3 +353,119 @@ export async function getGovernmentGuaranteeSummary(
   const params: Record<string, string> = { projectId };
   return get<GovernmentGuaranteeResponse>(`/districts/${districtId}/government-guarantee-summary`, params);
 }
+
+// ==================== 教育质量指标汇总 ====================
+
+// 教育质量指标详情
+export interface EducationQualityIndicatorDetail {
+  id?: string;
+  name: string;
+  value: number | string | null;
+  displayValue: string;
+  threshold?: number | string;
+  unit?: string;
+  isCompliant: boolean | null;
+}
+
+// 教育质量单项指标
+export interface EducationQualityIndicator {
+  code: string;
+  name: string;
+  shortName: string;
+  type: 'calculated_district' | 'material' | 'quality_monitoring';
+  threshold: string | number;
+  description: string;
+  value: number | string | null;
+  displayValue: string | null;
+  isCompliant: boolean | null;
+  details: EducationQualityIndicatorDetail[];
+}
+
+// 教育质量指标汇总
+export interface EducationQualitySummary {
+  totalCount: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  pendingCount: number;
+  allCompliant: boolean | null;
+  complianceRate: number | null;
+}
+
+// 教育质量指标汇总响应
+export interface EducationQualityResponse {
+  district: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  submission: {
+    status: string | null;
+    submittedAt: string | null;
+  };
+  summary: EducationQualitySummary;
+  indicators: EducationQualityIndicator[];
+}
+
+// 获取区县教育质量指标汇总
+export async function getEducationQualitySummary(
+  districtId: string,
+  projectId: string
+): Promise<EducationQualityResponse> {
+  const params: Record<string, string> = { projectId };
+  return get<EducationQualityResponse>(`/districts/${districtId}/education-quality-summary`, params);
+}
+
+// ==================== 社会认可度指标汇总 ====================
+
+// 社会认可度单项指标
+export interface SocialRecognitionIndicator {
+  code: string;
+  name: string;
+  shortName: string;
+  type: 'boolean' | 'boolean_negative';
+  threshold: string;
+  description: string;
+  value: string | null;
+  displayValue: string | null;
+  isCompliant: boolean | null;
+  details: Array<{
+    name: string;
+    value: string | null;
+    displayValue: string;
+    isCompliant: boolean | null;
+  }>;
+}
+
+// 社会认可度指标汇总
+export interface SocialRecognitionSummary {
+  totalCount: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  pendingCount: number;
+  allCompliant: boolean | null;
+  complianceRate: number | null;
+}
+
+// 社会认可度指标汇总响应
+export interface SocialRecognitionResponse {
+  district: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  submission: {
+    status: string | null;
+    submittedAt: string | null;
+  };
+  summary: SocialRecognitionSummary;
+  indicators: SocialRecognitionIndicator[];
+}
+
+// 获取区县社会认可度指标汇总
+export async function getSocialRecognitionSummary(
+  districtId: string,
+  projectId: string
+): Promise<SocialRecognitionResponse> {
+  const params: Record<string, string> = { projectId };
+  return get<SocialRecognitionResponse>(`/districts/${districtId}/social-recognition-summary`, params);
+}

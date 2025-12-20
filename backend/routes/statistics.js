@@ -3014,4 +3014,574 @@ router.get('/districts/:districtId/government-guarantee-summary', async (req, re
   }
 });
 
+// 教育质量指标定义（9项二级指标，依据义务教育优质均衡督导评估指标体系）
+const EDUCATION_QUALITY_INDICATORS = [
+  {
+    code: 'Q1',
+    name: '初中三年巩固率达到95%以上',
+    shortName: '初中巩固率',
+    type: 'calculated_district',
+    dataSource: 'district',
+    dataFields: [
+      { id: 'junior_graduation_count', name: '初中毕业生人数' },
+      { id: 'junior_grade1_count_3years_ago', name: '三年前初一在校生数' },
+      { id: 'junior_transfer_in_3years', name: '三年内转入人数' },
+      { id: 'junior_transfer_out_3years', name: '三年内转出人数' },
+      { id: 'junior_death_3years', name: '三年内死亡人数' }
+    ],
+    threshold: 95,
+    operator: '>=',
+    unit: '%',
+    description: '初中三年巩固率 = (毕业数 - 转入 + 转出) / (三年前初一数 - 死亡) × 100'
+  },
+  {
+    code: 'Q2',
+    name: '残疾儿童少年入学率达到95%以上',
+    shortName: '残疾儿童入学率',
+    type: 'calculated_district',
+    dataSource: 'district',
+    dataFields: [
+      { id: 'disabled_children_enrollment', name: '适龄残疾儿童少年入学总人数' },
+      { id: 'disabled_children_population', name: '适龄残疾儿童少年人口总数' }
+    ],
+    threshold: 95,
+    operator: '>=',
+    unit: '%',
+    description: '适龄残疾儿童少年入学率不低于95%'
+  },
+  {
+    code: 'Q3',
+    name: '所有学校制定章程，实现学校管理与教学信息化',
+    shortName: '章程与信息化',
+    type: 'material',
+    dataSource: 'district',
+    materialField: 'school_charter_informatization_material',
+    threshold: '佐证材料',
+    description: '学校制度建设与信息化应用，需提供佐证材料'
+  },
+  {
+    code: 'Q4',
+    name: '教师培训经费占公用经费预算不低于5%',
+    shortName: '培训经费占比',
+    type: 'calculated_district',
+    dataSource: 'district',
+    dataFields: [
+      { id: 'teacher_training_budget', name: '教师培训经费预算总额' },
+      { id: 'public_funding_budget', name: '公用经费预算总额' }
+    ],
+    threshold: 5,
+    operator: '>=',
+    unit: '%',
+    description: '教师培训经费预算 / 公用经费预算 × 100 ≥ 5%'
+  },
+  {
+    code: 'Q5',
+    name: '教师能熟练运用信息化手段组织教学',
+    shortName: '信息化教学',
+    type: 'material',
+    dataSource: 'district',
+    materialField: 'teacher_informatization_teaching_material',
+    threshold: '佐证材料',
+    description: '设施设备利用率达到较高水平，需提供佐证材料'
+  },
+  {
+    code: 'Q6',
+    name: '德育工作与校园文化建设达到良好以上',
+    shortName: '德育与文化',
+    type: 'material',
+    dataSource: 'district',
+    materialField: 'moral_education_culture_material',
+    threshold: '佐证材料',
+    description: '德育工作与校园文化建设水平，需提供佐证材料'
+  },
+  {
+    code: 'Q7',
+    name: '课程开齐开足，教学秩序规范',
+    shortName: '课程与秩序',
+    type: 'material',
+    dataSource: 'district',
+    materialField: 'curriculum_teaching_order_material',
+    threshold: '佐证材料',
+    description: '综合实践活动有效开展，需提供佐证材料'
+  },
+  {
+    code: 'Q8',
+    name: '无过重课业负担',
+    shortName: '课业负担',
+    type: 'material',
+    dataSource: 'district',
+    materialField: 'homework_burden_material',
+    threshold: '佐证材料',
+    description: '学生课业负担合理，需提供佐证材料'
+  },
+  {
+    code: 'Q9',
+    name: '国家义务教育质量监测达标',
+    shortName: '质量监测',
+    type: 'quality_monitoring',
+    dataSource: 'district',
+    subjects: [
+      { id: 'chinese', name: '语文', levelField: 'chinese_achievement_level', diffRateField: 'chinese_difference_rate' },
+      { id: 'math', name: '数学', levelField: 'math_achievement_level', diffRateField: 'math_difference_rate' },
+      { id: 'science', name: '科学', levelField: 'science_achievement_level', diffRateField: 'science_difference_rate' },
+      { id: 'pe', name: '体育', levelField: 'pe_achievement_level', diffRateField: 'pe_difference_rate' },
+      { id: 'art', name: '艺术', levelField: 'art_achievement_level', diffRateField: 'art_difference_rate' },
+      { id: 'moral', name: '德育', levelField: 'moral_achievement_level', diffRateField: 'moral_difference_rate' }
+    ],
+    levelThreshold: 'III',
+    diffRateThreshold: 0.15,
+    threshold: '学业水平≥Ⅲ级，差异率<0.15',
+    description: '各相关科目学业水平达到Ⅲ级以上，且校际差异率低于0.15'
+  }
+];
+
+// 获取区县教育质量指标汇总
+router.get('/districts/:districtId/education-quality-summary', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取区县信息
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    // 获取区县填报的数据
+    const submissionResult = await db.query(`
+      SELECT s.id, s.data as form_data, s.status, s.submitted_at,
+             dt.name as form_name, dt.target as form_target
+      FROM submissions s
+      JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
+      WHERE s.project_id = $1
+        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND s.status IN ('approved', 'submitted', 'rejected')
+      ORDER BY
+        CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
+        s.submitted_at DESC
+      LIMIT 1
+    `, [projectId, district.name]);
+
+    let districtFormData = {};
+    let submissionStatus = null;
+    let submittedAt = null;
+    const hasDistrictSubmission = submissionResult.rows.length > 0;
+
+    if (hasDistrictSubmission && submissionResult.rows[0].form_data) {
+      submissionStatus = submissionResult.rows[0].status;
+      submittedAt = submissionResult.rows[0].submitted_at;
+      const rawData = submissionResult.rows[0].form_data;
+      districtFormData = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {});
+    }
+
+    // 学业水平级别映射（罗马数字到数字）
+    const levelMapping = {
+      'I': 1, 'Ⅰ': 1, '1': 1, '一': 1, '一级': 1,
+      'II': 2, 'Ⅱ': 2, '2': 2, '二': 2, '二级': 2,
+      'III': 3, 'Ⅲ': 3, '3': 3, '三': 3, '三级': 3,
+      'IV': 4, 'Ⅳ': 4, '4': 4, '四': 4, '四级': 4,
+      'V': 5, 'Ⅴ': 5, '5': 5, '五': 5, '五级': 5
+    };
+
+    // 计算每个指标的达标情况
+    const indicators = [];
+    let compliantCount = 0;
+    let nonCompliantCount = 0;
+    let pendingCount = 0;
+
+    for (const config of EDUCATION_QUALITY_INDICATORS) {
+      const indicator = {
+        code: config.code,
+        name: config.name,
+        shortName: config.shortName,
+        type: config.type,
+        threshold: config.threshold,
+        description: config.description,
+        value: null,
+        displayValue: null,
+        isCompliant: null,
+        details: []
+      };
+
+      if (!hasDistrictSubmission) {
+        indicator.isCompliant = null;
+        indicator.displayValue = '区县未填报';
+        pendingCount++;
+      } else {
+        switch (config.type) {
+          case 'calculated_district':
+            if (config.code === 'Q1') {
+              // 初中三年巩固率
+              const graduation = parseFloat(districtFormData['junior_graduation_count']);
+              const grade1_3years = parseFloat(districtFormData['junior_grade1_count_3years_ago']);
+              const transferIn = parseFloat(districtFormData['junior_transfer_in_3years']) || 0;
+              const transferOut = parseFloat(districtFormData['junior_transfer_out_3years']) || 0;
+              const death = parseFloat(districtFormData['junior_death_3years']) || 0;
+
+              if (isNaN(graduation) || isNaN(grade1_3years) || grade1_3years === 0) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                pendingCount++;
+              } else {
+                const denominator = grade1_3years - death;
+                if (denominator <= 0) {
+                  indicator.isCompliant = null;
+                  indicator.displayValue = '数据异常';
+                  pendingCount++;
+                } else {
+                  const rate = ((graduation - transferIn + transferOut) / denominator) * 100;
+                  indicator.value = Math.round(rate * 100) / 100;
+                  indicator.displayValue = `${indicator.value}%`;
+                  indicator.isCompliant = rate >= config.threshold;
+                  indicator.details = [
+                    { name: '初中毕业生人数', value: graduation, displayValue: `${graduation}人`, isCompliant: null },
+                    { name: '三年前初一在校生数', value: grade1_3years, displayValue: `${grade1_3years}人`, isCompliant: null },
+                    { name: '三年内转入人数', value: transferIn, displayValue: `${transferIn}人`, isCompliant: null },
+                    { name: '三年内转出人数', value: transferOut, displayValue: `${transferOut}人`, isCompliant: null },
+                    { name: '三年内死亡人数', value: death, displayValue: `${death}人`, isCompliant: null },
+                    { name: '巩固率', value: indicator.value, displayValue: `${indicator.value}%`, threshold: config.threshold, unit: '%', isCompliant: indicator.isCompliant }
+                  ];
+                  if (indicator.isCompliant) compliantCount++;
+                  else nonCompliantCount++;
+                }
+              }
+            } else if (config.code === 'Q2') {
+              // 残疾儿童入学率
+              const enrollment = parseFloat(districtFormData['disabled_children_enrollment']);
+              const population = parseFloat(districtFormData['disabled_children_population']);
+
+              if (isNaN(enrollment) || isNaN(population) || population === 0) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                pendingCount++;
+              } else {
+                const rate = (enrollment / population) * 100;
+                indicator.value = Math.round(rate * 100) / 100;
+                indicator.displayValue = `${indicator.value}%`;
+                indicator.isCompliant = rate >= config.threshold;
+                indicator.details = [
+                  { name: '适龄残疾儿童少年入学总人数', value: enrollment, displayValue: `${enrollment}人`, isCompliant: null },
+                  { name: '适龄残疾儿童少年人口总数', value: population, displayValue: `${population}人`, isCompliant: null },
+                  { name: '入学率', value: indicator.value, displayValue: `${indicator.value}%`, threshold: config.threshold, unit: '%', isCompliant: indicator.isCompliant }
+                ];
+                if (indicator.isCompliant) compliantCount++;
+                else nonCompliantCount++;
+              }
+            } else if (config.code === 'Q4') {
+              // 教师培训经费占比
+              const trainingBudget = parseFloat(districtFormData['teacher_training_budget']);
+              const publicBudget = parseFloat(districtFormData['public_funding_budget']);
+
+              if (isNaN(trainingBudget) || isNaN(publicBudget) || publicBudget === 0) {
+                indicator.isCompliant = null;
+                indicator.displayValue = '待填报';
+                pendingCount++;
+              } else {
+                const rate = (trainingBudget / publicBudget) * 100;
+                indicator.value = Math.round(rate * 100) / 100;
+                indicator.displayValue = `${indicator.value}%`;
+                indicator.isCompliant = rate >= config.threshold;
+                indicator.details = [
+                  { name: '教师培训经费预算总额', value: trainingBudget, displayValue: `${trainingBudget}元`, isCompliant: null },
+                  { name: '公用经费预算总额', value: publicBudget, displayValue: `${publicBudget}元`, isCompliant: null },
+                  { name: '培训经费占比', value: indicator.value, displayValue: `${indicator.value}%`, threshold: config.threshold, unit: '%', isCompliant: indicator.isCompliant }
+                ];
+                if (indicator.isCompliant) compliantCount++;
+                else nonCompliantCount++;
+              }
+            }
+            break;
+
+          case 'material':
+            // 佐证材料类指标
+            const materialValue = districtFormData[config.materialField];
+            const hasMaterial = materialValue && (
+              (Array.isArray(materialValue) && materialValue.length > 0) ||
+              (typeof materialValue === 'string' && materialValue.trim() !== '')
+            );
+
+            if (hasMaterial) {
+              indicator.isCompliant = true;
+              indicator.displayValue = '已上传';
+              indicator.value = Array.isArray(materialValue) ? materialValue.length : 1;
+              indicator.details = [
+                { name: '佐证材料', value: indicator.value, displayValue: `${indicator.value}份`, isCompliant: true }
+              ];
+              compliantCount++;
+            } else {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待上传';
+              pendingCount++;
+            }
+            break;
+
+          case 'quality_monitoring':
+            // 国家义务教育质量监测（综合判定所有学科）
+            const subjectResults = [];
+            let allSubjectsCompliant = true;
+            let anySubjectFilled = false;
+            let allSubjectsFilled = true;
+
+            for (const subject of config.subjects) {
+              const levelVal = districtFormData[subject.levelField];
+              const diffRateVal = parseFloat(districtFormData[subject.diffRateField]);
+
+              const hasLevelVal = levelVal !== undefined && levelVal !== null && levelVal !== '';
+              const hasDiffRateVal = !isNaN(diffRateVal);
+
+              if (hasLevelVal || hasDiffRateVal) {
+                anySubjectFilled = true;
+              }
+              if (!hasLevelVal || !hasDiffRateVal) {
+                allSubjectsFilled = false;
+              }
+
+              let subjectCompliant = null;
+              let levelCompliant = null;
+              let diffRateCompliant = null;
+
+              if (hasLevelVal && hasDiffRateVal) {
+                const numLevel = levelMapping[levelVal] || levelMapping[String(levelVal).toUpperCase()];
+                const threshLevel = levelMapping[config.levelThreshold] || 3;
+                levelCompliant = numLevel !== undefined && numLevel >= threshLevel;
+                diffRateCompliant = diffRateVal < config.diffRateThreshold;
+                subjectCompliant = levelCompliant && diffRateCompliant;
+
+                if (!subjectCompliant) {
+                  allSubjectsCompliant = false;
+                }
+              }
+
+              subjectResults.push({
+                name: subject.name,
+                level: {
+                  value: levelVal || null,
+                  displayValue: hasLevelVal ? `${levelVal}级` : '待填报',
+                  isCompliant: levelCompliant
+                },
+                diffRate: {
+                  value: hasDiffRateVal ? diffRateVal : null,
+                  displayValue: hasDiffRateVal ? `${diffRateVal}` : '待填报',
+                  isCompliant: diffRateCompliant
+                },
+                isCompliant: subjectCompliant
+              });
+            }
+
+            if (!anySubjectFilled) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '待填报';
+              pendingCount++;
+            } else if (!allSubjectsFilled) {
+              indicator.isCompliant = null;
+              indicator.displayValue = '部分填报';
+              indicator.details = subjectResults.map(s => ({
+                name: s.name,
+                value: `${s.level.displayValue}/${s.diffRate.displayValue}`,
+                displayValue: `学业水平: ${s.level.displayValue}, 差异率: ${s.diffRate.displayValue}`,
+                isCompliant: s.isCompliant
+              }));
+              pendingCount++;
+            } else {
+              indicator.isCompliant = allSubjectsCompliant;
+              indicator.displayValue = allSubjectsCompliant ? '达标' : '未达标';
+              indicator.details = subjectResults.map(s => ({
+                name: s.name,
+                value: `${s.level.displayValue}/${s.diffRate.displayValue}`,
+                displayValue: `学业水平: ${s.level.displayValue}, 差异率: ${s.diffRate.displayValue}`,
+                isCompliant: s.isCompliant
+              }));
+              if (indicator.isCompliant) compliantCount++;
+              else nonCompliantCount++;
+            }
+            break;
+
+          default:
+            indicator.isCompliant = null;
+            indicator.displayValue = '待填报';
+            pendingCount++;
+        }
+      }
+
+      indicators.push(indicator);
+    }
+
+    // 整体达标判定
+    const totalCount = indicators.length;
+    const allCompliant = compliantCount === totalCount;
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        submission: {
+          status: submissionStatus,
+          submittedAt
+        },
+        summary: {
+          totalCount,
+          compliantCount,
+          nonCompliantCount,
+          pendingCount,
+          allCompliant: pendingCount === 0 ? allCompliant : null,
+          complianceRate: totalCount > 0 && pendingCount === 0
+            ? Math.round((compliantCount / totalCount) * 10000) / 100
+            : null
+        },
+        indicators
+      }
+    });
+  } catch (error) {
+    console.error('获取教育质量指标汇总失败:', error);
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 社会认可度指标定义（1项指标）
+const SOCIAL_RECOGNITION_INDICATORS = [
+  {
+    code: 'S1',
+    name: '社会认可度达到85％以上',
+    shortName: '社会认可度',
+    type: 'boolean',
+    dataSource: 'district',
+    dataField: 'social_recognition_over_85',
+    expectedValue: 'yes',
+    threshold: '≥85%',
+    description: '社会认可度调查结果达到85％以上'
+  }
+];
+
+// 获取区县社会认可度指标汇总
+router.get('/districts/:districtId/social-recognition-summary', async (req, res) => {
+  try {
+    const { districtId } = req.params;
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({ code: 400, message: '请指定项目ID' });
+    }
+
+    // 获取区县信息
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
+    const district = districtResult.rows[0];
+    if (!district) {
+      return res.status(404).json({ code: 404, message: '区县不存在' });
+    }
+
+    // 获取区县填报的数据
+    const submissionResult = await db.query(`
+      SELECT s.id, s.data as form_data, s.status, s.submitted_at,
+             dt.name as form_name, dt.target as form_target
+      FROM submissions s
+      JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
+      WHERE s.project_id = $1
+        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND s.status IN ('approved', 'submitted', 'rejected')
+      ORDER BY
+        CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
+        s.submitted_at DESC
+      LIMIT 1
+    `, [projectId, district.name]);
+
+    let districtFormData = {};
+    let submissionStatus = null;
+    let submittedAt = null;
+    const hasDistrictSubmission = submissionResult.rows.length > 0;
+
+    if (hasDistrictSubmission && submissionResult.rows[0].form_data) {
+      submissionStatus = submissionResult.rows[0].status;
+      submittedAt = submissionResult.rows[0].submitted_at;
+      const rawData = submissionResult.rows[0].form_data;
+      districtFormData = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {});
+    }
+
+    // 计算每个指标的达标情况
+    const indicators = [];
+    let compliantCount = 0;
+    let nonCompliantCount = 0;
+    let pendingCount = 0;
+
+    for (const config of SOCIAL_RECOGNITION_INDICATORS) {
+      const indicator = {
+        code: config.code,
+        name: config.name,
+        shortName: config.shortName,
+        type: config.type,
+        threshold: config.threshold,
+        description: config.description,
+        value: null,
+        displayValue: null,
+        isCompliant: null,
+        details: []
+      };
+
+      if (!hasDistrictSubmission) {
+        indicator.isCompliant = null;
+        indicator.displayValue = '区县未填报';
+        pendingCount++;
+      } else {
+        const fieldValue = districtFormData[config.dataField];
+
+        if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+          indicator.isCompliant = null;
+          indicator.displayValue = '待填报';
+          pendingCount++;
+        } else {
+          indicator.value = fieldValue;
+
+          if (config.type === 'boolean') {
+            // 正向指标：需要选"是"才达标
+            indicator.isCompliant = fieldValue === config.expectedValue;
+            indicator.displayValue = fieldValue === 'yes' ? '是' : '否';
+          } else if (config.type === 'boolean_negative') {
+            // 否定指标：需要选"否"才达标（即不存在问题）
+            indicator.isCompliant = fieldValue === config.expectedValue;
+            indicator.displayValue = fieldValue === 'yes' ? '存在' : '不存在';
+          }
+
+          if (indicator.isCompliant) compliantCount++;
+          else nonCompliantCount++;
+        }
+      }
+
+      indicators.push(indicator);
+    }
+
+    // 整体达标判定：所有指标都达标
+    const totalCount = indicators.length;
+    const allCompliant = compliantCount === totalCount;
+
+    res.json({
+      code: 200,
+      data: {
+        district,
+        submission: {
+          status: submissionStatus,
+          submittedAt
+        },
+        summary: {
+          totalCount,
+          compliantCount,
+          nonCompliantCount,
+          pendingCount,
+          allCompliant: pendingCount === 0 ? allCompliant : null,
+          complianceRate: totalCount > 0 && pendingCount === 0
+            ? Math.round((compliantCount / totalCount) * 10000) / 100
+            : null
+        },
+        indicators
+      }
+    });
+  } catch (error) {
+    console.error('获取社会认可度指标汇总失败:', error);
+    res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
 module.exports = { router, setDb };

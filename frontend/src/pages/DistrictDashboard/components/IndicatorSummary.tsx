@@ -16,6 +16,12 @@ import {
   getGovernmentGuaranteeSummary,
   GovernmentGuaranteeResponse,
   GovernmentGuaranteeIndicator,
+  getEducationQualitySummary,
+  EducationQualityResponse,
+  EducationQualityIndicator,
+  getSocialRecognitionSummary,
+  SocialRecognitionResponse,
+  SocialRecognitionIndicator,
 } from '../../../services/statisticsService';
 
 interface IndicatorSummaryProps {
@@ -41,6 +47,10 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
   const [data, setData] = useState<ResourceIndicatorsSummary | null>(null);
   const [govData, setGovData] = useState<GovernmentGuaranteeResponse | null>(null);
   const [govLoading, setGovLoading] = useState(false);
+  const [eduQualityData, setEduQualityData] = useState<EducationQualityResponse | null>(null);
+  const [eduQualityLoading, setEduQualityLoading] = useState(false);
+  const [socialRecogData, setSocialRecogData] = useState<SocialRecognitionResponse | null>(null);
+  const [socialRecogLoading, setSocialRecogLoading] = useState(false);
 
   // 加载资源配置指标数据
   useEffect(() => {
@@ -78,6 +88,44 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     };
 
     loadGovData();
+  }, [districtId, projectId, refreshKey]);
+
+  // 加载教育质量指标数据
+  useEffect(() => {
+    if (!districtId || !projectId) return;
+
+    const loadEduQualityData = async () => {
+      setEduQualityLoading(true);
+      try {
+        const result = await getEducationQualitySummary(districtId, projectId);
+        setEduQualityData(result);
+      } catch (error) {
+        console.error('加载教育质量数据失败:', error);
+      } finally {
+        setEduQualityLoading(false);
+      }
+    };
+
+    loadEduQualityData();
+  }, [districtId, projectId, refreshKey]);
+
+  // 加载社会认可度指标数据
+  useEffect(() => {
+    if (!districtId || !projectId) return;
+
+    const loadSocialRecogData = async () => {
+      setSocialRecogLoading(true);
+      try {
+        const result = await getSocialRecognitionSummary(districtId, projectId);
+        setSocialRecogData(result);
+      } catch (error) {
+        console.error('加载社会认可度数据失败:', error);
+      } finally {
+        setSocialRecogLoading(false);
+      }
+    };
+
+    loadSocialRecogData();
   }, [districtId, projectId, refreshKey]);
 
   if (!projectId) {
@@ -323,6 +371,136 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
             }]}
           />
         )}
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+          标准: {indicator.threshold}
+        </div>
+      </Card>
+    );
+  };
+
+  // 渲染教育质量指标状态
+  const renderEduQualityIndicatorStatus = (indicator: EducationQualityIndicator) => {
+    if (indicator.isCompliant === null) {
+      return <Tag color="default">{indicator.displayValue || '待填报'}</Tag>;
+    }
+    return indicator.isCompliant ? (
+      <Tag icon={<CheckCircleOutlined />} color="success">达标</Tag>
+    ) : (
+      <Tag icon={<CloseCircleOutlined />} color="error">未达标</Tag>
+    );
+  };
+
+  // 渲染教育质量指标卡片
+  const renderEduQualityIndicatorCard = (indicator: EducationQualityIndicator) => {
+    const bgColor = indicator.isCompliant === null
+      ? '#f5f5f5'
+      : indicator.isCompliant
+      ? '#f6ffed'
+      : '#fff2f0';
+    const borderColor = indicator.isCompliant === null
+      ? '#d9d9d9'
+      : indicator.isCompliant
+      ? '#b7eb8f'
+      : '#ffccc7';
+
+    // 佐证材料类指标特殊图标
+    const isMaterialType = indicator.type === 'material';
+    const isQualityMonitoring = indicator.type === 'quality_monitoring';
+
+    return (
+      <Card
+        size="small"
+        style={{ background: bgColor, borderColor, height: '100%' }}
+      >
+        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+          {isMaterialType && <FileTextOutlined style={{ color: '#1890ff', fontSize: 12 }} />}
+          <Tooltip title={indicator.name}>
+            <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>
+              {indicator.code.replace('Q', '')}. {indicator.shortName}
+            </span>
+          </Tooltip>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: indicator.isCompliant === null ? '#999' : indicator.isCompliant ? '#52c41a' : '#ff4d4f' }}>
+            {indicator.displayValue || '-'}
+          </span>
+          {renderEduQualityIndicatorStatus(indicator)}
+        </div>
+        {indicator.details && indicator.details.length > 0 && (
+          <Collapse
+            ghost
+            size="small"
+            items={[{
+              key: '1',
+              label: <span style={{ fontSize: 12, color: '#9ca3af' }}>{isQualityMonitoring ? '各科目详情' : '查看详情'}</span>,
+              children: (
+                <div style={{ fontSize: 12 }}>
+                  {indicator.details.map((detail, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ color: '#666' }}>{detail.name}:</span>
+                      <span style={{
+                        color: detail.isCompliant === null ? '#999' : detail.isCompliant ? '#52c41a' : '#ff4d4f',
+                        fontWeight: 500
+                      }}>
+                        {detail.displayValue || '-'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            }]}
+          />
+        )}
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+          标准: {indicator.threshold}
+        </div>
+      </Card>
+    );
+  };
+
+  // 渲染社会认可度指标状态
+  const renderSocialRecogIndicatorStatus = (indicator: SocialRecognitionIndicator) => {
+    if (indicator.isCompliant === null) {
+      return <Tag color="default">{indicator.displayValue || '待填报'}</Tag>;
+    }
+    return indicator.isCompliant ? (
+      <Tag icon={<CheckCircleOutlined />} color="success">达标</Tag>
+    ) : (
+      <Tag icon={<CloseCircleOutlined />} color="error">未达标</Tag>
+    );
+  };
+
+  // 渲染社会认可度指标卡片
+  const renderSocialRecogIndicatorCard = (indicator: SocialRecognitionIndicator) => {
+    const bgColor = indicator.isCompliant === null
+      ? '#f5f5f5'
+      : indicator.isCompliant
+      ? '#f6ffed'
+      : '#fff2f0';
+    const borderColor = indicator.isCompliant === null
+      ? '#d9d9d9'
+      : indicator.isCompliant
+      ? '#b7eb8f'
+      : '#ffccc7';
+
+    return (
+      <Card
+        size="small"
+        style={{ background: bgColor, borderColor, height: '100%' }}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <Tooltip title={indicator.name}>
+            <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>
+              {indicator.code.replace('S', '')}. {indicator.shortName}
+            </span>
+          </Tooltip>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: indicator.isCompliant === null ? '#999' : indicator.isCompliant ? '#52c41a' : '#ff4d4f' }}>
+            {indicator.displayValue || '-'}
+          </span>
+          {renderSocialRecogIndicatorStatus(indicator)}
+        </div>
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
           标准: {indicator.threshold}
         </div>
@@ -578,6 +756,186 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
           </Row>
         ) : (
           <Empty description="暂无政府保障程度数据" />
+        )}
+      </Card>
+
+      {/* 教育质量指标 */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>教育质量（9项指标）</span>
+            {eduQualityData?.summary && (
+              <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                {eduQualityData.summary.allCompliant === null ? (
+                  <Tag icon={<ExclamationCircleOutlined />} color="warning">
+                    {eduQualityData.summary.compliantCount}/{eduQualityData.summary.totalCount} 项达标，{eduQualityData.summary.pendingCount} 项待填报
+                  </Tag>
+                ) : eduQualityData.summary.allCompliant ? (
+                  <Tag icon={<CheckCircleOutlined />} color="success">
+                    {eduQualityData.summary.compliantCount}/{eduQualityData.summary.totalCount} 项全部达标
+                  </Tag>
+                ) : (
+                  <Tag icon={<CloseCircleOutlined />} color="error">
+                    {eduQualityData.summary.compliantCount}/{eduQualityData.summary.totalCount} 项达标
+                  </Tag>
+                )}
+              </span>
+            )}
+          </div>
+        }
+        style={{ marginTop: 24 }}
+      >
+        {eduQualityLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : eduQualityData?.indicators && eduQualityData.indicators.length > 0 ? (
+          <Row gutter={[16, 16]}>
+            {eduQualityData.indicators.map((indicator) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={indicator.code}>
+                {renderEduQualityIndicatorCard(indicator)}
+              </Col>
+            ))}
+            {/* 综合判定卡片 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Card
+                size="small"
+                style={{
+                  background: eduQualityData.summary.allCompliant === null
+                    ? '#fffbe6'
+                    : eduQualityData.summary.allCompliant
+                    ? '#f6ffed'
+                    : '#fff2f0',
+                  borderColor: eduQualityData.summary.allCompliant === null
+                    ? '#ffe58f'
+                    : eduQualityData.summary.allCompliant
+                    ? '#b7eb8f'
+                    : '#ffccc7',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合判定</div>
+                  <div style={{ fontSize: 32, fontWeight: 600, marginBottom: 8 }}>
+                    {eduQualityData.summary.compliantCount}/{eduQualityData.summary.totalCount}
+                  </div>
+                  {eduQualityData.summary.pendingCount > 0 && (
+                    <div style={{ fontSize: 12, color: '#faad14', marginBottom: 8 }}>
+                      {eduQualityData.summary.pendingCount} 项待填报
+                    </div>
+                  )}
+                  {eduQualityData.summary.allCompliant === null ? (
+                    <Tag icon={<ExclamationCircleOutlined />} color="warning" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      待完善
+                    </Tag>
+                  ) : eduQualityData.summary.allCompliant ? (
+                    <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      全部达标
+                    </Tag>
+                  ) : (
+                    <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      未全部达标
+                    </Tag>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        ) : (
+          <Empty description="暂无教育质量数据" />
+        )}
+      </Card>
+
+      {/* 社会认可度指标 */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>社会认可度（1项指标）</span>
+            {socialRecogData?.summary && (
+              <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                {socialRecogData.summary.allCompliant === null ? (
+                  <Tag icon={<ExclamationCircleOutlined />} color="warning">
+                    {socialRecogData.summary.compliantCount}/{socialRecogData.summary.totalCount} 项达标，{socialRecogData.summary.pendingCount} 项待填报
+                  </Tag>
+                ) : socialRecogData.summary.allCompliant ? (
+                  <Tag icon={<CheckCircleOutlined />} color="success">
+                    {socialRecogData.summary.compliantCount}/{socialRecogData.summary.totalCount} 项全部达标
+                  </Tag>
+                ) : (
+                  <Tag icon={<CloseCircleOutlined />} color="error">
+                    {socialRecogData.summary.compliantCount}/{socialRecogData.summary.totalCount} 项达标
+                  </Tag>
+                )}
+              </span>
+            )}
+          </div>
+        }
+        style={{ marginTop: 24 }}
+      >
+        {socialRecogLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : socialRecogData?.indicators && socialRecogData.indicators.length > 0 ? (
+          <Row gutter={[16, 16]}>
+            {socialRecogData.indicators.map((indicator) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={indicator.code}>
+                {renderSocialRecogIndicatorCard(indicator)}
+              </Col>
+            ))}
+            {/* 综合判定卡片 */}
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <Card
+                size="small"
+                style={{
+                  background: socialRecogData.summary.allCompliant === null
+                    ? '#fffbe6'
+                    : socialRecogData.summary.allCompliant
+                    ? '#f6ffed'
+                    : '#fff2f0',
+                  borderColor: socialRecogData.summary.allCompliant === null
+                    ? '#ffe58f'
+                    : socialRecogData.summary.allCompliant
+                    ? '#b7eb8f'
+                    : '#ffccc7',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合判定</div>
+                  <div style={{ fontSize: 32, fontWeight: 600, marginBottom: 8 }}>
+                    {socialRecogData.summary.compliantCount}/{socialRecogData.summary.totalCount}
+                  </div>
+                  {socialRecogData.summary.pendingCount > 0 && (
+                    <div style={{ fontSize: 12, color: '#faad14', marginBottom: 8 }}>
+                      {socialRecogData.summary.pendingCount} 项待填报
+                    </div>
+                  )}
+                  {socialRecogData.summary.allCompliant === null ? (
+                    <Tag icon={<ExclamationCircleOutlined />} color="warning" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      待完善
+                    </Tag>
+                  ) : socialRecogData.summary.allCompliant ? (
+                    <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      全部达标
+                    </Tag>
+                  ) : (
+                    <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
+                      未全部达标
+                    </Tag>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        ) : (
+          <Empty description="暂无社会认可度数据" />
         )}
       </Card>
     </div>
