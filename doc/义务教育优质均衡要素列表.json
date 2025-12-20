@@ -1,7 +1,7 @@
 {
   "name": "义务教育优质均衡评估要素库",
-  "description": "基于《县域义务教育优质均衡发展督导评估》相关表格与计算公式整理，包含基础数据采集要素与派生计算要素。已参考 doc/义务教育优质均衡督导评估指标体系.json 对齐资源配置7项指标、政府保障、教育质量、社会认可度等关键口径；县域层字段优先映射 doc/schema-区县优质均衡.json，缺失字段以占位方式标注待补充。\n\nv1.2 更新：\n- 新增多校聚合类要素：差异系数（D039-D052，共14个）、超规模学校统计（E189-E191、D053-D055）、超大班额统计（E192-E193、D056-D057）\n- 新增县域汇总派生要素：教师培训完成率（E194-E195、D058）、持证上岗率（E196、D059）、初中三年巩固率（E197-E201、D060）\n- 所有多校聚合要素均标注 calculationLevel: \"district\"，明确需要基于全区县学校数据计算或汇总\n\nv1.3 更新：\n- 补齐指标体系缺失要素：规划布局佐证（E207）、编制岗位统筹佐证（E208）、留守儿童关爱佐证（E209）\n- 补齐社会认可度数据指标：问卷调查综合满意度（E210）、实地走访满意度（E211），并新增达标判定（D079）\n- 补齐教师培训经费\"决算占比\"派生要素：D078\n\nv1.5 更新：\n- 补齐所有佐证材料要素：新增 E213-E240（共28个）\n- 补齐所有佐证材料映射：覆盖指标体系中的36个佐证材料，实现100%映射覆盖\n\nv1.6 更新：\n- 修复 fieldId 重复问题：为县域级汇总要素的 fieldId 添加 district_ 前缀（E188、E195、E197-E201），避免与学校级要素冲突\n- 同步更新 doc/schema-区县优质均衡.json 中对应的字段 id\n\nv1.7 更新：\n- 删除教师学历统计及证明材料指标（1.1-M1）及关联要素（E212）\n\nv1.8 更新：\n- 删除骨干教师认定及统计材料指标（1.2-M1）及关联要素（E213）\n\nv1.9 更新：\n- 删除体育艺术教师配备与到校服务佐证指标（1.3-M1）及关联要素（E214）\n\nv1.10 更新：\n- 删除用房面积统计及证明材料指标（1.4-M1）及关联要素（E215）\n\nv1.11 更新：\n- 删除体育场馆面积与可用性佐证材料指标（1.5-M1）及关联要素（E216）\n\nv1.12 更新：\n- 删除教学仪器设备资产台账/审计材料指标（1.6-M1）及关联要素（E217）\n\nv1.13 更新：\n- 删除多媒体教室清单与照片指标（1.7-M1）及关联要素（E218）\n\nv1.14 更新：\n- 删除差异系数计算过程表指标（1.8-M1）及关联要素（E219）\n\nv1.15 更新：\n- 删除统一标准与政策文件佐证指标（2.2-M1）及关联要素（E226）\n\nv1.16 更新：\n- 删除音乐/美术教室清单与面积佐证指标（2.3-M1）及关联要素（E227）\n\nv1.17 更新：\n- 删除持续达标建设规划与跟踪材料指标（2.3-M2）及关联要素（E228）\n\nv1.18 更新：\n- 删除学籍规模统计与说明材料指标（2.4-M1）及关联要素（E229）\n\nv1.19 更新：\n- 删除班额统计与学籍佐证指标（2.5-M1）及关联要素（E230）\n\nv1.20 更新：\n- 删除核定与拨付依据材料指标（2.6-M1）及关联要素（E231）\n\nv1.21 更新：\n- 删除特殊教育经费与学生数佐证指标（2.7-M1）及关联要素（E232）\n\nv1.22 更新：\n- 恢复统一标准与政策文件佐证指标（2.2-M1）及关联要素（E241）\n\nv1.23 更新：\n- 删除与schema文件无关联的17个佐证材料指标，仅保留与schema中upload字段正确关联的5个（3.3-M1, 3.5-M1, 3.6-M1, 3.7-M1, 3.8-M1）\n\nv1.24 更新：\n- 恢复县域内义务教育学校规划布局合理佐证材料指标（2.1-M1）及关联要素（E207），并更新fieldId为school_layout_material以匹配schema\n\nv1.25 更新：\n- 恢复县级教育行政部门统筹分配各校教职工编制和岗位数量佐证材料指标（2.10-M1）及关联要素（E208），并更新fieldId为staff_quota_allocation_material以匹配schema",
-  "version": "1.25",
+  "description": "基于《县域义务教育优质均衡发展督导评估》相关表格与计算公式整理，包含基础数据采集要素与派生计算要素。已参考 doc/义务教育优质均衡督导评估指标体系.json 对齐资源配置7项指标、政府保障、教育质量、社会认可度等关键口径；县域层字段优先映射 doc/schema-区县优质均衡.json，缺失字段以占位方式标注待补充。\n\nv1.30 更新：\n- 将 E189-E193（超规模学校数、超大班额数）从基础要素改为派生要素，使用 IF 和 COUNT_IF 公式实现条件判断和统计，然后通过 aggregation 配置进行跨学校汇总\n\nv1.29 更新：\n- 为 E189-E193（超规模学校数、超大班额数）添加多填报汇总配置（aggregation），支持基于学校类型和学生数/班级数的条件 COUNT 统计",
+  "version": "1.30",
   "indicatorElementMappings": {
     "version": "1",
     "description": "用于机器可校验的显式映射：将指标体系中的 dataIndicators.code（如 1.1-D1）唯一映射到要素库 elements[].code（如 D003）。另外，对“没有 dataIndicators 的末级指标”，提供 leafIndicators 映射到对应的佐证材料类要素。",
@@ -1467,17 +1467,6 @@
       "dataSource": "学校填报"
     },
     {
-      "code": "E132",
-      "name": "在校（岗）不在编情况说明",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "fieldId": "staff_on_post_off_quota_explanation",
-      "category": "政府保障",
-      "description": "5个文件，单个文件大小不超过20M",
-      "collectionLevel": "school",
-      "dataSource": "学校填报"
-    },
-    {
       "code": "E133",
       "name": "24岁以下专任教师人数",
       "elementType": "基础要素",
@@ -2614,66 +2603,138 @@
     {
       "code": "E189",
       "name": "超规模学校数（小学）",
-      "elementType": "基础要素",
+      "elementType": "派生要素",
       "dataType": "数字",
-      "fieldId": "oversized_primary_school_count",
+      "formula": "IF(E002 > 2000, 1, 0)",
       "category": "政府保障",
       "unit": "所",
-      "description": "区县汇总：小学学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有小学数据统计。",
+      "description": "区县汇总：小学学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有小学数据统计。对每所小学，如果学生数>2000则返回1，否则返回0，然后对所有小学的派生值求和。",
       "calculationLevel": "district",
       "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "primary"
+          }
+        }
+      },
       "collectionLevel": "district"
     },
     {
       "code": "E190",
       "name": "超规模学校数（初中）",
-      "elementType": "基础要素",
+      "elementType": "派生要素",
       "dataType": "数字",
-      "fieldId": "oversized_junior_school_count",
+      "formula": "IF(E003 > 2000, 1, 0)",
       "category": "政府保障",
       "unit": "所",
-      "description": "区县汇总：初中学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有初中数据统计。",
+      "description": "区县汇总：初中学生数超过2000人（或特殊标准2400人）的学校数量。需基于全区县所有初中数据统计。对每所初中，如果学生数>2000则返回1，否则返回0，然后对所有初中的派生值求和。",
       "calculationLevel": "district",
       "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "eq",
+            "value": "junior"
+          }
+        }
+      },
       "collectionLevel": "district"
     },
     {
       "code": "E191",
       "name": "超规模学校数（九/十二年一贯制义务教育阶段）",
-      "elementType": "基础要素",
+      "elementType": "派生要素",
       "dataType": "数字",
-      "fieldId": "oversized_integrated_school_count",
+      "formula": "IF((E002 + E003) > 2500, 1, 0)",
       "category": "政府保障",
       "unit": "所",
-      "description": "区县汇总：九年一贯制/十二年一贯制义务教育阶段学生数超过2500人（或特殊标准3000人）的学校数量。需基于全区县所有一贯制学校数据统计。",
+      "description": "区县汇总：九年一贯制/十二年一贯制义务教育阶段学生数超过2500人（或特殊标准3000人）的学校数量。需基于全区县所有一贯制学校数据统计。对每所一贯制学校，如果义务教育阶段学生总数(E002+E003)>2500则返回1，否则返回0，然后对所有一贯制学校的派生值求和。",
       "calculationLevel": "district",
       "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": [
+              "nine_year",
+              "twelve_year"
+            ]
+          }
+        }
+      },
       "collectionLevel": "district"
     },
     {
       "code": "E192",
       "name": "超45人小学班级数",
-      "elementType": "基础要素",
+      "elementType": "派生要素",
       "dataType": "数字",
-      "fieldId": "oversized_primary_class_count",
+      "formula": "COUNT_IF(E049, 'primary_class_student_count', '>', 45)",
       "category": "政府保障",
       "unit": "个",
-      "description": "区县汇总：小学班级人数>45的班级个数。需基于全区县所有小学班级数据统计（可由分段班额统计汇总）。",
+      "description": "区县汇总：小学班级人数>45的班级个数。需基于全区县所有小学班级数据统计（可由分段班额统计汇总）。对每所学校，统计其小学班级中人数>45的班级数，然后对所有学校的派生值求和。",
       "calculationLevel": "district",
       "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": [
+              "primary",
+              "nine_year",
+              "twelve_year"
+            ]
+          }
+        }
+      },
       "collectionLevel": "district"
     },
     {
       "code": "E193",
       "name": "超50人初中班级数",
-      "elementType": "基础要素",
+      "elementType": "派生要素",
       "dataType": "数字",
-      "fieldId": "oversized_junior_class_count",
+      "formula": "COUNT_IF(E050, 'junior_class_student_count', '>', 50)",
       "category": "政府保障",
       "unit": "个",
-      "description": "区县汇总：初中班级人数>50的班级个数。需基于全区县所有初中班级数据统计（可由分段班额统计汇总）。",
+      "description": "区县汇总：初中班级人数>50的班级个数。需基于全区县所有初中班级数据统计（可由分段班额统计汇总）。对每所学校，统计其初中班级中人数>50的班级数，然后对所有学校的派生值求和。",
       "calculationLevel": "district",
       "dataSource": "区县汇总（基于学校填报数据）",
+      "aggregation": {
+        "enabled": true,
+        "method": "sum",
+        "scope": {
+          "level": "custom",
+          "filter": {
+            "field": "school_type",
+            "operator": "in",
+            "value": [
+              "junior",
+              "nine_year",
+              "twelve_year",
+              "complete_secondary"
+            ]
+          }
+        }
+      },
       "collectionLevel": "district"
     },
     {
@@ -2720,7 +2781,7 @@
       "name": "县域初中毕业学生总数",
       "elementType": "基础要素",
       "dataType": "数字",
-      "fieldId": "district_junior_graduate_count",
+      "fieldId": "junior_graduate_count",
       "category": "教育质量",
       "unit": "人",
       "description": "区县汇总：全县所有初中毕业学生总数。需基于全区县所有初中数据汇总（包括纯初中、九年一贯制、十二年一贯制、完全中学的初中部）。",
@@ -3714,18 +3775,6 @@
       "collectionLevel": "district"
     },
     {
-      "code": "E209",
-      "name": "留守儿童关爱制度与台账佐证材料",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "fieldId": "left_behind_children_care_material",
-      "category": "政府保障",
-      "description": "对应指标2.15中“留守儿童关爱体系健全”：提供关爱工作制度、责任清单、走访记录、个案台账等佐证材料（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（关爱制度/台账/走访材料）",
-      "collectionLevel": "district"
-    },
-    {
       "code": "E210",
       "name": "问卷调查综合满意度",
       "elementType": "基础要素",
@@ -3787,17 +3836,6 @@
       "dataSource": "区县填报"
     },
     {
-      "code": "E220",
-      "name": "交流轮岗台账与政策佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.11-M1：提供交流轮岗政策文件、教师名单、去向与周期、骨干教师认定依据等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（交流轮岗台账与政策佐证）",
-      "collectionLevel": "district"
-    },
-    {
       "code": "E221",
       "name": "教师资格证与在岗证明",
       "elementType": "基础要素",
@@ -3806,50 +3844,6 @@
       "description": "对应指标2.12-M1：提供持证教师名单、资格证编号/截图抽查材料、在岗情况说明等佐证。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
       "dataSource": "区县填报（教师资格证与在岗证明）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E222",
-      "name": "划片方案与学籍统计佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.13-M1：提供年度划片方案、招生政策、学籍/居住地核验统计与抽查材料等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（划片方案与学籍统计佐证）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E223",
-      "name": "招生方案与名额分配表",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.14-M1：提供年度招生政策文件、名额分配表及向农村倾斜的说明材料。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（招生方案与名额分配表）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E224",
-      "name": "留守儿童关爱制度与台账",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.15-M1：提供关爱工作制度、责任清单、走访记录、个案台账等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（留守儿童关爱制度与台账）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E225",
-      "name": "随迁子女入学统计与证明材料",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.15-M2：提供符合条件随迁子女总数、公办与购买服务民办就读人数统计、口径说明及抽查凭证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（随迁子女入学统计与证明材料）",
       "collectionLevel": "district"
     },
     {
@@ -3864,28 +3858,6 @@
       "collectionLevel": "district"
     },
     {
-      "code": "E234",
-      "name": "教师培训记录与统计佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.9-M1：提供培训平台导出、教师名单与学时统计、抽查凭证等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（教师培训记录与统计佐证）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E235",
-      "name": "巩固率计算与学籍佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "教育质量",
-      "description": "对应指标3.1-M1：提供初中毕业班学生数、三年前入学数、转入转出、死亡等学籍统计与计算过程表。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（巩固率计算与学籍佐证）",
-      "collectionLevel": "district"
-    },
-    {
       "code": "E236",
       "name": "残疾儿童少年入学统计佐证",
       "elementType": "基础要素",
@@ -3894,61 +3866,6 @@
       "description": "对应指标3.2-M1：提供适龄残疾儿童少年总数、入学人数、就读去向（特教/随班/送教）统计与口径说明。（建议5个文件，单个≤20MB）。",
       "calculationLevel": "district",
       "dataSource": "区县填报（残疾儿童少年入学统计佐证）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E237",
-      "name": "预算决算与培训经费佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "教育质量",
-      "description": "对应指标3.4-M1：提供公用经费与培训经费预算/决算报表、拨付凭证与口径说明。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（预算决算与培训经费佐证）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E238",
-      "name": "国家质量监测结果与差异率佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "教育质量",
-      "description": "对应指标3.9-M1：提供国家义务教育质量监测结果通报、科目水平等级证明、校际差异率计算/来源说明等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（国家质量监测结果与差异率佐证）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E239",
-      "name": "问卷数据与分析报告",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "社会认可度",
-      "description": "对应指标4.1-M1：提供问卷样本、调查说明、原始数据与统计分析报告等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（问卷数据与分析报告）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E240",
-      "name": "实地走访记录与汇总",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "社会认可度",
-      "description": "对应指标4.1-M2：提供走访方案、对象清单、记录表、照片及满意度统计汇总等佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（实地走访记录与汇总）",
-      "collectionLevel": "district"
-    },
-    {
-      "code": "E241",
-      "name": "统一标准与政策文件佐证",
-      "elementType": "基础要素",
-      "dataType": "附件",
-      "category": "政府保障",
-      "description": "对应指标2.2-M1：提供城乡义务教育学校建设标准、教师编制标准、生均公用经费基准定额、基本装备配置标准统一的政策文件与实施佐证。（建议5个文件，单个≤20MB）。",
-      "calculationLevel": "district",
-      "dataSource": "区县填报（统一标准与政策文件佐证）",
       "collectionLevel": "district"
     }
   ]
