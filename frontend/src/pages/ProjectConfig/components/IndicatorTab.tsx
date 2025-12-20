@@ -78,6 +78,9 @@ interface ElementAssociationStats {
   total: number;      // 数据指标总数
   associated: number; // 已关联要素的数据指标数
   unassociated: number; // 未关联要素的数据指标数
+  totalMaterials: number;      // 佐证材料总数
+  associatedMaterials: number; // 已关联要素的佐证材料数
+  unassociatedMaterials: number; // 未关联要素的佐证材料数
 }
 
 const normalizeText = (value?: string): string => {
@@ -129,7 +132,14 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   const [materialElementAssociations, setMaterialElementAssociations] = useState<Map<string, ElementAssociation[]>>(new Map());
 
   // 要素关联统计
-  const [stats, setStats] = useState<ElementAssociationStats>({ total: 0, associated: 0, unassociated: 0 });
+  const [stats, setStats] = useState<ElementAssociationStats>({
+    total: 0,
+    associated: 0,
+    unassociated: 0,
+    totalMaterials: 0,
+    associatedMaterials: 0,
+    unassociatedMaterials: 0,
+  });
 
   // 筛选状态：all=全部, unassociated=未关联要素
   const [filterMode, setFilterMode] = useState<'all' | 'unassociated'>('all');
@@ -177,6 +187,11 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       setElementAssociations(assocMap);
 
       // 加载所有佐证材料的要素关联
+      // 注意：这里使用懒加载策略，只在需要时加载，避免一次性加载所有材料
+      // 如果材料数量很多，可以考虑按需加载或使用虚拟滚动
+      // 初始化 materialAssocMap，确保统计逻辑可以访问
+      const materialAssocMap = new Map<string, ElementAssociation[]>();
+      
       if (!USE_MOCK) {
         const materialIds: string[] = [];
         const collectMaterials = (indicatorList: Indicator[]) => {
@@ -192,10 +207,13 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
           });
         };
         collectMaterials(treeData);
+        
+        // 去重，避免重复请求同一个材料
+        const uniqueMaterialIds = Array.from(new Set(materialIds));
+        
         // 批量加载所有佐证材料的要素关联
-        const materialAssocMap = new Map<string, ElementAssociation[]>();
         await Promise.all(
-          materialIds.map(async (materialId) => {
+          uniqueMaterialIds.map(async (materialId) => {
             try {
               const assoc = await indicatorService.getSupportingMaterialElements(materialId);
               materialAssocMap.set(materialId, assoc);
@@ -230,10 +248,37 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       };
       countDataIndicators(treeData);
 
+      // 统计佐证材料和要素关联
+      let totalMaterials = 0;
+      let associatedMaterialsCount = 0;
+
+      const countMaterials = (indicatorList: Indicator[]) => {
+        indicatorList.forEach(ind => {
+          if (ind.supportingMaterials) {
+            ind.supportingMaterials.forEach(material => {
+              totalMaterials++;
+              // 使用刚加载的 materialAssocMap，而不是状态中的 materialElementAssociations
+              // 因为状态更新是异步的，使用状态可能读取到旧值
+              const materialAssoc = materialAssocMap.get(material.id);
+              if (materialAssoc && materialAssoc.length > 0) {
+                associatedMaterialsCount++;
+              }
+            });
+          }
+          if (ind.children) {
+            countMaterials(ind.children);
+          }
+        });
+      };
+      countMaterials(treeData);
+
       setStats({
         total: totalDataIndicators,
         associated: associatedCount,
         unassociated: totalDataIndicators - associatedCount,
+        totalMaterials: totalMaterials,
+        associatedMaterials: associatedMaterialsCount,
+        unassociatedMaterials: totalMaterials - associatedMaterialsCount,
       });
 
       // 默认展开全部节点
@@ -379,13 +424,39 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
 
   const autoLinkByJsonMappings = useCallback(
     async (libraryId: string, mappings: MappingsResult, overwrite: boolean): Promise<AutoLinkResult> => {
+      // 直接从 indicators 状态收集，确保使用最新数据
+      // 注意：这里使用 indicators 状态，在自动关联时应该已经加载完成
       const allDataIndicators = collectDataIndicators();
       const allMaterials = collectSupportingMaterials();
+      
+      // 调试：检查收集到的材料
+      if (allMaterials.length === 0) {
+        console.warn('[自动关联] 警告：未收集到任何佐证材料，indicators 状态可能未更新');
+        console.log('[自动关联] 当前 indicators 状态:', indicators.length, '个指标');
+      }
+      
+      console.log(`[自动关联] 开始自动关联，数据指标: ${allDataIndicators.length} 个，佐证材料: ${allMaterials.length} 个`);
+      console.log(`[自动关联] 映射数据: 数据指标 ${Object.keys(mappings.dataIndicators).length} 条，佐证材料 ${Object.keys(mappings.supportingMaterials).length} 条`);
+      
       const elements = await toolService.getElements({ libraryId });
       const codeMap = new Map<string, toolService.ElementWithLibrary>();
       elements.forEach(el => {
         if (el.code) codeMap.set(normalizeText(el.code), el);
       });
+      console.log(`[自动关联] 要素库中有 ${elements.length} 个要素`);
+      
+      // 检查映射中需要的要素是否在要素库中
+      if (Object.keys(mappings.supportingMaterials).length > 0) {
+        const requiredElementCodes = Array.from(new Set(Object.values(mappings.supportingMaterials)));
+        const availableCodes = new Set(Array.from(codeMap.keys()));
+        const missingElements = requiredElementCodes.filter(code => !availableCodes.has(normalizeText(code)));
+        if (missingElements.length > 0) {
+          console.warn(`[自动关联] ⚠️ 要素库中缺少 ${missingElements.length} 个佐证材料要素:`, missingElements.slice(0, 10));
+          console.warn(`[自动关联] 请确保要素库中已导入这些要素: E212-E240`);
+        } else {
+          console.log(`[自动关联] ✅ 要素库中包含所有需要的佐证材料要素`);
+        }
+      }
 
       let linked = 0;
       let skippedAlreadyAssociated = 0;
@@ -393,24 +464,32 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       let failed = 0;
 
       // 关联数据指标
+      let diLinked = 0;
+      let diSkippedAlreadyAssociated = 0;
+      let diSkippedNoMatch = 0;
+      let diFailed = 0;
+      
       if (allDataIndicators.length > 0) {
         const tasks = allDataIndicators.map(({ di }) => di);
         await runWithConcurrency(tasks, 5, async (di) => {
           try {
             const existing = elementAssociations.get(di.id)?.elements || [];
             if (!overwrite && existing.length > 0) {
+              diSkippedAlreadyAssociated++;
               skippedAlreadyAssociated++;
               return;
             }
 
             const targetElementCode = mappings.dataIndicators[di.code];
             if (!targetElementCode) {
+              diSkippedNoMatch++;
               skippedNoMatch++;
               return;
             }
 
             const matched = codeMap.get(normalizeText(targetElementCode));
             if (!matched) {
+              diSkippedNoMatch++;
               skippedNoMatch++;
               return;
             }
@@ -418,51 +497,90 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
             await indicatorService.saveDataIndicatorElements(di.id, [
               { elementId: matched.id, mappingType: 'primary', description: '' },
             ]);
+            diLinked++;
             linked++;
           } catch (e) {
+            diFailed++;
             failed++;
             console.error('自动关联数据指标失败:', di, e);
           }
         });
+        console.log(`[自动关联] 数据指标关联完成: 成功 ${diLinked}, 跳过 ${diSkippedAlreadyAssociated}, 无匹配 ${diSkippedNoMatch}, 失败 ${diFailed}`);
       }
 
       // 关联佐证材料
+      let smLinked = 0;
+      let smSkippedAlreadyAssociated = 0;
+      let smSkippedNoMatch = 0;
+      let smFailed = 0;
+      
       if (allMaterials.length > 0 && Object.keys(mappings.supportingMaterials).length > 0) {
+        console.log(`[自动关联] 开始关联佐证材料，共 ${allMaterials.length} 个，映射数量 ${Object.keys(mappings.supportingMaterials).length}`);
         const materialTasks = allMaterials.map(({ material }) => material);
         await runWithConcurrency(materialTasks, 5, async (material) => {
           try {
             const existing = materialElementAssociations.get(material.id) || [];
             if (!overwrite && existing.length > 0) {
+              smSkippedAlreadyAssociated++;
               skippedAlreadyAssociated++;
+              console.log(`[自动关联] 跳过已关联的佐证材料: ${material.code}`);
               return;
             }
 
             const targetElementCode = mappings.supportingMaterials[material.code];
             if (!targetElementCode) {
+              smSkippedNoMatch++;
               skippedNoMatch++;
+              console.log(`[自动关联] 佐证材料 ${material.code} 在映射中未找到`);
               return;
             }
 
             const matched = codeMap.get(normalizeText(targetElementCode));
             if (!matched) {
+              smSkippedNoMatch++;
               skippedNoMatch++;
+              console.log(`[自动关联] 佐证材料 ${material.code} 映射的要素 ${targetElementCode} 在要素库中未找到`);
               return;
             }
 
+            console.log(`[自动关联] 关联佐证材料 ${material.code} -> 要素 ${matched.code} (${matched.name})`);
             await indicatorService.saveSupportingMaterialElements(material.id, [
               { elementId: matched.id, mappingType: 'primary', description: '' },
             ]);
+            smLinked++;
             linked++;
+            console.log(`[自动关联] 成功关联佐证材料 ${material.code}`);
           } catch (e) {
+            smFailed++;
             failed++;
-            console.error('自动关联佐证材料失败:', material, e);
+            console.error(`[自动关联] 关联佐证材料失败: ${material.code}`, e);
           }
         });
+        console.log(`[自动关联] 佐证材料关联完成: 成功 ${smLinked}, 跳过 ${smSkippedAlreadyAssociated}, 无匹配 ${smSkippedNoMatch}, 失败 ${smFailed}`);
+      } else {
+        console.log(`[自动关联] 跳过佐证材料关联: allMaterials=${allMaterials.length}, mappings=${Object.keys(mappings.supportingMaterials).length}`);
+        if (allMaterials.length === 0) {
+          console.warn('[自动关联] 警告：未收集到任何佐证材料，请检查 indicators 状态是否正确加载');
+          console.warn('[自动关联] 当前 indicators 状态:', indicators.length, '个指标');
+          // 尝试直接从树数据收集
+          const testMaterials = collectSupportingMaterials();
+          console.warn('[自动关联] 测试收集结果:', testMaterials.length, '个佐证材料');
+        }
+        if (Object.keys(mappings.supportingMaterials).length === 0) {
+          console.warn('[自动关联] 警告：映射文件中没有 supportingMaterials 映射');
+        }
+        // 检查要素库中是否有对应的要素
+        const requiredElementCodes = Object.values(mappings.supportingMaterials);
+        const availableElementCodes = Array.from(codeMap.keys());
+        const missingElements = requiredElementCodes.filter(code => !availableElementCodes.includes(normalizeText(code)));
+        if (missingElements.length > 0) {
+          console.warn(`[自动关联] 警告：要素库中缺少 ${missingElements.length} 个要素:`, missingElements.slice(0, 10));
+        }
       }
 
       return { linked, skippedAlreadyAssociated, skippedNoMatch, failed };
     },
-    [collectDataIndicators, collectSupportingMaterials, elementAssociations, materialElementAssociations]
+    [indicators, collectDataIndicators, collectSupportingMaterials, elementAssociations, materialElementAssociations]
   );
 
   // 打开要素关联编辑抽屉
@@ -670,12 +788,19 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
           return !assoc?.elements || assoc.elements.length === 0;
         }) || [];
 
-        // 如果有未关联的数据指标或有子节点包含未关联的，则保留该节点
-        if (filteredDataIndicators.length > 0 || filteredChildren.length > 0) {
+        // 过滤佐证材料，只保留未关联要素的
+        const filteredMaterials = ind.supportingMaterials?.filter(material => {
+          const materialAssoc = materialElementAssociations.get(material.id);
+          return !materialAssoc || materialAssoc.length === 0;
+        }) || [];
+
+        // 如果有未关联的数据指标、未关联的佐证材料或有子节点包含未关联的，则保留该节点
+        if (filteredDataIndicators.length > 0 || filteredMaterials.length > 0 || filteredChildren.length > 0) {
           result.push({
             ...ind,
             children: filteredChildren.length > 0 ? filteredChildren : undefined,
-            dataIndicators: filteredDataIndicators.length > 0 ? filteredDataIndicators : undefined,
+            dataIndicators: filteredDataIndicators.length > 0 ? filteredDataIndicators : (ind.dataIndicators?.length ? ind.dataIndicators : undefined),
+            supportingMaterials: filteredMaterials.length > 0 ? filteredMaterials : (ind.supportingMaterials?.length ? ind.supportingMaterials : undefined),
           });
         }
       }
@@ -854,40 +979,81 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
       </div>
 
       {/* 要素关联统计卡片 */}
-      {stats.total > 0 && (
+      {(stats.total > 0 || stats.totalMaterials > 0) && (
         <Card className={styles.mappingStatsCard} size="small">
-          <Row gutter={24}>
-            <Col span={6}>
+          <Row gutter={16}>
+            <Col span={4}>
               <Statistic
                 title="数据指标总数"
                 value={stats.total}
                 suffix="项"
               />
             </Col>
-            <Col span={6}>
+            <Col span={4}>
               <Statistic
-                title="已关联要素"
+                title="数据指标已关联"
                 value={stats.associated}
                 suffix="项"
                 valueStyle={{ color: '#52c41a' }}
               />
             </Col>
-            <Col span={6}>
+            <Col span={4}>
               <Statistic
-                title="未关联要素"
+                title="数据指标未关联"
                 value={stats.unassociated}
                 suffix="项"
                 valueStyle={{ color: stats.unassociated > 0 ? '#faad14' : '#52c41a' }}
               />
             </Col>
-            <Col span={6}>
+            <Col span={4}>
+              <Statistic
+                title="佐证材料总数"
+                value={stats.totalMaterials}
+                suffix="项"
+              />
+            </Col>
+            <Col span={4}>
+              <Statistic
+                title="佐证材料已关联"
+                value={stats.associatedMaterials}
+                suffix="项"
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Col>
+            <Col span={4}>
+              <Statistic
+                title="佐证材料未关联"
+                value={stats.unassociatedMaterials}
+                suffix="项"
+                valueStyle={{ color: stats.unassociatedMaterials > 0 ? '#faad14' : '#52c41a' }}
+              />
+            </Col>
+          </Row>
+          <Row gutter={16} style={{ marginTop: 16 }}>
+            <Col span={12}>
               <div className={styles.mappingProgress}>
-                <span className={styles.progressLabel}>要素关联完成度</span>
+                <span className={styles.progressLabel}>数据指标关联完成度</span>
                 <Progress
                   percent={stats.total > 0 ? Math.round((stats.associated / stats.total) * 100) : 0}
                   status={stats.unassociated > 0 ? 'active' : 'success'}
                   size="small"
                 />
+                <span className={styles.progressText}>
+                  {stats.total > 0 ? Math.round((stats.associated / stats.total) * 100) : 0}% 已关联
+                </span>
+              </div>
+            </Col>
+            <Col span={12}>
+              <div className={styles.mappingProgress}>
+                <span className={styles.progressLabel}>佐证材料关联完成度</span>
+                <Progress
+                  percent={stats.totalMaterials > 0 ? Math.round((stats.associatedMaterials / stats.totalMaterials) * 100) : 0}
+                  status={stats.unassociatedMaterials > 0 ? 'active' : 'success'}
+                  size="small"
+                />
+                <span className={styles.progressText}>
+                  {stats.totalMaterials > 0 ? Math.round((stats.associatedMaterials / stats.totalMaterials) * 100) : 0}% 已关联
+                </span>
               </div>
             </Col>
           </Row>
@@ -911,8 +1077,13 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
                   { value: 'unassociated', label: '未关联要素' },
                 ]}
               />
-              {filterMode === 'unassociated' && stats.unassociated > 0 && (
-                <Tag color="warning">{stats.unassociated} 项未关联</Tag>
+              {filterMode === 'unassociated' && (stats.unassociated > 0 || stats.unassociatedMaterials > 0) && (
+                <Tag color="warning">
+                  {stats.unassociated + stats.unassociatedMaterials} 项未关联
+                  {stats.unassociated > 0 && stats.unassociatedMaterials > 0 && (
+                    <span>（数据指标 {stats.unassociated}，佐证材料 {stats.unassociatedMaterials}）</span>
+                  )}
+                </Tag>
               )}
             </Space>
             <Space>

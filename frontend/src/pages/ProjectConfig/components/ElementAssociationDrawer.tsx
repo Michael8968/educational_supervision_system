@@ -112,11 +112,14 @@ const ElementAssociationDrawer: React.FC<ElementAssociationDrawerProps> = ({
     }
   }, [targetId, isSupportingMaterial]);
 
+  // 只在抽屉可见且 targetId 存在时加载，避免重复调用
   useEffect(() => {
     if (visible && targetId) {
       loadAssociations();
     }
-  }, [visible, targetId, loadAssociations]);
+    // 注意：不将 loadAssociations 加入依赖，避免因函数引用变化导致重复调用
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, targetId]);
 
   // 重置状态
   useEffect(() => {
