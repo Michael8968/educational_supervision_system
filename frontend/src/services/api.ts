@@ -19,6 +19,18 @@ function getAuthToken(): string | null {
   }
 }
 
+// 清除认证信息并跳转到登录页
+function handleUnauthorized() {
+  // 清除所有认证相关的存储
+  localStorage.removeItem('token');
+  localStorage.removeItem('auth-storage');
+
+  // 跳转到登录页
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
 // 通用请求方法
 async function request<T>(
   endpoint: string,
@@ -47,6 +59,12 @@ async function request<T>(
   try {
     const response = await fetch(url, config);
     const data = await response.json();
+
+    // 统一处理 401 认证错误
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error(data.message || '认证已过期，请重新登录');
+    }
 
     if (!response.ok) {
       throw new Error(data.message || `HTTP error! status: ${response.status}`);
