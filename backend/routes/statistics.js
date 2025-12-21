@@ -2417,13 +2417,15 @@ router.get('/districts/:districtId/government-guarantee-summary', async (req, re
     }
 
     // 获取区县填报的数据（从submissions表中获取区县级别的填报）
+    // 必须同时满足：工具目标是"区县" 且 填报单位是当前区县
     const submissionResult = await db.query(`
       SELECT s.id, s.data as form_data, s.status, s.submitted_at, s.approved_at,
              dt.name as form_name, dt.target as form_target
       FROM submissions s
       JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
       WHERE s.project_id = $1
-        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND dt.target = '区县'
+        AND s.submitter_org = $2
         AND s.status IN ('approved', 'submitted', 'rejected')
       ORDER BY
         CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
@@ -3168,14 +3170,15 @@ router.get('/districts/:districtId/education-quality-summary', async (req, res) 
       return res.status(404).json({ code: 404, message: '区县不存在' });
     }
 
-    // 获取区县填报的数据
+    // 获取区县填报的数据（必须同时满足：工具目标是"区县" 且 填报单位是当前区县）
     const submissionResult = await db.query(`
       SELECT s.id, s.data as form_data, s.status, s.submitted_at,
              dt.name as form_name, dt.target as form_target
       FROM submissions s
       JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
       WHERE s.project_id = $1
-        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND dt.target = '区县'
+        AND s.submitter_org = $2
         AND s.status IN ('approved', 'submitted', 'rejected')
       ORDER BY
         CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
@@ -3668,14 +3671,15 @@ router.get('/districts/:districtId/social-recognition-summary', async (req, res)
       return res.status(404).json({ code: 404, message: '区县不存在' });
     }
 
-    // 获取区县填报的数据
+    // 获取区县填报的数据（必须同时满足：工具目标是"区县" 且 填报单位是当前区县）
     const submissionResult = await db.query(`
       SELECT s.id, s.data as form_data, s.status, s.submitted_at,
              dt.name as form_name, dt.target as form_target
       FROM submissions s
       JOIN data_tools dt ON COALESCE(s.form_id, s.tool_id) = dt.id
       WHERE s.project_id = $1
-        AND (dt.target = '区县' OR s.submitter_org = $2)
+        AND dt.target = '区县'
+        AND s.submitter_org = $2
         AND s.status IN ('approved', 'submitted', 'rejected')
       ORDER BY
         CASE WHEN s.status = 'approved' THEN 0 ELSE 1 END,
