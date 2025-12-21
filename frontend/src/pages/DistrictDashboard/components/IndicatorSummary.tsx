@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Table, Select, Spin, Empty, Tag, Tooltip, Collapse } from 'antd';
+import { Row, Col, Card, Table, Tabs, Spin, Empty, Tag, Tooltip, Collapse } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
@@ -43,8 +43,10 @@ const INDICATOR_SHORT_NAMES: Record<string, string> = {
 
 const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, projectId, refreshKey }) => {
   const [loading, setLoading] = useState(false);
-  const [schoolType, setSchoolType] = useState<string>('小学');
-  const [data, setData] = useState<ResourceIndicatorsSummary | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('primary');
+  // 小学和初中分别存储数据
+  const [primaryData, setPrimaryData] = useState<ResourceIndicatorsSummary | null>(null);
+  const [juniorData, setJuniorData] = useState<ResourceIndicatorsSummary | null>(null);
   const [govData, setGovData] = useState<GovernmentGuaranteeResponse | null>(null);
   const [govLoading, setGovLoading] = useState(false);
   const [eduQualityData, setEduQualityData] = useState<EducationQualityResponse | null>(null);
@@ -52,15 +54,20 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
   const [socialRecogData, setSocialRecogData] = useState<SocialRecognitionResponse | null>(null);
   const [socialRecogLoading, setSocialRecogLoading] = useState(false);
 
-  // 加载资源配置指标数据
+  // 加载资源配置指标数据（同时加载小学和初中）
   useEffect(() => {
     if (!districtId || !projectId) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        const result = await getResourceIndicatorsSummary(districtId, projectId, schoolType);
-        setData(result);
+        // 并行加载小学和初中数据
+        const [primaryResult, juniorResult] = await Promise.all([
+          getResourceIndicatorsSummary(districtId, projectId, '小学'),
+          getResourceIndicatorsSummary(districtId, projectId, '初中'),
+        ]);
+        setPrimaryData(primaryResult);
+        setJuniorData(juniorResult);
       } catch (error) {
         console.error('加载数据失败:', error);
       } finally {
@@ -69,7 +76,7 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     };
 
     loadData();
-  }, [districtId, projectId, schoolType, refreshKey]);
+  }, [districtId, projectId, refreshKey]);
 
   // 加载政府保障程度指标数据
   useEffect(() => {
@@ -305,8 +312,6 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     },
   ];
 
-  const cvThreshold = schoolType === '小学' ? 0.50 : 0.45;
-
   // 渲染政府保障程度指标状态
   const renderGovIndicatorStatus = (indicator: GovernmentGuaranteeIndicator) => {
     if (indicator.isCompliant === null) {
@@ -512,170 +517,222 @@ const IndicatorSummary: React.FC<IndicatorSummaryProps> = ({ districtId, project
     );
   };
 
-  return (
-    <div>
-      {/* 筛选条件 */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <span>学校类型：</span>
-        <Select
-          value={schoolType}
-          onChange={setSchoolType}
-          style={{ width: 120 }}
-          options={[
-            { value: '小学', label: '小学' },
-            { value: '初中', label: '初中' },
-          ]}
-        />
-        <span style={{ marginLeft: 'auto', color: '#666' }}>
+  // 渲染资源配置指标内容（小学或初中）
+  const renderResourceIndicatorsContent = (data: ResourceIndicatorsSummary | null, schoolType: '小学' | '初中') => {
+    const cvThreshold = schoolType === '小学' ? 0.50 : 0.45;
+
+    return (
+      <div>
+        {/* 差异系数达标标准提示 */}
+        <div style={{ marginBottom: 16, color: '#666', fontSize: 13 }}>
           差异系数达标标准：≤{cvThreshold}
-        </span>
-      </div>
+        </div>
 
-      {/* 7项差异系数汇总卡片 */}
-      <Card
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>7项资源配置指标差异系数</span>
-            {data?.summary && (
-              <span style={{ fontSize: 14, fontWeight: 'normal' }}>
-                {data.summary.allCompliant ? (
-                  <Tag icon={<CheckCircleOutlined />} color="success">
-                    {data.summary.compliantCvCount}/{data.summary.totalCvCount} 项达标
-                  </Tag>
-                ) : (
-                  <Tag icon={<CloseCircleOutlined />} color="error">
-                    {data.summary.compliantCvCount}/{data.summary.totalCvCount} 项达标
-                  </Tag>
-                )}
-              </span>
-            )}
-          </div>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        {data?.summary?.cvIndicators && data.summary.cvIndicators.length > 0 ? (
-          <Row gutter={[16, 16]}>
-            {data.summary.cvIndicators.map((cv) => (
-              <Col span={6} key={cv.code}>
-                <Card
-                  size="small"
-                  style={{
-                    background: cv.isCompliant === null ? '#f5f5f5' : cv.isCompliant ? '#f6ffed' : '#fff2f0',
-                    borderColor: cv.isCompliant === null ? '#d9d9d9' : cv.isCompliant ? '#b7eb8f' : '#ffccc7',
-                  }}
-                >
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>
-                      {cv.code} {INDICATOR_SHORT_NAMES[cv.code]}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 24, fontWeight: 600 }}>
-                      {cv.cv !== null ? cv.cv.toFixed(4) : '-'}
-                    </span>
-                    {renderCVStatus(cv)}
-                  </div>
-                  {cv.cv !== null ? (
-                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
-                      均值: {cv.mean?.toFixed(2) ?? '-'} | 标准差: {cv.stdDev?.toFixed(2) ?? '-'} | 样本: {cv.count}
-                    </div>
-                  ) : cv.count > 0 && (
-                    <div style={{ fontSize: 12, color: '#faad14', marginTop: 8 }}>
-                      已有 {cv.count} 所学校数据，均值: {cv.mean?.toFixed(2) ?? '-'}
-                    </div>
-                  )}
-                </Card>
-              </Col>
-            ))}
-            {/* 综合判定卡片 */}
-            <Col span={6}>
-              <Card
-                size="small"
-                style={{
-                  background: data.summary.allCompliant === null
-                    ? '#f5f5f5'
-                    : data.summary.allCompliant
-                    ? '#f6ffed'
-                    : '#fff2f0',
-                  borderColor: data.summary.allCompliant === null
-                    ? '#d9d9d9'
-                    : data.summary.allCompliant
-                    ? '#b7eb8f'
-                    : '#ffccc7',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合判定</div>
-                  <div style={{ fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
-                    {data.summary.compliantCvCount}/{data.summary.totalCvCount}
-                  </div>
-                  {data.summary.allCompliant !== null && (
-                    data.summary.allCompliant ? (
-                      <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 14, padding: '4px 12px' }}>
-                        全部达标
-                      </Tag>
-                    ) : (
-                      <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
-                        未全部达标
-                      </Tag>
-                    )
-                  )}
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        ) : (
-          <Empty description="暂无差异系数数据" />
-        )}
-      </Card>
-
-      {/* 学校指标数据表格 */}
-      <Card
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>各学校7项资源配置指标</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {data?.summary?.overallCompliance && (
+        {/* 7项差异系数汇总卡片 */}
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>7项资源配置指标差异系数</span>
+              {data?.summary && (
                 <span style={{ fontSize: 14, fontWeight: 'normal' }}>
-                  {data.summary.overallCompliance.allSchoolsCompliant ? (
+                  {data.summary.allCompliant ? (
                     <Tag icon={<CheckCircleOutlined />} color="success">
-                      {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                      {data.summary.compliantCvCount}/{data.summary.totalCvCount} 项达标
                     </Tag>
                   ) : (
                     <Tag icon={<CloseCircleOutlined />} color="error">
-                      {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                      {data.summary.compliantCvCount}/{data.summary.totalCvCount} 项达标
                     </Tag>
                   )}
                 </span>
               )}
-              <span style={{ fontSize: 14, fontWeight: 'normal', color: '#666' }}>
-                共 {data?.schools?.length || 0} 所学校
-              </span>
             </div>
-          </div>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        {data?.schools && data.schools.length > 0 ? (
-          <Table
-            columns={columns}
-            dataSource={data.schools}
-            rowKey="id"
-            scroll={{ x: 1200 }}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 所学校`,
-            }}
-            size="middle"
-          />
-        ) : (
-          <Empty description="暂无学校数据" />
-        )}
+          }
+          style={{ marginBottom: 24 }}
+        >
+          {data?.summary?.cvIndicators && data.summary.cvIndicators.length > 0 ? (
+            <Row gutter={[16, 16]}>
+              {data.summary.cvIndicators.map((cv) => (
+                <Col span={6} key={cv.code}>
+                  <Card
+                    size="small"
+                    style={{
+                      background: cv.isCompliant === null ? '#f5f5f5' : cv.isCompliant ? '#f6ffed' : '#fff2f0',
+                      borderColor: cv.isCompliant === null ? '#d9d9d9' : cv.isCompliant ? '#b7eb8f' : '#ffccc7',
+                    }}
+                  >
+                    <div style={{ marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, color: '#6b7280' }}>
+                        {cv.code} {INDICATOR_SHORT_NAMES[cv.code]}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 24, fontWeight: 600 }}>
+                        {cv.cv !== null ? cv.cv.toFixed(4) : '-'}
+                      </span>
+                      {renderCVStatus(cv)}
+                    </div>
+                    {cv.cv !== null ? (
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
+                        均值: {cv.mean?.toFixed(2) ?? '-'} | 标准差: {cv.stdDev?.toFixed(2) ?? '-'} | 样本: {cv.count}
+                      </div>
+                    ) : cv.count > 0 && (
+                      <div style={{ fontSize: 12, color: '#faad14', marginTop: 8 }}>
+                        已有 {cv.count} 所学校数据，均值: {cv.mean?.toFixed(2) ?? '-'}
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              ))}
+              {/* 综合判定卡片 */}
+              <Col span={6}>
+                <Card
+                  size="small"
+                  style={{
+                    background: data.summary.allCompliant === null
+                      ? '#f5f5f5'
+                      : data.summary.allCompliant
+                      ? '#f6ffed'
+                      : '#fff2f0',
+                    borderColor: data.summary.allCompliant === null
+                      ? '#d9d9d9'
+                      : data.summary.allCompliant
+                      ? '#b7eb8f'
+                      : '#ffccc7',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合判定</div>
+                    <div style={{ fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
+                      {data.summary.compliantCvCount}/{data.summary.totalCvCount}
+                    </div>
+                    {data.summary.allCompliant !== null && (
+                      data.summary.allCompliant ? (
+                        <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 14, padding: '4px 12px' }}>
+                          全部达标
+                        </Tag>
+                      ) : (
+                        <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 14, padding: '4px 12px' }}>
+                          未全部达标
+                        </Tag>
+                      )
+                    )}
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+          ) : (
+            <Empty description="暂无差异系数数据" />
+          )}
+        </Card>
+
+        {/* 学校指标数据表格 */}
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>各学校7项资源配置指标</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {data?.summary?.overallCompliance && (
+                  <span style={{ fontSize: 14, fontWeight: 'normal' }}>
+                    {data.summary.overallCompliance.allSchoolsCompliant ? (
+                      <Tag icon={<CheckCircleOutlined />} color="success">
+                        {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                      </Tag>
+                    ) : (
+                      <Tag icon={<CloseCircleOutlined />} color="error">
+                        {data.summary.overallCompliance.compliantSchools}/{data.summary.schoolCount} 所学校达标
+                      </Tag>
+                    )}
+                  </span>
+                )}
+                <span style={{ fontSize: 14, fontWeight: 'normal', color: '#666' }}>
+                  共 {data?.schools?.length || 0} 所学校
+                </span>
+              </div>
+            </div>
+          }
+        >
+          {data?.schools && data.schools.length > 0 ? (
+            <Table
+              columns={columns}
+              dataSource={data.schools}
+              rowKey="id"
+              scroll={{ x: 1200 }}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `共 ${total} 所学校`,
+              }}
+              size="middle"
+            />
+          ) : (
+            <Empty description="暂无学校数据" />
+          )}
+        </Card>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* 7项资源配置指标（小学/初中Tab） */}
+      <Card style={{ marginBottom: 24 }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'primary',
+              label: (
+                <span>
+                  小学
+                  {primaryData?.summary && (
+                    <Tag
+                      color={primaryData.summary.allCompliant ? 'success' : 'error'}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {primaryData.summary.compliantCvCount}/{primaryData.summary.totalCvCount}
+                    </Tag>
+                  )}
+                </span>
+              ),
+              children: loading ? (
+                <div style={{ textAlign: 'center', padding: 48 }}>
+                  <Spin size="large" />
+                </div>
+              ) : (
+                renderResourceIndicatorsContent(primaryData, '小学')
+              ),
+            },
+            {
+              key: 'junior',
+              label: (
+                <span>
+                  初中
+                  {juniorData?.summary && (
+                    <Tag
+                      color={juniorData.summary.allCompliant ? 'success' : 'error'}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {juniorData.summary.compliantCvCount}/{juniorData.summary.totalCvCount}
+                    </Tag>
+                  )}
+                </span>
+              ),
+              children: loading ? (
+                <div style={{ textAlign: 'center', padding: 48 }}>
+                  <Spin size="large" />
+                </div>
+              ) : (
+                renderResourceIndicatorsContent(juniorData, '初中')
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* 政府保障程度15项指标 */}
