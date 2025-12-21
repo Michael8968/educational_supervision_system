@@ -91,7 +91,7 @@ const DistrictDashboard: React.FC = () => {
     },
     {
       key: 'submissions',
-      label: '填报明细',
+      label: '学校填报',
       children: (
         <SubmissionList
           districtId={districtId}

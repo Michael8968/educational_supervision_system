@@ -283,6 +283,11 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ districtId, projectId }
               </a>
             </>
           )}
+          {record.status === 'approved' && (
+            <a style={{ color: '#ff4d4f' }} onClick={() => handleOpenReject(record.id)}>
+              驳回
+            </a>
+          )}
         </Space>
       ),
     },
@@ -504,6 +509,20 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ districtId, projectId }
               }}
             >
               审核通过
+            </Button>,
+          ] : submissionDetail?.status === 'approved' ? [
+            <Button key="close" onClick={() => setDetailModalVisible(false)}>
+              关闭
+            </Button>,
+            <Button
+              key="reject"
+              danger
+              onClick={() => {
+                setDetailModalVisible(false);
+                handleOpenReject(submissionDetail.id);
+              }}
+            >
+              驳回
             </Button>,
           ] : [
             <Button key="close" onClick={() => setDetailModalVisible(false)}>

@@ -55,8 +55,8 @@ const MainLayout: React.FC = () => {
   const menuItems = useMemo(() => {
     const items = [];
 
-    // 教育督导 - 管理员和项目管理员可见完整内容
-    if (permissions.canManageProjects) {
+    // 教育督导 - 管理员和项目管理员可见完整内容（区县管理员除外）
+    if (permissions.canManageProjects && !permissions.isDistrictAdmin) {
       items.push({
         key: '/home',
         icon: <HomeOutlined />,

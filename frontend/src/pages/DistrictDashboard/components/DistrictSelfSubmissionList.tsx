@@ -242,6 +242,11 @@ const DistrictSelfSubmissionList: React.FC<DistrictSelfSubmissionListProps> = ({
               </Button>
             </>
           )}
+          {record.status === 'approved' && (
+            <Button type="link" onClick={() => handleOpenReject(record.id)} style={{ padding: 0, color: '#ff4d4f' }}>
+              驳回
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -430,6 +435,22 @@ const DistrictSelfSubmissionList: React.FC<DistrictSelfSubmissionListProps> = ({
                   }}
                 >
                   审核通过
+                </Button>,
+              ]
+            : submissionDetail?.status === 'approved'
+            ? [
+                <Button key="close" onClick={() => setDetailModalVisible(false)}>
+                  关闭
+                </Button>,
+                <Button
+                  key="reject"
+                  danger
+                  onClick={() => {
+                    setDetailModalVisible(false);
+                    handleOpenReject(submissionDetail.id);
+                  }}
+                >
+                  驳回
                 </Button>,
               ]
             : [
