@@ -5,10 +5,22 @@
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 24px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backButton {
+  color: #6b7280;
+  padding-left: 0;
+}
+
+.backButton:hover {
+  color: #1890ff;
 }
 
 .title {
@@ -22,10 +34,8 @@
   margin-left: 12px;
 }
 
-.filterBar {
-  display: flex;
-  gap: 16px;
-  align-items: center;
+.statusTag {
+  margin-left: 8px;
 }
 
 .statsCards {
@@ -104,10 +114,6 @@
   color: #9ca3af;
 }
 
-.projectSelector {
-  min-width: 200px;
-}
-
 .summarySection {
   margin-bottom: 24px;
 }
@@ -165,10 +171,5 @@
   .cvIndicators,
   .categoryCompliance {
     grid-template-columns: 1fr;
-  }
-
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
   }
 }

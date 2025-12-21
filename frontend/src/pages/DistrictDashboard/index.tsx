@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Select, Tag, message, Spin, Empty } from 'antd';
+import { Tabs, Tag, message, Spin, Empty, Button } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { getProjects } from '../../services/submissionService';
+import { getProject, Project } from '../../services/submissionService';
 import IndicatorSummary from './components/IndicatorSummary';
 import SchoolIndicators from './components/SchoolIndicators';
 import SubmissionList from './components/SubmissionList';
 import DistrictSelfSubmissionList from './components/DistrictSelfSubmissionList';
 import styles from './index.module.css';
 
-interface Project {
-  id: string;
-  name: string;
-  status: string;
-}
-
 const DistrictDashboard: React.FC = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [project, setProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState('indicator-summary');
   const [indicatorSummaryRefreshKey, setIndicatorSummaryRefreshKey] = useState(0);
 
@@ -26,29 +23,29 @@ const DistrictDashboard: React.FC = () => {
   const districtId = user?.currentScope?.type === 'district' ? user.currentScope.id : '';
   const districtName = user?.currentScope?.name || '未选择区县';
 
-  // 加载项目列表
+  // 加载项目信息
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadProject = async () => {
+      if (!projectId) return;
+
       setLoading(true);
       try {
-        const data = await getProjects();
-        // 过滤出进行中的项目
-        const activeProjects = data.filter(
-          (p: Project) => p.status === '填报中' || p.status === '评审中' || p.status === '已完成'
-        );
-        setProjects(activeProjects);
-        if (activeProjects.length > 0 && !selectedProjectId) {
-          setSelectedProjectId(activeProjects[0].id);
-        }
+        const data = await getProject(projectId);
+        setProject(data);
       } catch (error) {
-        message.error('加载项目列表失败');
+        message.error('加载项目信息失败');
       } finally {
         setLoading(false);
       }
     };
 
-    loadProjects();
-  }, []);
+    loadProject();
+  }, [projectId]);
+
+  // 返回项目列表
+  const handleBack = () => {
+    navigate('/district');
+  };
 
   // 如果没有选择区县，显示提示
   if (!districtId) {
@@ -77,7 +74,7 @@ const DistrictDashboard: React.FC = () => {
       children: (
         <IndicatorSummary
           districtId={districtId}
-          projectId={selectedProjectId}
+          projectId={projectId || ''}
           refreshKey={indicatorSummaryRefreshKey}
         />
       ),
@@ -88,7 +85,7 @@ const DistrictDashboard: React.FC = () => {
       children: (
         <SchoolIndicators
           districtId={districtId}
-          projectId={selectedProjectId}
+          projectId={projectId || ''}
         />
       ),
     },
@@ -98,7 +95,7 @@ const DistrictDashboard: React.FC = () => {
       children: (
         <SubmissionList
           districtId={districtId}
-          projectId={selectedProjectId}
+          projectId={projectId || ''}
         />
       ),
     },
@@ -108,7 +105,7 @@ const DistrictDashboard: React.FC = () => {
       children: (
         <DistrictSelfSubmissionList
           districtId={districtId}
-          projectId={selectedProjectId}
+          projectId={projectId || ''}
         />
       ),
     },
@@ -117,37 +114,27 @@ const DistrictDashboard: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>
-          区县管理员工作台
-          <Tag color="blue" className={styles.districtTag}>{districtName}</Tag>
-        </h1>
-        <div className={styles.filterBar}>
-          <span>选择项目：</span>
-          <Select
-            className={styles.projectSelector}
-            value={selectedProjectId}
-            onChange={setSelectedProjectId}
-            placeholder="请选择项目"
-            loading={loading}
-            allowClear
-            options={[
-              { value: '', label: '全部项目' },
-              ...projects.map(p => ({
-                value: p.id,
-                label: (
-                  <span>
-                    {p.name}
-                    <Tag
-                      color={p.status === '填报中' ? 'processing' : p.status === '评审中' ? 'warning' : 'success'}
-                      style={{ marginLeft: 8 }}
-                    >
-                      {p.status}
-                    </Tag>
-                  </span>
-                ),
-              }))
-            ]}
-          />
+        <div className={styles.titleRow}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={handleBack}
+            className={styles.backButton}
+          >
+            返回
+          </Button>
+          <h1 className={styles.title}>
+            {project?.name || '加载中...'}
+            <Tag color="blue" className={styles.districtTag}>{districtName}</Tag>
+            {project && (
+              <Tag
+                color={project.status === '填报中' ? 'processing' : project.status === '评审中' ? 'warning' : 'success'}
+                className={styles.statusTag}
+              >
+                {project.status}
+              </Tag>
+            )}
+          </h1>
         </div>
       </div>
 
@@ -155,9 +142,9 @@ const DistrictDashboard: React.FC = () => {
         <div style={{ textAlign: 'center', padding: 60 }}>
           <Spin size="large" />
         </div>
-      ) : !selectedProjectId ? (
+      ) : !projectId ? (
         <div className={styles.noData}>
-          <Empty description="暂无可用项目" />
+          <Empty description="请选择一个项目" />
         </div>
       ) : (
         <div className={styles.tabContent}>

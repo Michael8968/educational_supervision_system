@@ -1,0 +1,43 @@
+.container {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.districtTag {
+  margin-left: 12px;
+}
+
+.tableWrapper {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid #e8e8e8;
+}
+
+.noData {
+  text-align: center;
+  padding: 60px;
+  color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .tableWrapper {
+    padding: 16px;
+  }
+}
