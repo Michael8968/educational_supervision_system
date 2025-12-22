@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Space, message, Modal, Form, Input, Select, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Table, Space, message, Modal, Form, Input, Select, Tag, Upload, Progress } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import * as XLSX from 'xlsx';
 import styles from './index.module.css';
 import {
   getSchools,
   createSchool,
   updateSchool,
   deleteSchool,
+  importSchools,
   School,
+  SchoolImportResult,
   SCHOOL_TYPES,
   SCHOOL_CATEGORIES,
   URBAN_RURAL_TYPES,
 } from '../../../services/schoolService';
+import { getDistricts, District } from '../../../services/districtService';
 
 const { Search } = Input;
 
 const SchoolManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<School[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -34,9 +39,17 @@ const SchoolManagement: React.FC = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<SchoolImportResult | null>(null);
   const [current, setCurrent] = useState<School | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
+
+  // 加载区县列表
+  useEffect(() => {
+    getDistricts().then(setDistricts).catch(() => message.error('加载区县列表失败'));
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -139,6 +152,180 @@ const SchoolManagement: React.FC = () => {
     } catch (e: unknown) {
       message.error((e as Error).message || '更新状态失败');
     }
+  };
+
+  // Excel 列名到字段名的映射
+  const columnMapping: Record<string, string> = {
+    '学校代码': 'code',
+    '学校名称': 'name',
+    '区县名称': 'districtName',
+    '区县ID': 'districtId',
+    '学校类型': 'schoolType',
+    '办学性质': 'schoolCategory',
+    '城乡类型': 'urbanRural',
+    '地址': 'address',
+    '校长': 'principal',
+    '联系电话': 'contactPhone',
+    '学生数': 'studentCount',
+    '教师数': 'teacherCount',
+  };
+
+  // 解析 Excel 文件
+  const parseExcelFile = (file: File): Promise<Array<Record<string, unknown>>> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
+
+          if (jsonData.length < 2) {
+            reject(new Error('文件中没有数据'));
+            return;
+          }
+
+          const headers = jsonData[0] as string[];
+          const rows = jsonData.slice(1);
+
+          const result = rows
+            .filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''))
+            .map(row => {
+              const obj: Record<string, unknown> = {};
+              headers.forEach((header, index) => {
+                const fieldName = columnMapping[header] || header;
+                let value = (row as unknown[])[index];
+                if (fieldName === 'studentCount' || fieldName === 'teacherCount') {
+                  value = value ? Number(value) : 0;
+                }
+                obj[fieldName] = value;
+              });
+              return obj;
+            });
+
+          resolve(result);
+        } catch (error) {
+          reject(new Error('文件解析失败，请检查文件格式'));
+        }
+      };
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.readAsBinaryString(file);
+    });
+  };
+
+  // 根据区县名称查找区县ID
+  const findDistrictIdByName = (name: string): string | undefined => {
+    const district = districts.find(d => d.name === name || d.name.includes(name) || name.includes(d.name));
+    return district?.id;
+  };
+
+  // 处理导入
+  const handleImportFile = async (file: File) => {
+    if (districts.length === 0) {
+      message.error('请等待区县数据加载完成');
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const data = await parseExcelFile(file);
+
+      if (data.length === 0) {
+        message.error('文件中没有有效数据');
+        setImporting(false);
+        return;
+      }
+
+      if (data.length > 500) {
+        message.error('单次最多导入 500 条记录');
+        setImporting(false);
+        return;
+      }
+
+      const processedData = data.map(item => {
+        const processed = { ...item };
+        if (!processed.districtId && processed.districtName) {
+          const districtId = findDistrictIdByName(String(processed.districtName));
+          if (districtId) {
+            processed.districtId = districtId;
+          }
+        }
+        return processed;
+      });
+
+      const result = await importSchools(processedData as Parameters<typeof importSchools>[0]);
+      setImportResult(result);
+
+      if (result.success > 0) {
+        message.success(`成功导入 ${result.success} 所学校`);
+        loadData();
+      }
+
+      if (result.failed > 0) {
+        message.warning(`${result.failed} 条记录导入失败`);
+      }
+    } catch (error) {
+      message.error((error as Error).message || '导入失败');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // 下载 Excel 模板
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        '学校代码': '2101020001',
+        '学校名称': '示例小学',
+        '区县名称': districts[0]?.name || '和平区',
+        '学校类型': '小学',
+        '办学性质': '公办',
+        '城乡类型': '城区',
+        '地址': '示例路1号',
+        '校长': '张三',
+        '联系电话': '024-12345678',
+        '学生数': 1000,
+        '教师数': 80,
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 10 },
+      { wch: 15 }, { wch: 10 }, { wch: 10 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '学校导入模板');
+
+    const instructionData = [
+      ['字段说明'],
+      [''],
+      ['学校代码', '必填，学校的唯一标识代码'],
+      ['学校名称', '必填，学校的正式名称'],
+      ['区县名称', '必填，学校所属区县名称（如：和平区、沈河区）'],
+      ['学校类型', '必填，可选值：幼儿园、小学、初中、九年一贯制、完全中学'],
+      ['办学性质', '可选，可选值：公办、民办，默认为公办'],
+      ['城乡类型', '可选，可选值：城区、镇区、乡村，默认为城区'],
+      ['地址', '可选，学校地址'],
+      ['校长', '可选，校长姓名'],
+      ['联系电话', '可选，学校联系电话'],
+      ['学生数', '可选，学生总数，默认为0'],
+      ['教师数', '可选，教师总数，默认为0'],
+      [''],
+      ['当前可用区县列表：'],
+      ...districts.map(d => [d.name, `ID: ${d.id}`]),
+    ];
+    const instructionSheet = XLSX.utils.aoa_to_sheet(instructionData);
+    instructionSheet['!cols'] = [{ wch: 15 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(workbook, instructionSheet, '填写说明');
+
+    XLSX.writeFile(workbook, '学校导入模板.xlsx');
   };
 
   const columns: ColumnsType<School> = [
@@ -275,6 +462,12 @@ const SchoolManagement: React.FC = () => {
           </div>
           <div className={styles.actions}>
             <Button onClick={loadData}>刷新</Button>
+            <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
+              下载模板
+            </Button>
+            <Button icon={<UploadOutlined />} onClick={() => setImportModalVisible(true)}>
+              批量导入
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               新增学校
             </Button>
@@ -410,6 +603,134 @@ const SchoolManagement: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 批量导入弹窗 */}
+      <Modal
+        title="批量导入学校"
+        open={importModalVisible}
+        onCancel={() => {
+          if (!importing) {
+            setImportModalVisible(false);
+            setImportResult(null);
+          }
+        }}
+        footer={null}
+        width={600}
+        maskClosable={!importing}
+      >
+        <div style={{ padding: '8px 0' }}>
+          {!importResult ? (
+            <>
+              <p>请按照模板格式准备 Excel 文件，然后上传导入。</p>
+              <p style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>
+                支持格式：.xlsx, .xls<br/>
+                单次最多导入 500 条记录<br/>
+                模板中包含字段说明和区县列表，请先下载模板查看
+              </p>
+              <Upload.Dragger
+                name="file"
+                accept=".xlsx,.xls"
+                maxCount={1}
+                showUploadList={false}
+                disabled={importing}
+                beforeUpload={(file) => {
+                  handleImportFile(file);
+                  return false;
+                }}
+              >
+                {importing ? (
+                  <div style={{ padding: '20px 0' }}>
+                    <Progress type="circle" percent={99} status="active" />
+                    <p style={{ marginTop: 16 }}>正在导入中，请稍候...</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="ant-upload-drag-icon">
+                      <UploadOutlined style={{ fontSize: 48, color: '#1677ff' }} />
+                    </p>
+                    <p className="ant-upload-text">点击或拖拽 Excel 文件到此区域上传</p>
+                    <p className="ant-upload-hint">支持 .xlsx, .xls 格式</p>
+                  </>
+                )}
+              </Upload.Dragger>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+                <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
+                  下载导入模板
+                </Button>
+                <Button onClick={() => setImportModalVisible(false)} disabled={importing}>
+                  关闭
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                {importResult.failed === 0 ? (
+                  <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                ) : importResult.success === 0 ? (
+                  <CloseCircleOutlined style={{ fontSize: 48, color: '#ff4d4f' }} />
+                ) : (
+                  <CheckCircleOutlined style={{ fontSize: 48, color: '#faad14' }} />
+                )}
+                <h3 style={{ marginTop: 16, marginBottom: 8 }}>导入完成</h3>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 48, marginBottom: 24 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 'bold', color: '#52c41a' }}>
+                    {importResult.success}
+                  </div>
+                  <div style={{ color: '#666' }}>成功</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 'bold', color: '#ff4d4f' }}>
+                    {importResult.failed}
+                  </div>
+                  <div style={{ color: '#666' }}>失败</div>
+                </div>
+              </div>
+
+              {importResult.errors.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <h4 style={{ marginBottom: 8 }}>失败详情：</h4>
+                  <div style={{
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    background: '#fafafa',
+                    borderRadius: 4,
+                    padding: 12
+                  }}>
+                    {importResult.errors.map((err, index) => (
+                      <div key={index} style={{
+                        padding: '8px 0',
+                        borderBottom: index < importResult.errors.length - 1 ? '1px solid #f0f0f0' : 'none',
+                        fontSize: 13
+                      }}>
+                        <Tag color="error">{err.code || `第${index + 1}条`}</Tag>
+                        <span style={{ color: '#666' }}>{err.error}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={() => setImportResult(null)}>
+                    继续导入
+                  </Button>
+                  <Button type="primary" onClick={() => {
+                    setImportModalVisible(false);
+                    setImportResult(null);
+                  }}>
+                    完成
+                  </Button>
+                </Space>
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
     </div>
   );
