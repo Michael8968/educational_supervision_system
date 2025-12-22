@@ -8,7 +8,7 @@ export interface School {
   districtId: string;
   districtName?: string;
   districtCode?: string;
-  schoolType: '小学' | '初中' | '九年一贯制' | '完全中学';
+  schoolType: '幼儿园' | '小学' | '初中' | '九年一贯制' | '完全中学';
   schoolCategory: '公办' | '民办';
   urbanRural: '城区' | '镇区' | '乡村';
   address: string;

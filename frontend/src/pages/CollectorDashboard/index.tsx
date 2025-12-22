@@ -47,7 +47,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useAuthStore } from '../../stores/authStore';
 import * as taskService from '../../services/taskService';
 import type { Task, TaskStatus, MyProject, ToolFullSchema } from '../../services/taskService';
-import { getSchoolCompliance, getSchoolIndicatorData, SchoolCompliance, SchoolIndicatorData, SchoolIndicatorItem } from '../../services/schoolService';
+import { getSchool, getSchoolCompliance, getSchoolIndicatorData, School, SchoolCompliance, SchoolIndicatorData, SchoolIndicatorItem } from '../../services/schoolService';
 import { getDistrictSchoolsIndicatorSummary, DistrictSchoolsIndicatorSummary } from '../../services/districtService';
 import { getResourceIndicatorsSummary, ResourceIndicatorsSummary } from '../../services/statisticsService';
 import { getSubmissions, getSubmission, Submission } from '../../services/submissionService';
@@ -65,6 +65,9 @@ const CollectorDashboard: React.FC = () => {
   // 项目列表状态
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projects, setProjects] = useState<MyProject[]>([]);
+
+  // 学校信息（用于判断学校类型）
+  const [schoolInfo, setSchoolInfo] = useState<School | null>(null);
 
   // 任务列表状态
   const [loading, setLoading] = useState(false);
@@ -103,6 +106,28 @@ const CollectorDashboard: React.FC = () => {
     return null;
   }, [user]);
 
+  // 判断项目是否为学前教育项目
+  const isPreschoolProject = useCallback((project: MyProject) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${project.name} ${project.indicatorSystemName || ''} ${project.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 加载学校信息（用于判断学校类型）
+  const loadSchoolInfo = useCallback(async () => {
+    if (resolvedScope?.type === 'school' && resolvedScope.id) {
+      try {
+        const school = await getSchool(resolvedScope.id);
+        setSchoolInfo(school);
+      } catch (error) {
+        console.error('加载学校信息失败:', error);
+        setSchoolInfo(null);
+      }
+    } else {
+      setSchoolInfo(null);
+    }
+  }, [resolvedScope]);
+
   // 加载项目列表
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
@@ -118,6 +143,20 @@ const CollectorDashboard: React.FC = () => {
       setProjectsLoading(false);
     }
   }, [resolvedScope]);
+
+  // 根据学校类型过滤项目列表
+  const filteredProjects = useMemo(() => {
+    // 如果是学校填报员且学校类型是"幼儿园"，只显示学前教育项目
+    if (schoolInfo?.schoolType === '幼儿园') {
+      return projects.filter(isPreschoolProject);
+    }
+    // 如果是小学、初中等义务教育阶段学校，只显示非学前教育项目
+    if (schoolInfo?.schoolType && ['小学', '初中', '九年一贯制', '完全中学'].includes(schoolInfo.schoolType)) {
+      return projects.filter(project => !isPreschoolProject(project));
+    }
+    // 其他情况（区县填报员等）显示全部项目
+    return projects;
+  }, [projects, schoolInfo, isPreschoolProject]);
 
   // 加载任务列表
   const loadTasks = useCallback(async () => {
@@ -137,6 +176,11 @@ const CollectorDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [resolvedScope, selectedProject]);
+
+  // 加载学校信息
+  useEffect(() => {
+    loadSchoolInfo();
+  }, [loadSchoolInfo]);
 
   useEffect(() => {
     loadProjects();
@@ -416,11 +460,11 @@ const CollectorDashboard: React.FC = () => {
 
   // 项目列表视图
   const renderProjectList = () => {
-    // 计算项目总体统计
+    // 计算项目总体统计（使用过滤后的项目）
     const projectStats = {
-      total: projects.length,
-      totalTasks: projects.reduce((sum, p) => sum + (Number(p.totalTasks) || 0), 0),
-      completedTasks: projects.reduce((sum, p) => sum + (Number(p.completedTasks) || 0), 0),
+      total: filteredProjects.length,
+      totalTasks: filteredProjects.reduce((sum, p) => sum + (Number(p.totalTasks) || 0), 0),
+      completedTasks: filteredProjects.reduce((sum, p) => sum + (Number(p.completedTasks) || 0), 0),
     };
     const overallCompletionRate = projectStats.totalTasks > 0
       ? Math.round((projectStats.completedTasks / projectStats.totalTasks) * 100)
@@ -434,7 +478,12 @@ const CollectorDashboard: React.FC = () => {
             欢迎，{user?.username || '采集员'}
           </h1>
           <p className={styles.welcomeSubtitle}>
-            您有 <strong>{projects.length}</strong> 个待填报的评估项目
+            您有 <strong>{filteredProjects.length}</strong> 个待填报的评估项目
+            {schoolInfo?.schoolType && (
+              <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>
+                ({schoolInfo.schoolType})
+              </span>
+            )}
           </p>
         </div>
 
@@ -500,9 +549,9 @@ const CollectorDashboard: React.FC = () => {
           className={styles.taskCard}
         >
           <Spin spinning={projectsLoading}>
-            {projects.length > 0 ? (
+            {filteredProjects.length > 0 ? (
               <div className={styles.projectList}>
-                {projects.map(project => {
+                {filteredProjects.map(project => {
                   const totalTasks = Number(project.totalTasks) || 0;
                   const completedTasks = Number(project.completedTasks) || 0;
                   const projectCompletionRate = totalTasks > 0
