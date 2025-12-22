@@ -525,9 +525,9 @@ const ProjectPage: React.FC = () => {
           <Button onClick={() => navigate(`${basePath}/tools`)}>
             <ToolOutlined /> 采集工具库
           </Button>
-          <Button type="primary" onClick={() => navigate(`${basePath}/entry`)}>
+          {/* <Button type="primary" onClick={() => navigate(`${basePath}/entry`)}>
             <FormOutlined /> 数据填报
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -570,11 +570,11 @@ const ProjectPage: React.FC = () => {
       <div className={styles.listHeader}>
         <h3>项目列表</h3>
         <div className={styles.listActions}>
-          <Select value={selectedYear} style={{ width: 100 }} onChange={handleYearChange}>
+          {/* <Select value={selectedYear} style={{ width: 100 }} onChange={handleYearChange}>
             {yearOptions.map(year => (
               <Select.Option key={year} value={String(year)}>{year}</Select.Option>
             ))}
-          </Select>
+          </Select> */}
           <Search
             placeholder="搜索项目"
             onSearch={handleSearch}

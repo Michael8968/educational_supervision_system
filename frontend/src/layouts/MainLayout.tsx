@@ -101,13 +101,13 @@ const MainLayout: React.FC = () => {
     }
 
     // 系统配置 - 仅管理员可见
-    if (permissions.canManageSystem) {
-      items.push({
-        key: '/system',
-        icon: <SettingOutlined />,
-        label: '系统配置',
-      });
-    }
+    // if (permissions.canManageSystem) {
+    //   items.push({
+    //     key: '/system',
+    //     icon: <SettingOutlined />,
+    //     label: '系统配置',
+    //   });
+    // }
 
     // 用户管理 - 仅管理员可见（含子菜单）
     if (permissions.canManageSystem) {
