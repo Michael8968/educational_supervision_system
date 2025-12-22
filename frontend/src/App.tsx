@@ -108,11 +108,71 @@ const App: React.FC = () => {
             } />
             <Route path="home/balanced/project/:projectId/cv-analysis" element={<CVAnalysis />} />
             <Route path="home/balanced/project/:projectId/compliance" element={<ComplianceStats />} />
+
+            {/* 学前教育普及普惠路由 */}
             <Route path="home/kindergarten" element={
               <ProtectedRoute requiredPermission="canManageProjects">
                 <Project />
               </ProtectedRoute>
             } />
+            <Route path="home/kindergarten/indicators" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <IndicatorLibrary />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/indicators/:id/edit" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <IndicatorEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/indicators/:id/tree" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <IndicatorTreeEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/elements" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <ElementLibrary />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/elements/:id/edit" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <IndicatorEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/tools" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <ToolLibrary />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/tools/:id/edit" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <FormToolEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/entry" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <DataEntry />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/entry/:projectId/form/:formId" element={<DataEntryForm />} />
+            <Route path="home/kindergarten/project/:projectId/config" element={
+              <ProtectedRoute requiredPermission="canConfigProject">
+                <ProjectConfig />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/project/:projectId/detail" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <DistrictListPage />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/project/:projectId/district/:districtId" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <ProjectDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="home/kindergarten/project/:projectId/cv-analysis" element={<CVAnalysis />} />
+            <Route path="home/kindergarten/project/:projectId/compliance" element={<ComplianceStats />} />
 
             {/* 系统管理路由 - 仅管理员 */}
             <Route path="home/system/districts" element={

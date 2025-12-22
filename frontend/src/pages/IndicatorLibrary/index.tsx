@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Input, Tag, Modal, Form, Select, Upload, message, Spin, Empty, Popconfirm } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -16,7 +16,7 @@ import {
   CloseOutlined,
   ApartmentOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as indicatorService from '../../services/indicatorService';
 import type { IndicatorSystem } from '../../services/indicatorService';
 import styles from './index.module.css';
@@ -34,6 +34,7 @@ interface IndicatorSystemStats {
 
 const IndicatorLibrary: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [systems, setSystems] = useState<IndicatorSystem[]>([]);
   const [filteredSystems, setFilteredSystems] = useState<IndicatorSystem[]>([]);
@@ -47,31 +48,66 @@ const IndicatorLibrary: React.FC = () => {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  // 检测项目类型
+  const projectType = useMemo(() => {
+    if (location.pathname.includes('/home/kindergarten')) {
+      return 'preschool';
+    }
+    return 'balanced';
+  }, [location.pathname]);
+
+  // 判断是否为学前教育指标体系
+  const isPreschoolIndicatorSystem = useCallback((system: IndicatorSystem) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${system.name} ${system.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 动态基础路径
+  const basePath = useMemo(() => {
+    return projectType === 'preschool' ? '/home/kindergarten' : '/home/balanced';
+  }, [projectType]);
+
+  // 动态页面标题
+  const pageTitle = useMemo(() => {
+    return projectType === 'preschool' ? '学前教育评估指标体系库' : '评估指标体系库主页';
+  }, [projectType]);
+
   // 加载指标体系列表
   const loadSystems = useCallback(async () => {
     try {
       setLoading(true);
       const data = await indicatorService.getIndicatorSystems();
-      setSystems(data);
+
+      // 根据项目类型过滤
+      const typeFilteredData = data.filter(system => {
+        if (projectType === 'preschool') {
+          return isPreschoolIndicatorSystem(system);
+        } else {
+          return !isPreschoolIndicatorSystem(system);
+        }
+      });
+
+      setSystems(typeFilteredData);
 
       // 计算统计数据
       setStats({
-        total: data.length,
-        published: data.filter(sys => sys.status === 'published').length,
-        editing: data.filter(sys => sys.status === 'editing' || sys.status === 'draft').length,
-        standard: data.filter(sys => sys.type === '达标类').length,
-        scoring: data.filter(sys => sys.type === '评分类').length,
+        total: typeFilteredData.length,
+        published: typeFilteredData.filter(sys => sys.status === 'published').length,
+        editing: typeFilteredData.filter(sys => sys.status === 'editing' || sys.status === 'draft').length,
+        standard: typeFilteredData.filter(sys => sys.type === '达标类').length,
+        scoring: typeFilteredData.filter(sys => sys.type === '评分类').length,
       });
 
       // 应用筛选
-      applyFilter(data, searchValue, statusFilter);
+      applyFilter(typeFilteredData, searchValue, statusFilter);
     } catch (error) {
       console.error('加载指标体系列表失败:', error);
       message.error('加载指标体系列表失败');
     } finally {
       setLoading(false);
     }
-  }, [searchValue, statusFilter]);
+  }, [searchValue, statusFilter, projectType, isPreschoolIndicatorSystem]);
 
   useEffect(() => {
     loadSystems();
@@ -203,7 +239,7 @@ const IndicatorLibrary: React.FC = () => {
 
   // 编辑指标树
   const handleEditTree = (system: IndicatorSystem) => {
-    navigate(`/home/balanced/indicators/${system.id}/tree`);
+    navigate(`${basePath}/indicators/${system.id}/tree`);
   };
 
   // 获取状态标签
@@ -221,10 +257,10 @@ const IndicatorLibrary: React.FC = () => {
   return (
     <div className={styles.indicatorLibraryPage}>
       <div className={styles.pageHeader}>
-        <span className={styles.backBtn} onClick={() => navigate('/home/balanced')}>
+        <span className={styles.backBtn} onClick={() => navigate(basePath)}>
           <ArrowLeftOutlined /> 返回
         </span>
-        <h1 className={styles.pageTitle}>评估指标体系库主页</h1>
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </div>
 
       <div className={styles.statsSection}>
