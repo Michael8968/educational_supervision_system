@@ -67,7 +67,17 @@
                 "precision": 2
               }
             ],
-            "supportingMaterials": []
+            "supportingMaterials": [
+              {
+                "id": "SY-PJPH-1-2-M1",
+                "code": "1.2-M1",
+                "name": "公办园和普惠性民办园名单公示网址",
+                "fileTypes": "PDF",
+                "maxSize": "20MB",
+                "description": "提供公办园和普惠性民办园名单公示网址的PDF文件。",
+                "required": true
+              }
+            ]
           },
           {
             "id": "SY-PJPH-1-3",

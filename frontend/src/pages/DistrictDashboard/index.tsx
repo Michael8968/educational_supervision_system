@@ -101,6 +101,7 @@ const DistrictDashboard: React.FC = () => {
         <SubmissionList
           districtId={districtId}
           projectId={projectId || ''}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
