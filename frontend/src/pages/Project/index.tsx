@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Input, Select, Modal, Form, DatePicker, message, Spin, Tag, Popconfirm, Empty, Typography } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -14,7 +14,7 @@ import {
   CloseOutlined,
   EditOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import * as projectService from '../../services/projectService';
 import * as indicatorService from '../../services/indicatorService';
@@ -33,6 +33,7 @@ const { Search } = Input;
 
 const ProjectPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const permissions = useUserPermissions();
   const [loading, setLoading] = useState(true);
   const [projectList, setProjectList] = useState<Project[]>([]);
@@ -49,10 +50,90 @@ const ProjectPage: React.FC = () => {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  const renderToolOptions = () => {
-    // 按填报对象类型分组
+  // 根据路由判断项目类型
+  const projectType = useMemo(() => {
+    if (location.pathname.includes('/home/kindergarten')) {
+      return 'preschool'; // 学前教育
+    }
+    return 'balanced'; // 义务教育优质均衡（默认）
+  }, [location.pathname]);
+
+  // 页面标题
+  const pageTitle = useMemo(() => {
+    return projectType === 'preschool' ? '学前教育普及普惠督导评估项目' : '义务教育优质均衡督导评估项目';
+  }, [projectType]);
+
+  // 判断项目是否属于学前教育
+  const isPreschoolProject = useCallback((project: Project) => {
+    // 优先使用 assessmentType 字段判断
+    if (project.assessmentType) {
+      return project.assessmentType === '普及普惠';
+    }
+    // 兼容旧数据：根据关键词判断
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${project.name} ${project.indicatorSystemName || ''} ${project.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 判断指标体系是否属于学前教育
+  const isPreschoolIndicatorSystem = useCallback((system: IndicatorSystem) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${system.name} ${system.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 判断要素库是否属于学前教育
+  const isPreschoolElementLibrary = useCallback((library: ElementLibrary) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${library.name} ${library.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 判断采集工具是否属于学前教育
+  const isPreschoolTool = useCallback((tool: DataTool) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${tool.name} ${tool.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 根据项目类型过滤的指标体系列表
+  const filteredIndicatorSystems = useMemo(() => {
+    return indicatorSystems.filter(system => {
+      if (projectType === 'preschool') {
+        return isPreschoolIndicatorSystem(system);
+      } else {
+        return !isPreschoolIndicatorSystem(system);
+      }
+    });
+  }, [indicatorSystems, projectType, isPreschoolIndicatorSystem]);
+
+  // 根据项目类型过滤的要素库列表
+  const filteredElementLibraries = useMemo(() => {
+    return elementLibraries.filter(library => {
+      if (projectType === 'preschool') {
+        return isPreschoolElementLibrary(library);
+      } else {
+        return !isPreschoolElementLibrary(library);
+      }
+    });
+  }, [elementLibraries, projectType, isPreschoolElementLibrary]);
+
+  // 根据项目类型过滤的采集工具列表
+  const filteredDataTools = useMemo(() => {
+    return dataTools.filter(tool => {
+      if (projectType === 'preschool') {
+        return isPreschoolTool(tool);
+      } else {
+        return !isPreschoolTool(tool);
+      }
+    });
+  }, [dataTools, projectType, isPreschoolTool]);
+
+  // 渲染采集工具选项（按填报对象分组）
+  const toolOptions = useMemo(() => {
+    // 按填报对象类型分组（使用过滤后的工具列表）
     const targetGroups: Record<string, DataTool[]> = {};
-    dataTools.forEach(tool => {
+    filteredDataTools.forEach(tool => {
       // target 可能是逗号分隔的多个对象，取第一个作为分组依据
       const targets = tool.target ? tool.target.split(',') : ['未分类'];
       const primaryTarget = targets[0] || '未分类';
@@ -74,14 +155,14 @@ const ProjectPage: React.FC = () => {
         ))}
       </Select.OptGroup>
     ));
-  };
+  }, [filteredDataTools]);
 
   // 加载项目列表
   const loadProjects = useCallback(async () => {
     try {
       const data = await projectService.getProjects();
       setProjectList(data);
-      setFilteredList(data);
+      // filteredList 会通过 useEffect 自动更新
     } catch (error) {
       console.error('加载项目列表失败:', error);
       message.error('加载项目列表失败');
@@ -125,22 +206,38 @@ const ProjectPage: React.FC = () => {
     });
   }, [loadProjects, loadIndicatorSystems, loadElementLibraries, loadDataTools]);
 
-  // 计算统计数据
-  const projectStats = {
-    configuring: projectList.filter(p => p.status === '配置中').length,
-    filling: projectList.filter(p => p.status === '填报中').length,
-    reviewing: projectList.filter(p => p.status === '评审中').length,
-    stopped: projectList.filter(p => p.status === '已中止').length,
-    completed: projectList.filter(p => p.status === '已完成').length,
-  };
+  // 根据项目类型过滤的项目列表
+  const typeFilteredProjects = useMemo(() => {
+    return projectList.filter(project => {
+      if (projectType === 'preschool') {
+        return isPreschoolProject(project);
+      } else {
+        return !isPreschoolProject(project);
+      }
+    });
+  }, [projectList, projectType, isPreschoolProject]);
+
+  // 当类型过滤的项目列表变化时，更新 filteredList
+  useEffect(() => {
+    setFilteredList(typeFilteredProjects);
+  }, [typeFilteredProjects]);
+
+  // 计算统计数据（基于类型过滤后的列表）
+  const projectStats = useMemo(() => ({
+    configuring: typeFilteredProjects.filter(p => p.status === '配置中').length,
+    filling: typeFilteredProjects.filter(p => p.status === '填报中').length,
+    reviewing: typeFilteredProjects.filter(p => p.status === '评审中').length,
+    stopped: typeFilteredProjects.filter(p => p.status === '已中止').length,
+    completed: typeFilteredProjects.filter(p => p.status === '已完成').length,
+  }), [typeFilteredProjects]);
 
   const handleSearch = (value: string) => {
     if (value) {
-      setFilteredList(projectList.filter(proj =>
+      setFilteredList(typeFilteredProjects.filter(proj =>
         proj.name.includes(value) || (proj.description && proj.description.includes(value))
       ));
     } else {
-      setFilteredList(projectList);
+      setFilteredList(typeFilteredProjects);
     }
   };
 
@@ -168,6 +265,8 @@ const ProjectPage: React.FC = () => {
         elementLibraryId: values.elementLibraryId,
         startDate: values.startDate?.format('YYYY-MM-DD'),
         endDate: values.endDate?.format('YYYY-MM-DD'),
+        // 根据当前路由自动设置评估类型
+        assessmentType: (projectType === 'preschool' ? '普及普惠' : '优质均衡') as '普及普惠' | '优质均衡',
       };
       const result = await projectService.createProject(data);
 
@@ -412,26 +511,29 @@ const ProjectPage: React.FC = () => {
     );
   }
 
+  // 基础路径
+  const basePath = projectType === 'preschool' ? '/home/kindergarten' : '/home/balanced';
+
   return (
     <div className={styles.projectPage}>
       <div className={styles.pageHeader}>
         <span className={styles.backBtn} onClick={() => navigate('/home')}>
           <ArrowLeftOutlined /> 返回
         </span>
-        <h1 className={styles.pageTitle}>评估项目主页</h1>
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
         <div className={styles.headerActions}>
-          <Button onClick={() => navigate('/home/balanced/indicators')}>
+          <Button onClick={() => navigate(`${basePath}/indicators`)}>
             <DatabaseOutlined /> 评估指标体系库
           </Button>
-          <Button onClick={() => navigate('/home/balanced/elements')}>
+          <Button onClick={() => navigate(`${basePath}/elements`)}>
             <AppstoreOutlined /> 评估要素库
           </Button>
-          <Button onClick={() => navigate('/home/balanced/tools')}>
+          <Button onClick={() => navigate(`${basePath}/tools`)}>
             <ToolOutlined /> 采集工具库
           </Button>
-          <Button type="primary" onClick={() => navigate('/home/balanced/entry')}>
+          {/* <Button type="primary" onClick={() => navigate(`${basePath}/entry`)}>
             <FormOutlined /> 数据填报
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -474,11 +576,11 @@ const ProjectPage: React.FC = () => {
       <div className={styles.listHeader}>
         <h3>项目列表</h3>
         <div className={styles.listActions}>
-          <Select value={selectedYear} style={{ width: 100 }} onChange={handleYearChange}>
+          {/* <Select value={selectedYear} style={{ width: 100 }} onChange={handleYearChange}>
             {yearOptions.map(year => (
               <Select.Option key={year} value={String(year)}>{year}</Select.Option>
             ))}
-          </Select>
+          </Select> */}
           <Search
             placeholder="搜索项目"
             onSearch={handleSearch}
@@ -546,7 +648,7 @@ const ProjectPage: React.FC = () => {
                   <InfoCircleOutlined /> 基础信息
                 </span>
                 {permissions.canConfigProject && (
-                  <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/project/${project.id}/config`)}>
+                  <span className={styles.actionBtn} onClick={() => navigate(`${basePath}/project/${project.id}/config`)}>
                     <SettingOutlined /> 项目配置
                   </span>
                 )}
@@ -594,7 +696,7 @@ const ProjectPage: React.FC = () => {
                         <span className={styles.actionBtn}>取消发布</span>
                       </Popconfirm>
                     )}
-                    <span className={styles.actionBtn} onClick={() => navigate(`/home/balanced/project/${project.id}/detail`)}>
+                    <span className={styles.actionBtn} onClick={() => navigate(`${basePath}/project/${project.id}/detail`)}>
                       <EyeOutlined /> 填报详情
                     </span>
                   </>
@@ -645,7 +747,7 @@ const ProjectPage: React.FC = () => {
               optionFilterProp="children"
               maxTagCount="responsive"
             >
-              {indicatorSystems.map(sys => (
+              {filteredIndicatorSystems.map(sys => (
                 <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
               ))}
             </Select>
@@ -661,7 +763,7 @@ const ProjectPage: React.FC = () => {
               placeholder="选择要素库（单选）"
               optionFilterProp="children"
             >
-              {elementLibraries.map(lib => (
+              {filteredElementLibraries.map(lib => (
                 <Select.Option key={lib.id} value={lib.id}>
                   {lib.name}
                   <span style={{ color: '#999', marginLeft: 8 }}>
@@ -689,7 +791,7 @@ const ProjectPage: React.FC = () => {
               optionFilterProp="label"
               maxTagCount="responsive"
             >
-              {renderToolOptions()}
+              {toolOptions}
             </Select>
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>
@@ -819,7 +921,7 @@ const ProjectPage: React.FC = () => {
               optionFilterProp="children"
               maxTagCount="responsive"
             >
-              {indicatorSystems.map(sys => (
+              {filteredIndicatorSystems.map(sys => (
                 <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
               ))}
             </Select>
@@ -835,7 +937,7 @@ const ProjectPage: React.FC = () => {
               placeholder="选择要素库（单选）"
               optionFilterProp="children"
             >
-              {elementLibraries.map(lib => (
+              {filteredElementLibraries.map(lib => (
                 <Select.Option key={lib.id} value={lib.id}>
                   {lib.name}
                   <span style={{ color: '#999', marginLeft: 8 }}>
@@ -863,7 +965,7 @@ const ProjectPage: React.FC = () => {
               optionFilterProp="label"
               maxTagCount="responsive"
             >
-              {renderToolOptions()}
+              {toolOptions}
             </Select>
           </Form.Item>
           <div style={{ display: 'flex', gap: 16 }}>

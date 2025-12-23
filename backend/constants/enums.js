@@ -39,6 +39,9 @@ module.exports = {
   // 项目状态
   PROJECT_STATUS: ['配置中', '填报中', '评审中', '已中止', '已完成'],
 
+  // 评估类型
+  ASSESSMENT_TYPE: ['普及普惠', '优质均衡'],
+
   // 填报状态
   SUBMISSION_STATUS: ['draft', 'submitted', 'approved', 'rejected'],
 
@@ -59,7 +62,7 @@ module.exports = {
   // ==================== 学校相关 ====================
 
   // 学校类型
-  SCHOOL_TYPE: ['小学', '初中', '九年一贯制', '完全中学'],
+  SCHOOL_TYPE: ['小学', '初中', '九年一贯制', '完全中学', '幼儿园'],
 
   // 城乡类型
   URBAN_RURAL_TYPE: ['城区', '镇区', '乡村'],
@@ -69,6 +72,17 @@ module.exports = {
 
   // 学校状态
   SCHOOL_STATUS: ['active', 'inactive'],
+
+  // ==================== 幼儿园相关 ====================
+
+  // 幼儿园类型
+  KINDERGARTEN_TYPE: ['公办', '普惠性民办', '非普惠性民办'],
+
+  // 幼儿园等级
+  KINDERGARTEN_LEVEL: ['省级示范', '市级示范', '一类', '二类', '三类', '未定级'],
+
+  // 小区配套幼儿园移交状态
+  COMMUNITY_HANDOVER_STATUS: ['已移交', '未移交', '不适用'],
 
   // ==================== 区县相关 ====================
 

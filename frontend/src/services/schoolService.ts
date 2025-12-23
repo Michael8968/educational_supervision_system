@@ -8,7 +8,7 @@ export interface School {
   districtId: string;
   districtName?: string;
   districtCode?: string;
-  schoolType: '小学' | '初中' | '九年一贯制' | '完全中学';
+  schoolType: '幼儿园' | '小学' | '初中' | '九年一贯制' | '完全中学';
   schoolCategory: '公办' | '民办';
   urbanRural: '城区' | '镇区' | '乡村';
   address: string;
@@ -208,6 +208,7 @@ export async function getUrbanRuralTypes(): Promise<Array<{ value: string; label
 
 // 学校类型常量
 export const SCHOOL_TYPES = [
+  { value: '幼儿园', label: '幼儿园' },
   { value: '小学', label: '小学' },
   { value: '初中', label: '初中' },
   { value: '九年一贯制', label: '九年一贯制' },

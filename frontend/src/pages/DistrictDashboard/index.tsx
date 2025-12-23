@@ -67,6 +67,9 @@ const DistrictDashboard: React.FC = () => {
     }
   };
 
+  // 根据评估类型动态设置标签名称
+  const isPreschool = project?.assessmentType === '普及普惠';
+
   const tabItems = [
     {
       key: 'indicator-summary',
@@ -76,26 +79,29 @@ const DistrictDashboard: React.FC = () => {
           districtId={districtId}
           projectId={projectId || ''}
           refreshKey={indicatorSummaryRefreshKey}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
     {
       key: 'school-indicators',
-      label: '学校指标',
+      label: isPreschool ? '幼儿园指标' : '学校指标',
       children: (
         <SchoolIndicators
           districtId={districtId}
           projectId={projectId || ''}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
     {
       key: 'submissions',
-      label: '学校填报',
+      label: isPreschool ? '幼儿园填报' : '学校填报',
       children: (
         <SubmissionList
           districtId={districtId}
           projectId={projectId || ''}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
@@ -126,6 +132,14 @@ const DistrictDashboard: React.FC = () => {
           <h1 className={styles.title}>
             {project?.name || '加载中...'}
             <Tag color="blue" className={styles.districtTag}>{districtName}</Tag>
+            {project?.assessmentType && (
+              <Tag
+                color={project.assessmentType === '普及普惠' ? 'green' : 'purple'}
+                className={styles.statusTag}
+              >
+                {project.assessmentType}
+              </Tag>
+            )}
             {project && (
               <Tag
                 color={project.status === '填报中' ? 'processing' : project.status === '评审中' ? 'warning' : 'success'}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Input, Tag, Modal, Form, message, Popconfirm, Spin, Empty } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -11,7 +11,7 @@ import {
   CloseOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as toolService from '../../services/toolService';
 import type { ElementLibrary as ElementLibraryType, Element } from '../../services/toolService';
 import styles from './index.module.css';
@@ -28,6 +28,7 @@ interface ElementLibraryStats {
 
 const ElementLibrary: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [libraries, setLibraries] = useState<ElementLibraryType[]>([]);
   const [filteredLibraries, setFilteredLibraries] = useState<ElementLibraryType[]>([]);
@@ -38,20 +39,55 @@ const ElementLibrary: React.FC = () => {
   const [selectedLibraryElements, setSelectedLibraryElements] = useState<Element[]>([]);
   const [form] = Form.useForm();
 
+  // 检测项目类型
+  const projectType = useMemo(() => {
+    if (location.pathname.includes('/home/kindergarten')) {
+      return 'preschool';
+    }
+    return 'balanced';
+  }, [location.pathname]);
+
+  // 判断是否为学前教育要素库
+  const isPreschoolElementLibrary = useCallback((library: ElementLibraryType) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${library.name} ${library.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 动态基础路径
+  const basePath = useMemo(() => {
+    return projectType === 'preschool' ? '/home/kindergarten' : '/home/balanced';
+  }, [projectType]);
+
+  // 动态页面标题
+  const pageTitle = useMemo(() => {
+    return projectType === 'preschool' ? '学前教育评估要素库' : '评估要素库主页';
+  }, [projectType]);
+
   // 加载要素库列表
   const loadLibraries = useCallback(async () => {
     try {
       setLoading(true);
       const data = await toolService.getElementLibraries();
-      setLibraries(data);
-      setFilteredLibraries(data);
+
+      // 根据项目类型过滤
+      const typeFilteredData = data.filter(library => {
+        if (projectType === 'preschool') {
+          return isPreschoolElementLibrary(library);
+        } else {
+          return !isPreschoolElementLibrary(library);
+        }
+      });
+
+      setLibraries(typeFilteredData);
+      setFilteredLibraries(typeFilteredData);
 
       // 计算统计数据
-      const totalElements = data.reduce((sum, lib) => sum + (lib.elementCount || 0), 0);
+      const totalElements = typeFilteredData.reduce((sum, lib) => sum + (lib.elementCount || 0), 0);
       setStats({
-        total: data.length,
-        published: data.filter(lib => lib.status === 'published').length,
-        draft: data.filter(lib => lib.status === 'draft').length,
+        total: typeFilteredData.length,
+        published: typeFilteredData.filter(lib => lib.status === 'published').length,
+        draft: typeFilteredData.filter(lib => lib.status === 'draft').length,
         elementCount: totalElements,
       });
     } catch (error) {
@@ -60,7 +96,7 @@ const ElementLibrary: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [projectType, isPreschoolElementLibrary]);
 
   useEffect(() => {
     loadLibraries();
@@ -148,10 +184,10 @@ const ElementLibrary: React.FC = () => {
   return (
     <div className={styles.elementLibraryPage}>
       <div className={styles.pageHeader}>
-        <span className={styles.backBtn} onClick={() => navigate('/home/balanced')}>
+        <span className={styles.backBtn} onClick={() => navigate(basePath)}>
           <ArrowLeftOutlined /> 返回
         </span>
-        <h1 className={styles.pageTitle}>评估要素库主页</h1>
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </div>
 
       <div className={styles.statsCards}>

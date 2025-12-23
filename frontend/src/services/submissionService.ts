@@ -14,6 +14,7 @@ export interface Project {
   startDate: string;
   endDate: string;
   status: '配置中' | '填报中' | '评审中' | '已中止' | '已完成';
+  assessmentType?: '普及普惠' | '优质均衡';  // 评估类型
   createdBy: string;
   createdAt: string;
   updatedAt: string;

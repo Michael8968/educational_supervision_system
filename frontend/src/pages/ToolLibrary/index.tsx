@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Input, Tag, Modal, Form, Select, message, Spin, Empty, Popconfirm } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -10,7 +10,7 @@ import {
   CloseOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as toolService from '../../services/toolService';
 import type { DataTool } from '../../services/toolService';
 import styles from './index.module.css';
@@ -19,6 +19,7 @@ const { Search } = Input;
 
 const ToolLibrary: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [tools, setTools] = useState<DataTool[]>([]);
   const [filteredTools, setFilteredTools] = useState<DataTool[]>([]);
@@ -29,20 +30,55 @@ const ToolLibrary: React.FC = () => {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  // 检测项目类型
+  const projectType = useMemo(() => {
+    if (location.pathname.includes('/home/kindergarten')) {
+      return 'preschool';
+    }
+    return 'balanced';
+  }, [location.pathname]);
+
+  // 判断是否为学前教育工具
+  const isPreschoolTool = useCallback((tool: DataTool) => {
+    const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
+    const searchText = `${tool.name} ${tool.description || ''}`;
+    return keywords.some(keyword => searchText.includes(keyword));
+  }, []);
+
+  // 动态基础路径
+  const basePath = useMemo(() => {
+    return projectType === 'preschool' ? '/home/kindergarten' : '/home/balanced';
+  }, [projectType]);
+
+  // 动态页面标题
+  const pageTitle = useMemo(() => {
+    return projectType === 'preschool' ? '学前教育数据采集工具库' : '数据采集工具库主页';
+  }, [projectType]);
+
   // 加载工具列表
   const loadTools = useCallback(async () => {
     try {
       setLoading(true);
       const data = await toolService.getTools();
-      setTools(data);
-      setFilteredTools(data);
+
+      // 根据项目类型过滤
+      const typeFilteredData = data.filter(tool => {
+        if (projectType === 'preschool') {
+          return isPreschoolTool(tool);
+        } else {
+          return !isPreschoolTool(tool);
+        }
+      });
+
+      setTools(typeFilteredData);
+      setFilteredTools(typeFilteredData);
     } catch (error) {
       console.error('加载工具列表失败:', error);
       message.error('加载工具列表失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [projectType, isPreschoolTool]);
 
   useEffect(() => {
     loadTools();
@@ -181,17 +217,17 @@ const ToolLibrary: React.FC = () => {
       }
     } else {
       // 表单类型：跳转到本地编辑页面
-      navigate(`/home/balanced/tools/${tool.id}/edit`);
+      navigate(`${basePath}/tools/${tool.id}/edit`);
     }
   };
 
   return (
     <div className={styles.toolLibraryPage}>
       <div className={styles.pageHeader}>
-        <span className={styles.backBtn} onClick={() => navigate('/home/balanced')}>
+        <span className={styles.backBtn} onClick={() => navigate(basePath)}>
           <ArrowLeftOutlined /> 返回
         </span>
-        <h1 className={styles.pageTitle}>数据采集工具库</h1>
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </div>
 
       <div className={styles.toolListSection}>

@@ -145,6 +145,10 @@ const projectRules = {
       .optional()
       .trim()
       .isLength({ max: 100 }).withMessage('指标体系ID格式不正确'),
+    body('assessmentType')
+      .optional()
+      .isIn(enums.ASSESSMENT_TYPE)
+      .withMessage(`无效的评估类型，允许值: ${enums.ASSESSMENT_TYPE.join(', ')}`),
     handleValidationErrors
   ],
   update: [
@@ -159,6 +163,10 @@ const projectRules = {
       .optional()
       .isIn(enums.PROJECT_STATUS)
       .withMessage(`无效的项目状态，允许值: ${enums.PROJECT_STATUS.join(', ')}`),
+    body('assessmentType')
+      .optional()
+      .isIn(enums.ASSESSMENT_TYPE)
+      .withMessage(`无效的评估类型，允许值: ${enums.ASSESSMENT_TYPE.join(', ')}`),
     handleValidationErrors
   ]
 };

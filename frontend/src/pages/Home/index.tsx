@@ -106,7 +106,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* 基础数据管理 - 仅管理员可见 */}
-      {permissions.canManageSystem && (
+      {/* {permissions.canManageSystem && (
         <>
           <h2 className={styles.sectionTitle} style={{ marginTop: 32 }}>基础数据管理</h2>
           <div className={styles.moduleGrid}>
@@ -126,7 +126,7 @@ const Home: React.FC = () => {
             ))}
           </div>
         </>
-      )}
+      )} */}
     </div>
   );
 };
