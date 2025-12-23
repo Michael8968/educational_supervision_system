@@ -1,0 +1,56 @@
+console.log('>>> setupProxy.js is being loaded <<<');
+
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+/**
+ * CRA 开发代理：
+ * - /api/blob/* 走 Vercel Dev（用于 Vercel Blob 的 handleUpload / del）
+ * - /api/* 走后端服务器（Express API）
+ *
+ * 说明：
+ * - `vercel dev` 默认端口常与 CRA(3000) 冲突，建议使用 3002：
+ *   `vercel dev --listen 3002`
+ * - 后端服务器默认运行在 3001 端口
+ */
+module.exports = function (app) {
+  console.log('[setupProxy] Initializing proxy middleware...');
+
+  const blobTarget = process.env.REACT_APP_VERCEL_DEV_URL || 'http://localhost:3002';
+  const apiTarget = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+  console.log('[setupProxy] REACT_APP_VERCEL_DEV_URL:', process.env.REACT_APP_VERCEL_DEV_URL);
+  console.log('[setupProxy] REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+  console.log('[setupProxy] Blob target:', blobTarget);
+  console.log('[setupProxy] API target:', apiTarget);
+
+  // Vercel Blob API 代理 (使用 pathFilter 兼容 v3.x)
+  app.use(
+    createProxyMiddleware({
+      target: blobTarget,
+      changeOrigin: true,
+      pathFilter: '/api/blob',
+      onProxyReq: (proxyReq, req) => {
+        console.log('[Proxy Blob]', req.method, req.url, '->', blobTarget);
+      },
+    }),
+  );
+
+  // 后端 Express API 代理 (使用 pathFilter 兼容 v3.x)
+  app.use(
+    createProxyMiddleware({
+      target: apiTarget,
+      changeOrigin: true,
+      pathFilter: '/api',
+      onProxyReq: (proxyReq, req) => {
+        console.log('[Proxy API]', req.method, req.url, '->', apiTarget);
+      },
+      onError: (err, req, res) => {
+        console.error('[Proxy API Error]', err.message);
+      },
+    }),
+  );
+
+  console.log('[setupProxy] Proxy middleware registered.');
+};
+
+

@@ -217,28 +217,36 @@ router.get('/districts/:districtId/universalization-summary', async (req, res) =
     }
 
     // 获取区县信息
-    const district = await db.get(
-      'SELECT id, code, name FROM districts WHERE id = ?',
+    const districtResult = await db.query(
+      'SELECT id, code, name FROM districts WHERE id = $1',
       [districtId]
     );
+    const district = districtResult.rows[0];
 
     if (!district) {
       return res.status(404).json({ error: '区县不存在' });
     }
 
     // 获取区县最新填报数据
-    const submission = await db.get(
+    // 通过 tasks 表的 submission_id 关联
+    const submissionResult = await db.query(
       `SELECT s.id, s.data, s.status, s.submitted_at
        FROM submissions s
-       INNER JOIN tasks t ON s.task_id = t.id
-       WHERE t.project_id = ?
-         AND t.assignee_id = ?
-         AND t.assignee_type = 'district'
+       WHERE s.project_id = $1
+         AND s.id IN (
+           SELECT t.submission_id
+           FROM tasks t
+           WHERE t.project_id = $1
+             AND t.target_type = 'district'
+             AND t.target_id = $2
+             AND t.submission_id IS NOT NULL
+         )
          AND s.status IN ('submitted', 'approved')
        ORDER BY s.submitted_at DESC
        LIMIT 1`,
       [projectId, districtId]
     );
+    const submission = submissionResult.rows[0];
 
     if (!submission) {
       return res.json({
@@ -331,36 +339,39 @@ router.get('/districts/:districtId/overall-compliance', async (req, res) => {
     }
 
     // 获取区县信息
-    const district = await db.get(
-      'SELECT id, code, name FROM districts WHERE id = ?',
+    const districtResult = await db.query(
+      'SELECT id, code, name FROM districts WHERE id = $1',
       [districtId]
     );
+    const district = districtResult.rows[0];
 
     if (!district) {
       return res.status(404).json({ error: '区县不存在' });
     }
 
     // 获取项目关联的指标体系
-    const indicatorSystem = await db.get(
+    const indicatorSystemResult = await db.query(
       `SELECT is_sys.*
        FROM indicator_systems is_sys
        INNER JOIN projects p ON p.indicator_system_id = is_sys.id
-       WHERE p.id = ?`,
+       WHERE p.id = $1`,
       [projectId]
     );
+    const indicatorSystem = indicatorSystemResult.rows[0];
 
     if (!indicatorSystem) {
       return res.status(404).json({ error: '项目未关联指标体系' });
     }
 
     // 获取所有二级指标（末级指标）
-    const leafIndicators = await db.all(
+    const leafIndicatorsResult = await db.query(
       `SELECT id, code, name, level
        FROM indicators
-       WHERE system_id = ? AND is_leaf = 1
+       WHERE system_id = $1 AND is_leaf = true
        ORDER BY code`,
       [indicatorSystem.id]
     );
+    const leafIndicators = leafIndicatorsResult.rows;
 
     if (leafIndicators.length === 0) {
       return res.json({
@@ -371,18 +382,25 @@ router.get('/districts/:districtId/overall-compliance', async (req, res) => {
     }
 
     // 获取区县最新填报数据
-    const submission = await db.get(
+    // 通过 tasks 表的 submission_id 关联
+    const submissionResult = await db.query(
       `SELECT s.id, s.data, s.status, s.submitted_at
        FROM submissions s
-       INNER JOIN tasks t ON s.task_id = t.id
-       WHERE t.project_id = ?
-         AND t.assignee_id = ?
-         AND t.assignee_type = 'district'
+       WHERE s.project_id = $1
+         AND s.id IN (
+           SELECT t.submission_id
+           FROM tasks t
+           WHERE t.project_id = $1
+             AND t.target_type = 'district'
+             AND t.target_id = $2
+             AND t.submission_id IS NOT NULL
+         )
          AND s.status IN ('submitted', 'approved')
        ORDER BY s.submitted_at DESC
        LIMIT 1`,
       [projectId, districtId]
     );
+    const submission = submissionResult.rows[0];
 
     if (!submission) {
       return res.json({
@@ -417,10 +435,11 @@ router.get('/districts/:districtId/overall-compliance', async (req, res) => {
 
     for (const indicator of leafIndicators) {
       // 获取该指标的数据指标
-      const dataIndicators = await db.all(
-        'SELECT code, name, threshold FROM data_indicators WHERE indicator_id = ?',
+      const dataIndicatorsResult = await db.query(
+        'SELECT code, name, threshold FROM data_indicators WHERE indicator_id = $1',
         [indicator.id]
       );
+      const dataIndicators = dataIndicatorsResult.rows;
 
       let indicatorCompliance = 'pending';
 
@@ -449,13 +468,14 @@ router.get('/districts/:districtId/overall-compliance', async (req, res) => {
       } else {
         // 如果没有数据指标，可能是纯佐证资料指标
         // 检查是否有佐证资料上传
-        const hasMaterials = await db.get(
+        const hasMaterialsResult = await db.query(
           `SELECT COUNT(*) as count
            FROM submission_materials sm
            INNER JOIN supporting_materials m ON sm.material_id = m.id
-           WHERE sm.submission_id = ? AND m.indicator_id = ?`,
+           WHERE sm.submission_id = $1 AND m.indicator_id = $2`,
           [submission.id, indicator.id]
         );
+        const hasMaterials = hasMaterialsResult.rows[0];
 
         if (hasMaterials && hasMaterials.count > 0) {
           indicatorCompliance = 'compliant'; // 简化：有佐证材料即视为合格
@@ -517,24 +537,26 @@ router.get('/projects/:projectId/kindergarten-summary', async (req, res) => {
     const { projectId } = req.params;
 
     // 获取项目信息
-    const project = await db.get(
-      'SELECT id, name, district_id FROM projects WHERE id = ?',
+    const projectResult = await db.query(
+      'SELECT id, name, district_id FROM projects WHERE id = $1',
       [projectId]
     );
+    const project = projectResult.rows[0];
 
     if (!project) {
       return res.status(404).json({ error: '项目不存在' });
     }
 
     // 获取项目所在区县的所有幼儿园
-    const kindergartens = await db.all(
+    const kindergartensResult = await db.query(
       `SELECT id, code, name, kindergarten_type, kindergarten_level,
               student_count, teacher_count, class_count, urban_rural
        FROM schools
-       WHERE district_id = ? AND school_type = '幼儿园' AND status = 'active'
+       WHERE district_id = $1 AND school_type = '幼儿园' AND status = 'active'
        ORDER BY code`,
       [project.district_id]
     );
+    const kindergartens = kindergartensResult.rows;
 
     // 统计汇总
     const summary = {

@@ -16,6 +16,7 @@ const { router: projectToolRoutes, setDb: setProjectToolDb } = require('./routes
 const { router: districtRoutes, setDb: setDistrictDb } = require('./routes/districts');
 const { router: schoolRoutes, setDb: setSchoolDb } = require('./routes/schools');
 const { router: statisticsRoutes, setDb: setStatisticsDb } = require('./routes/statistics');
+const { router: preschoolStatisticsRoutes, setDb: setPreschoolStatisticsDb } = require('./routes/preschool-statistics');
 const { router: complianceRoutes, setDb: setComplianceDb } = require('./routes/compliance');
 const { router: personnelRoutes, setDb: setPersonnelDb } = require('./routes/personnel');
 const { router: samplesRoutes, setDb: setSamplesDb } = require('./routes/samples');
@@ -56,6 +57,7 @@ async function initDatabase() {
       setDistrictDb(db);
       setSchoolDb(db);
       setStatisticsDb(db);
+      setPreschoolStatisticsDb(db);
       setComplianceDb(db);
       setPersonnelDb(db);
       setSamplesDb(db);
@@ -78,6 +80,7 @@ app.use('/api', projectToolRoutes);
 app.use('/api', districtRoutes);
 app.use('/api', schoolRoutes);
 app.use('/api', statisticsRoutes);
+app.use('/api/preschool-statistics', preschoolStatisticsRoutes);
 app.use('/api', complianceRoutes);
 app.use('/api', personnelRoutes);
 app.use('/api', samplesRoutes);
