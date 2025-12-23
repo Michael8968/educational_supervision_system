@@ -1,0 +1,252 @@
+/* 指标汇总树形组件样式 */
+
+.treeContainer {
+  padding: 16px 0;
+}
+
+/* 树节点样式 */
+.indicatorTree :global(.ant-tree-treenode) {
+  padding: 6px 0;
+  width: 100%;
+}
+
+.indicatorTree :global(.ant-tree-node-content-wrapper) {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.indicatorTree :global(.ant-tree-title) {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 维度节点标题 */
+.dimensionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  width: 100%;
+}
+
+.dimensionName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.dimensionIcon {
+  font-size: 16px;
+}
+
+.dimensionStats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 学校类型节点 */
+.schoolTypeTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  width: 100%;
+}
+
+.schoolTypeName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #555;
+}
+
+/* 指标节点标题 */
+.indicatorTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.indicatorCode {
+  font-family: monospace;
+  color: #666;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.indicatorName {
+  color: #333;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indicatorValue {
+  font-family: monospace;
+  font-weight: 500;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.indicatorValue.compliant {
+  color: #52c41a;
+}
+
+.indicatorValue.nonCompliant {
+  color: #ff4d4f;
+}
+
+.indicatorValue.basic {
+  color: #faad14;
+}
+
+.indicatorValue.pending {
+  color: #999;
+}
+
+.indicatorThreshold {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* 状态标签 */
+.statusTag {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* 查看详情按钮 */
+.detailButton {
+  margin-left: 8px;
+  font-size: 12px;
+  padding: 0 8px;
+  height: 22px;
+}
+
+/* 总体汇总卡片 */
+.summaryCard {
+  margin-bottom: 16px;
+}
+
+.summaryContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.summaryStats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.summaryLevel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 24px;
+  background: #f6ffed;
+  border-radius: 8px;
+}
+
+.summaryLevel.excellence {
+  background: #f6ffed;
+}
+
+.summaryLevel.improved {
+  background: #e6f7ff;
+}
+
+.summaryLevel.consolidated {
+  background: #f0f5ff;
+}
+
+.summaryLevel.nonCompliant {
+  background: #fff2f0;
+}
+
+.levelLabel {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.levelValue {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.levelValue.excellence {
+  color: #52c41a;
+}
+
+.levelValue.improved {
+  color: #1890ff;
+}
+
+.levelValue.consolidated {
+  color: #597ef7;
+}
+
+.levelValue.nonCompliant {
+  color: #ff4d4f;
+}
+
+/* 加载状态 */
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+/* 指标类型标签 */
+.typeTag {
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+/* 权重标签 */
+.weightTag {
+  font-size: 11px;
+  margin-left: 8px;
+}

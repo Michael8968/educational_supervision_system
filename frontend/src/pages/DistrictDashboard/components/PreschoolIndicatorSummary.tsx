@@ -1,24 +1,27 @@
 /**
- * 普及普惠指标汇总组件
+ * 普及普惠指标汇总组件 - 树形结构版
  *
  * 显示学前教育普及普惠督导评估的指标汇总：
  * - 维度一：普及普惠水平（3项指标）
  * - 维度二：政府保障情况（11项指标）
  * - 维度三：幼儿园保教质量保障情况（6项指标）
  * - 综合达标情况与等级判定
- * - 学前双普等级判定标准
  */
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Spin, Empty, Tag, Tooltip, Alert, Divider, Progress } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Tree, Spin, Empty, Tag, Tooltip, Divider } from 'antd';
+import type { DataNode } from 'antd/es/tree';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ExclamationCircleOutlined,
+  FolderOutlined,
+  FolderOpenOutlined,
   FileTextOutlined,
   BarChartOutlined,
   SafetyOutlined,
   TeamOutlined,
   BankOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import {
   getUniversalizationSummary,
@@ -30,8 +33,9 @@ import {
   getComplianceLevelText,
   getComplianceLevelColor,
   getPreschoolLevelText,
-  ComplianceLevel,
 } from '../../../services/preschoolStatisticsService';
+import IndicatorDetailModal, { IndicatorDetail } from './IndicatorDetailModal';
+import styles from './IndicatorSummaryTree.module.css';
 
 interface PreschoolIndicatorSummaryProps {
   districtId: string;
@@ -85,7 +89,7 @@ const INDICATOR_DIMENSIONS: IndicatorDimension[] = [
 const INDICATOR_DETAILS: Record<string, { type: 'data' | 'material' | 'both'; label: string }> = {
   // 维度一：普及普惠水平
   '1.1': { type: 'data', label: '学前三年毛入园率' },
-  '1.2': { type: 'both', label: '普惠性幼儿园覆盖率' },  // 数据指标 + 佐证材料（公办园和普惠性民办园名单公示网址）
+  '1.2': { type: 'both', label: '普惠性幼儿园覆盖率' },
   '1.3': { type: 'data', label: '公办园在园幼儿占比' },
   // 维度二：政府保障情况
   '2.1': { type: 'material', label: '党的领导坚强有力' },
@@ -117,6 +121,9 @@ const PreschoolIndicatorSummary: React.FC<PreschoolIndicatorSummaryProps> = ({
   const [universalizationLoading, setUniversalizationLoading] = useState(false);
   const [overallComplianceData, setOverallComplianceData] = useState<OverallComplianceResponse | null>(null);
   const [overallComplianceLoading, setOverallComplianceLoading] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  const [indicatorDetailVisible, setIndicatorDetailVisible] = useState(false);
+  const [selectedIndicator, setSelectedIndicator] = useState<IndicatorDetail | null>(null);
 
   // 加载普及普惠水平指标数据
   useEffect(() => {
@@ -175,242 +182,277 @@ const PreschoolIndicatorSummary: React.FC<PreschoolIndicatorSummaryProps> = ({
     return { total, compliant, basic, nonCompliant, pending, passRate };
   };
 
-  // 渲染普及普惠水平指标卡片（带详细数值）
-  const renderUniversalizationIndicatorCard = (indicator: IndicatorData) => {
-    const bgColor = indicator.isPending
-      ? '#f5f5f5'
-      : indicator.isCompliant
-      ? '#f6ffed'
-      : indicator.isBasic
-      ? '#fffbe6'
-      : '#fff2f0';
-    const borderColor = indicator.isPending
-      ? '#d9d9d9'
-      : indicator.isCompliant
-      ? '#b7eb8f'
-      : indicator.isBasic
-      ? '#ffe58f'
-      : '#ffccc7';
-    const valueColor = indicator.isPending
-      ? '#999'
-      : indicator.isCompliant
-      ? '#52c41a'
-      : indicator.isBasic
-      ? '#faad14'
-      : '#ff4d4f';
+  // 渲染普及普惠水平指标节点（带详细数值）
+  const renderUniversalizationIndicatorNode = (indicator: IndicatorData): DataNode => {
+    let valueClass = styles.indicatorValue;
+    let statusTag;
 
-    return (
-      <Card
-        size="small"
-        style={{ background: bgColor, borderColor, height: '100%' }}
-      >
-        <div style={{ marginBottom: 8 }}>
-          <Tooltip title={indicator.name}>
-            <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>
-              {indicator.code}. {indicator.name}
-            </span>
-          </Tooltip>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 20, fontWeight: 600, color: valueColor }}>
-            {indicator.value !== null ? `${indicator.value}${indicator.unit}` : '-'}
-          </span>
-          <Tag color={getComplianceLevelColor(indicator.complianceLevel)}>
-            {getComplianceLevelText(indicator.complianceLevel)}
-          </Tag>
-        </div>
-        <div style={{ fontSize: 11, color: '#9ca3af' }}>
-          标准: {indicator.operator}{indicator.threshold}{indicator.unit}
-        </div>
-      </Card>
-    );
-  };
+    if (indicator.isPending) {
+      valueClass += ` ${styles.pending}`;
+      statusTag = <Tag color="default">待填报</Tag>;
+    } else if (indicator.isCompliant) {
+      valueClass += ` ${styles.compliant}`;
+      statusTag = <Tag icon={<CheckCircleOutlined />} color="success">合格</Tag>;
+    } else if (indicator.isBasic) {
+      valueClass += ` ${styles.basic}`;
+      statusTag = <Tag color="warning">基本合格</Tag>;
+    } else {
+      valueClass += ` ${styles.nonCompliant}`;
+      statusTag = <Tag icon={<CloseCircleOutlined />} color="error">不合格</Tag>;
+    }
 
-  // 渲染指标卡片（政府保障和保教质量）
-  const renderIndicatorCard = (indicator: IndicatorEvaluation) => {
     const detail = INDICATOR_DETAILS[indicator.code];
-    const bgColor = indicator.complianceLevel === 'pending'
-      ? '#f5f5f5'
-      : indicator.complianceLevel === 'compliant'
-      ? '#f6ffed'
-      : indicator.complianceLevel === 'basic'
-      ? '#fffbe6'
-      : '#fff2f0';
-    const borderColor = indicator.complianceLevel === 'pending'
-      ? '#d9d9d9'
-      : indicator.complianceLevel === 'compliant'
-      ? '#b7eb8f'
-      : indicator.complianceLevel === 'basic'
-      ? '#ffe58f'
-      : '#ffccc7';
 
-    return (
-      <Card
-        size="small"
-        style={{ background: bgColor, borderColor, height: '100%' }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-          <Tooltip title={indicator.name}>
-            <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, flex: 1 }}>
-              {indicator.code}. {indicator.name.length > 12 ? indicator.name.substring(0, 12) + '...' : indicator.name}
+    const handleShowDetail = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSelectedIndicator({
+        code: indicator.code,
+        name: indicator.name,
+        type: detail?.type || 'data',
+        threshold: `${indicator.operator}${indicator.threshold}${indicator.unit}`,
+        value: indicator.value,
+        displayValue: indicator.value !== null ? `${indicator.value}${indicator.unit}` : null,
+        isCompliant: indicator.isCompliant,
+        unit: indicator.unit,
+        operator: indicator.operator,
+        dataSource: detail?.type === 'material' ? 'material' : 'district',
+      });
+      setIndicatorDetailVisible(true);
+    };
+
+    return {
+      key: `universalization-${indicator.code}`,
+      title: (
+        <Tooltip title={indicator.name}>
+          <div className={styles.indicatorTitle}>
+            <span className={styles.indicatorCode}>{indicator.code}</span>
+            <span className={styles.indicatorName}>{indicator.name}</span>
+            {detail?.type === 'data' && (
+              <Tag icon={<BarChartOutlined />} className={styles.typeTag} color="blue">数据</Tag>
+            )}
+            {detail?.type === 'both' && (
+              <>
+                <Tag icon={<BarChartOutlined />} className={styles.typeTag} color="blue">数据</Tag>
+                <Tag icon={<FileTextOutlined />} className={styles.typeTag} color="orange">佐证</Tag>
+              </>
+            )}
+            <span className={valueClass}>
+              {indicator.value !== null ? `${indicator.value}${indicator.unit}` : '-'}
             </span>
-          </Tooltip>
-          <Tag color={getComplianceLevelColor(indicator.complianceLevel)} style={{ marginLeft: 8 }}>
-            {getComplianceLevelText(indicator.complianceLevel)}
-          </Tag>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-          {detail?.type === 'data' && (
-            <Tag icon={<BarChartOutlined />} color="blue" style={{ fontSize: 10 }}>数据指标</Tag>
-          )}
-          {detail?.type === 'material' && (
-            <Tag icon={<FileTextOutlined />} color="orange" style={{ fontSize: 10 }}>佐证材料</Tag>
-          )}
-          {detail?.type === 'both' && (
-            <>
-              <Tag icon={<BarChartOutlined />} color="blue" style={{ fontSize: 10 }}>数据指标</Tag>
-              <Tag icon={<FileTextOutlined />} color="orange" style={{ fontSize: 10 }}>佐证材料</Tag>
-            </>
-          )}
-        </div>
-      </Card>
-    );
-  };
-
-  // 渲染维度Card
-  const renderDimensionCard = (dimension: IndicatorDimension) => {
-    const indicators = getIndicatorsByDimension(dimension);
-    const stats = getDimensionStats(indicators);
-
-    // 对于维度一，使用带详细数值的卡片
-    const isDimension1 = dimension.code === '1';
-
-    return (
-      <Card
-        key={dimension.code}
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: dimension.color, fontSize: 18 }}>{dimension.icon}</span>
-              <span>维度{dimension.code}：{dimension.name}（{stats.total}项）</span>
-              <Tag color="default" style={{ marginLeft: 8 }}>权重 {dimension.weight}%</Tag>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Progress
-                percent={stats.passRate}
-                size="small"
-                style={{ width: 100 }}
-                status={stats.nonCompliant > 0 ? 'exception' : stats.pending > 0 ? 'normal' : 'success'}
+            <span className={styles.indicatorThreshold}>
+              标准: {indicator.operator}{indicator.threshold}{indicator.unit}
+            </span>
+            <span className={styles.statusTag}>{statusTag}</span>
+            <Tooltip title="查看数据来源和计算公式">
+              <InfoCircleOutlined
+                style={{ color: '#1890ff', cursor: 'pointer', marginLeft: 8 }}
+                onClick={handleShowDetail}
               />
-              {stats.compliant === stats.total ? (
-                <Tag icon={<CheckCircleOutlined />} color="success">
-                  {stats.compliant}/{stats.total} 项达标
-                </Tag>
-              ) : stats.pending > 0 ? (
-                <Tag icon={<ExclamationCircleOutlined />} color="warning">
-                  {stats.compliant}/{stats.total} 项达标，{stats.pending} 项待填报
-                </Tag>
-              ) : (
-                <Tag icon={<CloseCircleOutlined />} color="error">
-                  {stats.compliant}/{stats.total} 项达标
-                </Tag>
-              )}
-            </div>
+            </Tooltip>
           </div>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Alert
-            message={dimension.description}
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        </div>
-        {isDimension1 && universalizationData?.indicators && universalizationData.indicators.length > 0 ? (
-          <Row gutter={[16, 16]}>
-            {universalizationData.indicators.map((indicator) => (
-              <Col xs={24} sm={12} md={8} key={indicator.code}>
-                {renderUniversalizationIndicatorCard(indicator)}
-              </Col>
-            ))}
-          </Row>
-        ) : indicators.length > 0 ? (
-          <Row gutter={[12, 12]}>
-            {indicators.map((indicator) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={indicator.code}>
-                {renderIndicatorCard(indicator)}
-              </Col>
-            ))}
-          </Row>
-        ) : (
-          <Empty description="暂无指标数据" />
-        )}
-      </Card>
-    );
+        </Tooltip>
+      ),
+      isLeaf: true,
+    };
   };
 
-  // 渲染综合达标等级判定卡片
-  const renderComplianceLevelCard = () => {
-    if (!overallComplianceData) return null;
+  // 渲染指标节点（政府保障和保教质量）
+  const renderIndicatorNode = (indicator: IndicatorEvaluation): DataNode => {
+    const detail = INDICATOR_DETAILS[indicator.code];
+    let valueClass = styles.indicatorValue;
+    let statusTag;
 
-    const { complianceLevel, summary } = overallComplianceData;
-    const level = complianceLevel?.level || 'non-compliant';
-    const bgColor = level === 'excellence'
-      ? '#f6ffed'
-      : level === 'improved'
-      ? '#e6f7ff'
-      : level === 'consolidated'
-      ? '#f0f5ff'
-      : '#fff2f0';
-    const borderColor = level === 'excellence'
-      ? '#b7eb8f'
-      : level === 'improved'
-      ? '#91d5ff'
-      : level === 'consolidated'
-      ? '#adc6ff'
-      : '#ffccc7';
-    const textColor = level === 'excellence'
-      ? '#52c41a'
-      : level === 'improved'
-      ? '#1890ff'
-      : level === 'consolidated'
-      ? '#597ef7'
-      : '#ff4d4f';
+    if (indicator.complianceLevel === 'pending') {
+      valueClass += ` ${styles.pending}`;
+      statusTag = <Tag color="default">待填报</Tag>;
+    } else if (indicator.complianceLevel === 'compliant') {
+      valueClass += ` ${styles.compliant}`;
+      statusTag = <Tag icon={<CheckCircleOutlined />} color="success">合格</Tag>;
+    } else if (indicator.complianceLevel === 'basic') {
+      valueClass += ` ${styles.basic}`;
+      statusTag = <Tag color="warning">基本合格</Tag>;
+    } else {
+      valueClass += ` ${styles.nonCompliant}`;
+      statusTag = <Tag icon={<CloseCircleOutlined />} color="error">不合格</Tag>;
+    }
 
-    return (
-      <Card
-        size="small"
-        style={{
-          background: bgColor,
-          borderColor,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <SafetyOutlined style={{ fontSize: 32, color: textColor, marginBottom: 8 }} />
-          <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>综合达标等级</div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: textColor, marginBottom: 12 }}>
-            {complianceLevel ? getPreschoolLevelText(complianceLevel.level) : '待评估'}
+    const handleShowDetail = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSelectedIndicator({
+        code: indicator.code,
+        name: indicator.name,
+        type: detail?.type || 'material',
+        threshold: '达到要求',
+        isCompliant: indicator.complianceLevel === 'compliant',
+        displayValue: indicator.complianceLevel === 'pending' ? '待填报' : (indicator.complianceLevel === 'compliant' ? '合格' : (indicator.complianceLevel === 'basic' ? '基本合格' : '不合格')),
+        dataSource: detail?.type === 'data' ? 'district' : 'material',
+      });
+      setIndicatorDetailVisible(true);
+    };
+
+    return {
+      key: `indicator-${indicator.code}`,
+      title: (
+        <Tooltip title={indicator.name}>
+          <div className={styles.indicatorTitle}>
+            <span className={styles.indicatorCode}>{indicator.code}</span>
+            <span className={styles.indicatorName}>
+              {indicator.name.length > 20 ? indicator.name.substring(0, 20) + '...' : indicator.name}
+            </span>
+            {detail?.type === 'data' && (
+              <Tag icon={<BarChartOutlined />} className={styles.typeTag} color="blue">数据</Tag>
+            )}
+            {detail?.type === 'material' && (
+              <Tag icon={<FileTextOutlined />} className={styles.typeTag} color="orange">佐证</Tag>
+            )}
+            {detail?.type === 'both' && (
+              <>
+                <Tag icon={<BarChartOutlined />} className={styles.typeTag} color="blue">数据</Tag>
+                <Tag icon={<FileTextOutlined />} className={styles.typeTag} color="orange">佐证</Tag>
+              </>
+            )}
+            <span className={styles.statusTag}>{statusTag}</span>
+            <Tooltip title="查看数据来源和计算公式">
+              <InfoCircleOutlined
+                style={{ color: '#1890ff', cursor: 'pointer', marginLeft: 8 }}
+                onClick={handleShowDetail}
+              />
+            </Tooltip>
           </div>
-          <Divider style={{ margin: '8px 0' }} />
-          <div style={{ fontSize: 13, color: '#666' }}>
-            <div style={{ marginBottom: 4 }}>
-              <Tag color="success">合格 {summary.compliantCount}</Tag>
-              <Tag color="warning">基本合格 {summary.basicCount}</Tag>
-            </div>
-            <div>
-              <Tag color="error">不合格 {summary.nonCompliantCount}</Tag>
-              <Tag color="default">待填报 {summary.pendingCount}</Tag>
+        </Tooltip>
+      ),
+      isLeaf: true,
+    };
+  };
+
+  // 构建树形数据
+  const treeData = useMemo((): DataNode[] => {
+    const nodes: DataNode[] = [];
+
+    INDICATOR_DIMENSIONS.forEach((dimension, dimIndex) => {
+      const indicators = getIndicatorsByDimension(dimension);
+      const stats = getDimensionStats(indicators);
+      const isDimension1 = dimension.code === '1';
+
+      // 维度节点
+      let children: DataNode[] = [];
+
+      if (isDimension1 && universalizationData?.indicators) {
+        // 维度一使用带详细数值的节点
+        children = universalizationData.indicators.map(renderUniversalizationIndicatorNode);
+      } else if (indicators.length > 0) {
+        children = indicators.map(renderIndicatorNode);
+      }
+
+      // 计算维度状态标签
+      let dimensionStatusTag;
+      if (stats.pending > 0) {
+        dimensionStatusTag = (
+          <Tag icon={<ExclamationCircleOutlined />} color="warning">
+            {stats.compliant + stats.basic}/{stats.total} 合格，{stats.pending} 项待填报
+          </Tag>
+        );
+      } else if (stats.compliant + stats.basic === stats.total) {
+        dimensionStatusTag = (
+          <Tag icon={<CheckCircleOutlined />} color="success">
+            {stats.compliant + stats.basic}/{stats.total} 全部合格
+          </Tag>
+        );
+      } else {
+        dimensionStatusTag = (
+          <Tag icon={<CloseCircleOutlined />} color="error">
+            {stats.compliant + stats.basic}/{stats.total} 合格
+          </Tag>
+        );
+      }
+
+      nodes.push({
+        key: `dimension-${dimension.code}`,
+        title: (
+          <div className={styles.dimensionTitle}>
+            <span className={styles.dimensionName}>
+              <span className={styles.dimensionIcon} style={{ color: dimension.color }}>
+                {dimension.icon}
+              </span>
+              维度{dimension.code}：{dimension.name}（{stats.total}项）
+              <Tag className={styles.weightTag}>权重 {dimension.weight}%</Tag>
+            </span>
+            <div className={styles.dimensionStats}>
+              {dimensionStatusTag}
             </div>
           </div>
-        </div>
-      </Card>
-    );
+        ),
+        children: children.length > 0 ? children : undefined,
+      });
+    });
+
+    return nodes;
+  }, [universalizationData, overallComplianceData]);
+
+  // 计算总体汇总和等级判定
+  const overallSummary = useMemo(() => {
+    if (!overallComplianceData) {
+      return {
+        compliantCount: 0,
+        basicCount: 0,
+        nonCompliantCount: 0,
+        pendingCount: 0,
+        totalCount: 0,
+        level: 'non-compliant' as const,
+        levelText: '待评估',
+      };
+    }
+
+    const { summary, complianceLevel } = overallComplianceData;
+    return {
+      compliantCount: summary.compliantCount,
+      basicCount: summary.basicCount,
+      nonCompliantCount: summary.nonCompliantCount,
+      pendingCount: summary.pendingCount,
+      totalCount: summary.totalCount,
+      level: complianceLevel?.level || 'non-compliant',
+      levelText: complianceLevel ? getPreschoolLevelText(complianceLevel.level) : '待评估',
+    };
+  }, [overallComplianceData]);
+
+  // 默认全部展开
+  useEffect(() => {
+    if (treeData.length > 0 && expandedKeys.length === 0) {
+      // 递归收集所有非叶子节点的 key
+      const collectAllKeys = (nodes: DataNode[]): React.Key[] => {
+        const keys: React.Key[] = [];
+        nodes.forEach(node => {
+          if (node.children && node.children.length > 0) {
+            keys.push(node.key);
+            keys.push(...collectAllKeys(node.children));
+          }
+        });
+        return keys;
+      };
+      setExpandedKeys(collectAllKeys(treeData));
+    }
+  }, [treeData]);
+
+  // 自定义节点图标
+  const renderIcon = (props: any) => {
+    if (props.isLeaf) {
+      return null;
+    }
+    return props.expanded ? <FolderOpenOutlined /> : <FolderOutlined />;
+  };
+
+  // 获取等级样式类
+  const getLevelClass = (level: string) => {
+    switch (level) {
+      case 'excellence':
+        return styles.excellence;
+      case 'improved':
+        return styles.improved;
+      case 'consolidated':
+        return styles.consolidated;
+      default:
+        return styles.nonCompliant;
+    }
   };
 
   if (!projectId) {
@@ -419,9 +461,9 @@ const PreschoolIndicatorSummary: React.FC<PreschoolIndicatorSummaryProps> = ({
 
   const isLoading = universalizationLoading || overallComplianceLoading;
 
-  if (isLoading) {
+  if (isLoading && treeData.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
+      <div className={styles.loadingContainer}>
         <Spin size="large" />
       </div>
     );
@@ -429,108 +471,112 @@ const PreschoolIndicatorSummary: React.FC<PreschoolIndicatorSummaryProps> = ({
 
   return (
     <div>
-      {/* 顶部总览 */}
-      <Alert
-        message="学前教育普及普惠督导评估指标体系"
-        description={
-          <div>
-            <p style={{ marginBottom: 8 }}>
-              依据《县域学前教育普及普惠督导评估办法》，共3大维度、17项一级指标、36项二级指标。
-              达标标准：29项合格+7项基本合格为巩固"学前双普"；31项合格+5项基本合格为提高"学前双普"；
-              33项合格+3项基本合格为创优"学前双普"。
-            </p>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <Tag icon={<BarChartOutlined />} color="blue">数据指标：需填报具体数值</Tag>
-              <Tag icon={<FileTextOutlined />} color="orange">佐证材料：需上传相关文件</Tag>
+      {/* 顶部总体汇总 */}
+      <Card className={styles.summaryCard} size="small">
+        <div className={styles.summaryContent}>
+          <div className={styles.summaryStats}>
+            <div className={styles.statItem}>
+              <span className={styles.statValue} style={{ color: '#52c41a' }}>
+                {overallSummary.compliantCount}
+              </span>
+              <span className={styles.statLabel}>合格</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statValue} style={{ color: '#faad14' }}>
+                {overallSummary.basicCount}
+              </span>
+              <span className={styles.statLabel}>基本合格</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statValue} style={{ color: '#ff4d4f' }}>
+                {overallSummary.nonCompliantCount}
+              </span>
+              <span className={styles.statLabel}>不合格</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statValue} style={{ color: '#999' }}>
+                {overallSummary.pendingCount}
+              </span>
+              <span className={styles.statLabel}>待填报</span>
+            </div>
+            <Divider type="vertical" style={{ height: 40 }} />
+            <div className={styles.statItem}>
+              <span className={styles.statValue} style={{ color: '#1890ff' }}>
+                {overallSummary.totalCount}
+              </span>
+              <span className={styles.statLabel}>总指标数</span>
             </div>
           </div>
-        }
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
-
-      {/* 三大维度指标 */}
-      {INDICATOR_DIMENSIONS.map(dimension => renderDimensionCard(dimension))}
-
-      {/* 综合达标情况与等级判定 */}
-      <Card
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <SafetyOutlined style={{ color: '#fa8c16', fontSize: 18 }} />
-              <span>综合达标情况与等级判定</span>
-            </div>
-            {overallComplianceData?.complianceLevel && (
-              <Tag
-                color={
-                  overallComplianceData.complianceLevel.level === 'excellence'
-                    ? 'success'
-                    : overallComplianceData.complianceLevel.level === 'improved'
-                    ? 'processing'
-                    : overallComplianceData.complianceLevel.level === 'consolidated'
-                    ? 'blue'
-                    : 'error'
-                }
-                style={{ fontSize: 14, padding: '4px 12px' }}
-              >
-                {getPreschoolLevelText(overallComplianceData.complianceLevel.level)}
-              </Tag>
-            )}
+          <div className={`${styles.summaryLevel} ${getLevelClass(overallSummary.level)}`}>
+            <SafetyOutlined style={{ fontSize: 24, marginBottom: 4 }} />
+            <span className={styles.levelLabel}>综合达标等级</span>
+            <span className={`${styles.levelValue} ${getLevelClass(overallSummary.level)}`}>
+              {overallSummary.levelText}
+            </span>
           </div>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        {overallComplianceData ? (
-          <Row gutter={[16, 16]}>
-            {/* 综合判定卡片 */}
-            <Col xs={24} sm={24} md={8} lg={6}>
-              {renderComplianceLevelCard()}
-            </Col>
-            {/* 等级判定标准说明 */}
-            <Col xs={24} sm={24} md={16} lg={18}>
-              {overallComplianceData.config && (
-                <Row gutter={[12, 12]}>
-                  <Col xs={24} sm={8}>
-                    <Card size="small" style={{ background: '#f6ffed', borderColor: '#b7eb8f', height: '100%' }}>
-                      <div style={{ fontWeight: 600, color: '#52c41a', marginBottom: 8, fontSize: 15 }}>
-                        {overallComplianceData.config.levels.excellence.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666' }}>
-                        {overallComplianceData.config.totalIndicators}项指标全部合格，或33项合格+3项基本合格
-                      </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Card size="small" style={{ background: '#e6f7ff', borderColor: '#91d5ff', height: '100%' }}>
-                      <div style={{ fontWeight: 600, color: '#1890ff', marginBottom: 8, fontSize: 15 }}>
-                        {overallComplianceData.config.levels.improved.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666' }}>
-                        至少{overallComplianceData.config.levels.improved.minCompliant}项合格，
-                        最多{overallComplianceData.config.levels.improved.maxBasicCompliant}项基本合格
-                      </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Card size="small" style={{ background: '#f0f5ff', borderColor: '#adc6ff', height: '100%' }}>
-                      <div style={{ fontWeight: 600, color: '#597ef7', marginBottom: 8, fontSize: 15 }}>
-                        {overallComplianceData.config.levels.consolidated.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666' }}>
-                        至少{overallComplianceData.config.levels.consolidated.minCompliant}项合格，
-                        最多{overallComplianceData.config.levels.consolidated.maxBasicCompliant}项基本合格
-                      </div>
-                    </Card>
-                  </Col>
-                </Row>
-              )}
-            </Col>
-          </Row>
+        </div>
+      </Card>
+
+      {/* 等级判定标准说明 */}
+      {overallComplianceData?.config && (
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200, padding: '8px 12px', background: '#f6ffed', borderRadius: 6 }}>
+              <div style={{ fontWeight: 600, color: '#52c41a', marginBottom: 4 }}>
+                {overallComplianceData.config.levels.excellence.name}
+              </div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                {overallComplianceData.config.totalIndicators}项全部合格，或33项合格+3项基本合格
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 200, padding: '8px 12px', background: '#e6f7ff', borderRadius: 6 }}>
+              <div style={{ fontWeight: 600, color: '#1890ff', marginBottom: 4 }}>
+                {overallComplianceData.config.levels.improved.name}
+              </div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                至少{overallComplianceData.config.levels.improved.minCompliant}项合格，
+                最多{overallComplianceData.config.levels.improved.maxBasicCompliant}项基本合格
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 200, padding: '8px 12px', background: '#f0f5ff', borderRadius: 6 }}>
+              <div style={{ fontWeight: 600, color: '#597ef7', marginBottom: 4 }}>
+                {overallComplianceData.config.levels.consolidated.name}
+              </div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                至少{overallComplianceData.config.levels.consolidated.minCompliant}项合格，
+                最多{overallComplianceData.config.levels.consolidated.maxBasicCompliant}项基本合格
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 树形结构 */}
+      <Card>
+        {treeData.length > 0 ? (
+          <div className={styles.treeContainer}>
+            <Tree
+              treeData={treeData}
+              expandedKeys={expandedKeys}
+              onExpand={(keys) => setExpandedKeys(keys)}
+              showLine={{ showLeafIcon: false }}
+              showIcon
+              icon={renderIcon}
+              className={styles.indicatorTree}
+              selectable={false}
+            />
+          </div>
         ) : (
-          <Empty description="暂无综合达标情况数据" />
+          <Empty description="暂无指标数据" />
         )}
       </Card>
+
+      {/* 指标详情弹窗 */}
+      <IndicatorDetailModal
+        visible={indicatorDetailVisible}
+        onClose={() => setIndicatorDetailVisible(false)}
+        indicator={selectedIndicator}
+      />
     </div>
   );
 };

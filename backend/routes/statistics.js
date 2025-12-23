@@ -70,7 +70,8 @@ async function calculateIndicatorValueFromElements(code, projectId, districtId, 
           e.tool_id,
           e.field_id,
           e.formula,
-          e.aggregation
+          e.aggregation,
+          e.library_id
         FROM data_indicator_elements die
         JOIN elements e ON die.element_id = e.id
         WHERE die.data_indicator_id = $1
@@ -85,6 +86,7 @@ async function calculateIndicatorValueFromElements(code, projectId, districtId, 
     }
 
     // 2. 如果没有通过数据指标找到要素，尝试直接按要素编码查找
+    // 优先选择义务教育优质均衡要素库（library_id = '1'）的要素
     if (!primaryElement) {
       console.log(`[要素计算] 未通过数据指标找到，尝试直接查找要素: ${code}`);
       const elementResult = await db.query(`
@@ -97,16 +99,18 @@ async function calculateIndicatorValueFromElements(code, projectId, districtId, 
           e.tool_id,
           e.field_id,
           e.formula,
-          e.aggregation
+          e.aggregation,
+          e.library_id
         FROM elements e
         WHERE e.code = $1
+        ORDER BY CASE WHEN e.library_id = '1' THEN 0 ELSE 1 END
         LIMIT 1
       `, [code]);
 
       if (elementResult.rows.length > 0) {
         primaryElement = elementResult.rows[0];
         linkedElements = [primaryElement];
-        console.log(`[要素计算] 找到要素: ${code} (${primaryElement.element_name}), 类型: ${primaryElement.element_type}, 公式: ${primaryElement.formula || '无'}`);
+        console.log(`[要素计算] 找到要素: ${code} (${primaryElement.element_name}), 类型: ${primaryElement.element_type}, 要素库: ${primaryElement.library_id}, 公式: ${primaryElement.formula || '无'}`);
       }
     }
 
@@ -115,14 +119,18 @@ async function calculateIndicatorValueFromElements(code, projectId, districtId, 
       return { value: null, displayValue: '未配置', details: [] };
     }
 
-    // 3. 获取要素库中所有要素（用于派生要素的公式计算）
+    // 3. 获取同一要素库中的所有要素（用于派生要素的公式计算）
+    // 通过 library_id 过滤，确保不会混用不同要素库的同编码要素
+    const libraryId = primaryElement.library_id;
     const allElementsResult = await db.query(`
       SELECT
         e.id, e.code, e.name, e.element_type, e.data_type,
-        e.tool_id, e.field_id, e.formula, e.aggregation
+        e.tool_id, e.field_id, e.formula, e.aggregation, e.library_id
       FROM elements e
-    `);
+      WHERE e.library_id = $1
+    `, [libraryId]);
     const allElements = allElementsResult.rows;
+    console.log(`[要素计算] 获取要素库 ${libraryId} 中的 ${allElements.length} 个要素用于公式计算`);
 
     // 4. 收集填报数据
     // 对于区县级数据，从区县填报表单获取
