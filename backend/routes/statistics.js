@@ -973,13 +973,14 @@ router.get('/districts/:districtId/schools-indicator-summary', async (req, res) 
       return res.status(404).json({ code: 404, message: '区县不存在' });
     }
 
-    // 获取该区县的学校列表
+    // 获取该区县的学校列表（仅包含义务教育阶段学校，排除幼儿园）
     let schoolQuery = `
       SELECT s.id, s.code, s.name, s.school_type as "schoolType",
              s.school_category as "schoolCategory", s.urban_rural as "urbanRural",
              s.student_count as "studentCount", s.teacher_count as "teacherCount"
       FROM schools s
       WHERE s.district_id = $1 AND s.status = 'active'
+        AND s.school_type IN ('小学', '初中', '九年一贯制', '完全中学')
     `;
     const params = [districtId];
 
