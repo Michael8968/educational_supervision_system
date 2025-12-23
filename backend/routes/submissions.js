@@ -345,11 +345,12 @@ async function syncSubmissionIndicators(submissionId) {
 // 获取项目列表
 router.get('/projects', async (req, res) => {
   try {
-    const { status, year } = req.query;
+    const { status, year, assessmentType } = req.query;
     let sql = `
       SELECT p.id, p.name, (to_jsonb(p)->>'keywords') as keywords, p.description, p.indicator_system_id as "indicatorSystemId",
              p.element_library_id as "elementLibraryId",
              p.start_date as "startDate", p.end_date as "endDate", p.status,
+             COALESCE(p.assessment_type, '优质均衡') as "assessmentType",
              COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as "isPublished",
              p.created_by as "createdBy", p.created_at as "createdAt", p.updated_at as "updatedAt",
              i.name as "indicatorSystemName",
@@ -370,6 +371,11 @@ router.get('/projects', async (req, res) => {
     if (year) {
       sql += ` AND EXTRACT(YEAR FROM p.start_date::date) = $${paramIndex++}`;
       params.push(year);
+    }
+
+    if (assessmentType) {
+      sql += ` AND COALESCE(p.assessment_type, '优质均衡') = $${paramIndex++}`;
+      params.push(assessmentType);
     }
 
     sql += ' ORDER BY p.created_at DESC';
@@ -393,6 +399,7 @@ router.get('/projects/:id', async (req, res) => {
       SELECT p.id, p.name, (to_jsonb(p)->>'keywords') as keywords, p.description, p.indicator_system_id as "indicatorSystemId",
              p.element_library_id as "elementLibraryId",
              p.start_date as "startDate", p.end_date as "endDate", p.status,
+             COALESCE(p.assessment_type, '优质均衡') as "assessmentType",
              COALESCE((to_jsonb(p)->>'is_published')::boolean, false) as "isPublished",
              p.created_by as "createdBy", p.created_at as "createdAt", p.updated_at as "updatedAt",
              i.name as "indicatorSystemName",
@@ -419,7 +426,7 @@ router.get('/projects/:id', async (req, res) => {
 // 创建项目
 router.post('/projects', projectRules.create, async (req, res) => {
   try {
-    const { name, keywords, description, indicatorSystemId, elementLibraryId, startDate, endDate } = req.body;
+    const { name, keywords, description, indicatorSystemId, elementLibraryId, startDate, endDate, assessmentType } = req.body;
 
     // 验证指标体系是否存在（程序层面引用验证）
     if (indicatorSystemId) {
@@ -451,6 +458,7 @@ router.post('/projects', projectRules.create, async (req, res) => {
         element_library_id: elementLibraryId,
         start_date: startDate,
         end_date: endDate,
+        assessment_type: assessmentType || '优质均衡',
         status: '配置中',
         created_by: 'admin',
         created_at: timestamp,
@@ -468,12 +476,20 @@ router.post('/projects', projectRules.create, async (req, res) => {
 // 更新项目
 router.put('/projects/:id', async (req, res) => {
   try {
-    const { name, keywords, description, indicatorSystemId, elementLibraryId, startDate, endDate, status } = req.body;
+    const { name, keywords, description, indicatorSystemId, elementLibraryId, startDate, endDate, status, assessmentType } = req.body;
 
     // 程序层面枚举验证
     if (status) {
       try {
         validateEnum('PROJECT_STATUS', status, 'status');
+      } catch (e) {
+        return res.status(400).json({ code: 400, message: e.message });
+      }
+    }
+
+    if (assessmentType) {
+      try {
+        validateEnum('ASSESSMENT_TYPE', assessmentType, 'assessmentType');
       } catch (e) {
         return res.status(400).json({ code: 400, message: e.message });
       }
@@ -506,6 +522,7 @@ router.put('/projects/:id', async (req, res) => {
       ...(startDate !== undefined ? { start_date: startDate } : {}),
       ...(endDate !== undefined ? { end_date: endDate } : {}),
       ...(status !== undefined ? { status } : {}),
+      ...(assessmentType !== undefined ? { assessment_type: assessmentType } : {}),
       updated_at: timestamp,
     };
 

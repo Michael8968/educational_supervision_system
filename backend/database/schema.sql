@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS projects (
   start_date TEXT,
   end_date TEXT,
   status TEXT DEFAULT '配置中',       -- 枚举值由程序验证：配置中 | 填报中 | 评审中 | 已中止 | 已完成
+  assessment_type TEXT DEFAULT '优质均衡', -- 评估类型，枚举值由程序验证：普及普惠 | 优质均衡
   is_published BOOLEAN DEFAULT false, -- 项目是否已发布
   created_by TEXT,
   created_at TEXT,

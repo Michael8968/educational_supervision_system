@@ -65,7 +65,11 @@ const ProjectPage: React.FC = () => {
 
   // 判断项目是否属于学前教育
   const isPreschoolProject = useCallback((project: Project) => {
-    // 根据指标体系名称或项目名称判断
+    // 优先使用 assessmentType 字段判断
+    if (project.assessmentType) {
+      return project.assessmentType === '普及普惠';
+    }
+    // 兼容旧数据：根据关键词判断
     const keywords = ['学前教育', '普及普惠', '幼儿园', '学前双普'];
     const searchText = `${project.name} ${project.indicatorSystemName || ''} ${project.description || ''}`;
     return keywords.some(keyword => searchText.includes(keyword));
@@ -261,6 +265,8 @@ const ProjectPage: React.FC = () => {
         elementLibraryId: values.elementLibraryId,
         startDate: values.startDate?.format('YYYY-MM-DD'),
         endDate: values.endDate?.format('YYYY-MM-DD'),
+        // 根据当前路由自动设置评估类型
+        assessmentType: (projectType === 'preschool' ? '普及普惠' : '优质均衡') as '普及普惠' | '优质均衡',
       };
       const result = await projectService.createProject(data);
 

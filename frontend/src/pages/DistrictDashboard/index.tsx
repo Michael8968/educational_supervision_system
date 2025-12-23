@@ -76,6 +76,7 @@ const DistrictDashboard: React.FC = () => {
           districtId={districtId}
           projectId={projectId || ''}
           refreshKey={indicatorSummaryRefreshKey}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
@@ -86,6 +87,7 @@ const DistrictDashboard: React.FC = () => {
         <SchoolIndicators
           districtId={districtId}
           projectId={projectId || ''}
+          assessmentType={project?.assessmentType}
         />
       ),
     },
@@ -126,6 +128,14 @@ const DistrictDashboard: React.FC = () => {
           <h1 className={styles.title}>
             {project?.name || '加载中...'}
             <Tag color="blue" className={styles.districtTag}>{districtName}</Tag>
+            {project?.assessmentType && (
+              <Tag
+                color={project.assessmentType === '普及普惠' ? 'green' : 'purple'}
+                className={styles.statusTag}
+              >
+                {project.assessmentType}
+              </Tag>
+            )}
             {project && (
               <Tag
                 color={project.status === '填报中' ? 'processing' : project.status === '评审中' ? 'warning' : 'success'}

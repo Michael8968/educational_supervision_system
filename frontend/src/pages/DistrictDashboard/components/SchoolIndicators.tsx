@@ -20,11 +20,13 @@ import {
 interface SchoolIndicatorsProps {
   districtId: string;
   projectId: string;
+  assessmentType?: '普及普惠' | '优质均衡';
 }
 
-const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, projectId }) => {
+const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, projectId, assessmentType }) => {
   const [loading, setLoading] = useState(false);
-  const [schoolType, setSchoolType] = useState<string>('');
+  // 根据评估类型设置默认筛选：普及普惠默认筛选幼儿园
+  const [schoolType, setSchoolType] = useState<string>(assessmentType === '普及普惠' ? '幼儿园' : '');
   const [data, setData] = useState<{
     summary: {
       schoolCount: number;
@@ -46,6 +48,25 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
   const [juniorDetail, setJuniorDetail] = useState<SchoolIndicatorDetail | null>(null);
   const [detailTabKey, setDetailTabKey] = useState<string>('primary');
   const [currentSchoolType, setCurrentSchoolType] = useState<string>('');
+
+  // 根据评估类型动态设置学校类型筛选
+  useEffect(() => {
+    if (assessmentType === '普及普惠') {
+      setSchoolType('幼儿园');
+    } else {
+      setSchoolType('');
+    }
+  }, [assessmentType]);
+
+  // 根据评估类型生成学校类型选项
+  const schoolTypeOptions = assessmentType === '普及普惠'
+    ? [{ value: '幼儿园', label: '幼儿园' }]
+    : [
+        { value: '小学', label: '小学' },
+        { value: '初中', label: '初中' },
+        { value: '九年一贯制', label: '九年一贯制' },
+        { value: '完全中学', label: '完全中学' },
+      ];
 
   // 加载数据
   useEffect(() => {
@@ -182,7 +203,8 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
           '小学部': 'blue',
           '初中部': 'green',
           '九年一贯制': 'orange',
-          '完全中学': 'purple'
+          '完全中学': 'purple',
+          '幼儿园': 'cyan',
         };
         
         return (
@@ -378,14 +400,9 @@ const SchoolIndicators: React.FC<SchoolIndicatorsProps> = ({ districtId, project
           value={schoolType}
           onChange={setSchoolType}
           style={{ width: 120 }}
-          allowClear
+          allowClear={assessmentType !== '普及普惠'}
           placeholder="全部"
-          options={[
-            { value: '小学', label: '小学' },
-            { value: '初中', label: '初中' },
-            { value: '九年一贯制', label: '九年一贯制' },
-            { value: '完全中学', label: '完全中学' },
-          ]}
+          options={schoolTypeOptions}
         />
       </div>
 

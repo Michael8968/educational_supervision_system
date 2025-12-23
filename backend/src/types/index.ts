@@ -178,6 +178,7 @@ export interface Project extends BaseEntity {
   start_date?: string;
   end_date?: string;
   status: '配置中' | '填报中' | '评审中' | '已中止' | '已完成';
+  assessment_type?: '普及普惠' | '优质均衡';
   keywords?: string[];
   is_published?: boolean;
 }

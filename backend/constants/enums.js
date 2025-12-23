@@ -39,6 +39,9 @@ module.exports = {
   // 项目状态
   PROJECT_STATUS: ['配置中', '填报中', '评审中', '已中止', '已完成'],
 
+  // 评估类型
+  ASSESSMENT_TYPE: ['普及普惠', '优质均衡'],
+
   // 填报状态
   SUBMISSION_STATUS: ['draft', 'submitted', 'approved', 'rejected'],
 
