@@ -1,0 +1,79 @@
+/* 专家项目评审详情页样式 */
+
+.projectDetail {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.breadcrumb {
+  margin-bottom: 8px;
+}
+
+.backButton {
+  padding-left: 0;
+  margin-bottom: 16px;
+}
+
+/* 项目信息卡片 */
+.headerCard {
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.projectInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.projectMain {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.projectName {
+  font-size: 22px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.projectDesc {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.projectMeta {
+  color: #999;
+  font-size: 13px;
+}
+
+/* 内容卡片 */
+.contentCard {
+  border-radius: 8px;
+}
+
+.contentCard :global(.ant-tabs-nav) {
+  margin-bottom: 16px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .projectDetail {
+    padding: 16px;
+  }
+
+  .projectMain {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .projectName {
+    font-size: 18px;
+  }
+}

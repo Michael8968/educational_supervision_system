@@ -21,6 +21,8 @@ import CVAnalysis from './pages/CVAnalysis';
 import ComplianceStats from './pages/ComplianceStats';
 import CollectorDashboard from './pages/CollectorDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
+import ExpertProjectDetail from './pages/ExpertProjectDetail';
+import ExpertDistrictDetail from './pages/ExpertDistrictDetail';
 import UserManagement from './pages/UserManagement';
 import ExpertAccountManagement from './pages/ExpertAccountManagement';
 import DistrictDashboard from './pages/DistrictDashboard';
@@ -231,6 +233,16 @@ const App: React.FC = () => {
             <Route path="expert" element={
               <ProtectedRoute requiredPermission="canReviewData">
                 <ExpertDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="expert/projects/:projectId" element={
+              <ProtectedRoute requiredPermission="canReviewData">
+                <ExpertProjectDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="expert/projects/:projectId/districts/:districtId" element={
+              <ProtectedRoute requiredPermission="canReviewData">
+                <ExpertDistrictDetail />
               </ProtectedRoute>
             } />
 

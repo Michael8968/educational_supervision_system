@@ -1,0 +1,55 @@
+/* 专家区县详情页样式 */
+
+.districtDetail {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.breadcrumb {
+  margin-bottom: 8px;
+}
+
+.backButton {
+  padding-left: 0;
+  margin-bottom: 16px;
+}
+
+/* 区县信息卡片 */
+.headerCard {
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.districtName {
+  font-size: 22px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.projectName {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* 内容卡片 */
+.contentCard {
+  border-radius: 8px;
+}
+
+.contentCard :global(.ant-tabs-nav) {
+  margin-bottom: 16px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .districtDetail {
+    padding: 16px;
+  }
+
+  .districtName {
+    font-size: 18px;
+  }
+}
