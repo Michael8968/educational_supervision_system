@@ -989,6 +989,30 @@
   padding-top: 8px;
 }
 
+/* ==================== 填报学校Tab ==================== */
+.submissionSchoolTab {
+  padding: 20px 0;
+}
+
+.districtList {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.districtActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptySchools {
+  padding: 16px 24px;
+  color: #999;
+  margin-left: 24px;
+  background: #fff;
+}
+
 /* ==================== 响应式 ==================== */
 @media (max-width: 768px) {
   .projectConfigPage {

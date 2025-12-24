@@ -9,6 +9,7 @@ export { default as DataEntryTab } from './DataEntryTab';
 export { default as ExpertReviewTab } from './ExpertReviewTab';
 export { default as ProgressOverview } from './ProgressOverview';
 export { default as TaskAssignmentTab } from './TaskAssignmentTab';
+export { default as SubmissionSchoolTab } from './SubmissionSchoolTab';
 export {
   AddPersonModal,
   ImportModal,
@@ -16,4 +17,7 @@ export {
   SampleConfigModal,
   AddSampleModal,
   AddTeacherModal,
+  AddSubmissionDistrictModal,
+  AddSubmissionSchoolModal,
+  ImportSubmissionSchoolModal,
 } from './Modals';

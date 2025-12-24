@@ -3,7 +3,7 @@
  * 按照Figma设计稿重新设计
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   Button,
@@ -47,16 +47,20 @@ import {
   TaskAssignmentTab,
   ExpertReviewTab,
   ProgressOverview,
+  SubmissionSchoolTab,
   AddPersonModal,
   ImportModal,
   MorePersonModal,
   SampleConfigModal,
   AddSampleModal,
   AddTeacherModal,
+  AddSubmissionDistrictModal,
+  AddSubmissionSchoolModal,
+  ImportSubmissionSchoolModal,
 } from './components';
 
 // Hooks 导入
-import { usePersonnel, useSamples } from './hooks';
+import { usePersonnel, useSamples, useSubmissionSchools } from './hooks';
 
 // Mock 数据导入
 import { projects as mockProjects } from '../../mock/data';
@@ -109,6 +113,26 @@ const ProjectConfig: React.FC = () => {
     getSchoolById,
   } = useSamples(projectId);
 
+  // 填报学校配置 Hook
+  const {
+    districts: allSubmissionDistricts,
+    filteredDistricts: submissionDistricts,
+    expandedDistricts: submissionExpandedDistricts,
+    schoolTypeFilter,
+    setSchoolTypeFilter,
+    toggleDistrictExpand: toggleSubmissionDistrictExpand,
+    addDistrict: addSubmissionDistrict,
+    addSchool: addSubmissionSchool,
+    deleteDistrict: deleteSubmissionDistrict,
+    deleteSchool: deleteSubmissionSchool,
+    getDistrictById,
+    statistics: submissionStatistics,
+    loading: submissionLoading,
+    getAllDistricts,
+    getAllSchools,
+    importSchools,
+  } = useSubmissionSchools(projectId);
+
   // 弹窗状态
   const [addPersonModalVisible, setAddPersonModalVisible] = useState(false);
   const [addPersonPresetRole, setAddPersonPresetRole] = useState<string | undefined>(undefined);
@@ -121,10 +145,18 @@ const ProjectConfig: React.FC = () => {
   const [addTeacherModalVisible, setAddTeacherModalVisible] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('');
 
+  // 填报学校弹窗状态
+  const [addDistrictModalVisible, setAddDistrictModalVisible] = useState(false);
+  const [addSchoolModalVisible, setAddSchoolModalVisible] = useState(false);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('');
+  const [importSchoolModalVisible, setImportSchoolModalVisible] = useState(false);
+
   // 表单实例
   const [addPersonForm] = Form.useForm();
   const [addSampleForm] = Form.useForm();
   const [addTeacherForm] = Form.useForm();
+  const [addDistrictForm] = Form.useForm();
+  const [addSchoolForm] = Form.useForm();
 
   // 用户列表（用于人员配置选择）
   const [userList, setUserList] = useState<SystemUser[]>([]);
@@ -240,6 +272,42 @@ const ProjectConfig: React.FC = () => {
     setSelectedSchoolId(schoolId);
     setAddTeacherModalVisible(true);
   };
+
+  // ==================== 填报学校配置处理 ====================
+
+  const handleAddDistrict = async (values: { name: string; code?: string }) => {
+    await addSubmissionDistrict(values);
+    setAddDistrictModalVisible(false);
+    addDistrictForm.resetFields();
+  };
+
+  const handleOpenAddSchool = (districtId: string) => {
+    setSelectedDistrictId(districtId);
+    setAddSchoolModalVisible(true);
+  };
+
+  const handleAddSchool = async (values: { name: string; code?: string; schoolType: string }) => {
+    await addSubmissionSchool(selectedDistrictId, values);
+    setAddSchoolModalVisible(false);
+    addSchoolForm.resetFields();
+  };
+
+  // ==================== 可选组织列表（用于人员配置） ====================
+
+  const availableOrganizations = useMemo(() => {
+    const districts = getAllDistricts().map(d => ({
+      id: d.id,
+      name: d.name,
+      type: 'district' as const,
+    }));
+    const schools = getAllSchools().map(s => ({
+      id: s.id,
+      name: s.name,
+      type: 'school' as const,
+      districtName: s.districtName,
+    }));
+    return [...districts, ...schools];
+  }, [getAllDistricts, getAllSchools]);
 
   // ==================== 项目状态流转处理 ====================
 
@@ -582,6 +650,27 @@ const ProjectConfig: React.FC = () => {
               ),
             },
             {
+              key: 'submission-school',
+              label: '填报学校',
+              children: (
+                <SubmissionSchoolTab
+                  districts={submissionDistricts}
+                  expandedDistricts={submissionExpandedDistricts}
+                  schoolTypeFilter={schoolTypeFilter}
+                  statistics={submissionStatistics}
+                  onSchoolTypeFilterChange={setSchoolTypeFilter}
+                  onToggleExpand={toggleSubmissionDistrictExpand}
+                  onAddDistrict={() => setAddDistrictModalVisible(true)}
+                  onAddSchool={handleOpenAddSchool}
+                  onDeleteDistrict={deleteSubmissionDistrict}
+                  onDeleteSchool={deleteSubmissionSchool}
+                  onImport={() => setImportSchoolModalVisible(true)}
+                  disabled={!isEditable}
+                  loading={submissionLoading}
+                />
+              ),
+            },
+            {
               key: 'personnel',
               label: '填报账号',
               children: (
@@ -661,6 +750,7 @@ const ProjectConfig: React.FC = () => {
         userList={userList}
         loadingUsers={loadingUsers}
         presetRole={addPersonPresetRole}
+        availableOrganizations={availableOrganizations}
       />
 
       <ImportModal
@@ -709,6 +799,35 @@ const ProjectConfig: React.FC = () => {
         onCancel={() => setAddTeacherModalVisible(false)}
         onSubmit={handleAddTeacher}
         form={addTeacherForm}
+      />
+
+      {/* 填报学校弹窗 */}
+      <AddSubmissionDistrictModal
+        visible={addDistrictModalVisible}
+        onCancel={() => {
+          setAddDistrictModalVisible(false);
+          addDistrictForm.resetFields();
+        }}
+        onSubmit={handleAddDistrict}
+        form={addDistrictForm}
+      />
+
+      <AddSubmissionSchoolModal
+        visible={addSchoolModalVisible}
+        districtName={getDistrictById(selectedDistrictId)?.name || ''}
+        onCancel={() => {
+          setAddSchoolModalVisible(false);
+          addSchoolForm.resetFields();
+        }}
+        onSubmit={handleAddSchool}
+        form={addSchoolForm}
+      />
+
+      <ImportSubmissionSchoolModal
+        visible={importSchoolModalVisible}
+        onCancel={() => setImportSchoolModalVisible(false)}
+        onImport={importSchools}
+        existingDistricts={allSubmissionDistricts.map(d => ({ name: d.name, code: d.code }))}
       />
     </div>
   );

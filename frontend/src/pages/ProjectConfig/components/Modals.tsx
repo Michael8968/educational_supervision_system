@@ -2,14 +2,18 @@
  * 项目配置页面弹窗组件集合
  */
 
-import React from 'react';
-import { Modal, Form, Input, Select, Button, Upload, Table, Space, Tag, Checkbox } from 'antd';
-import type { FormInstance } from 'antd';
+import React, { useState, useCallback } from 'react';
+import { Modal, Form, Input, Select, Button, Upload, Table, Space, Tag, Checkbox, message, Alert, Spin } from 'antd';
+import type { FormInstance, UploadFile } from 'antd';
 import {
   SearchOutlined,
   UploadOutlined,
   FileTextOutlined,
+  FileExcelOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import type { ColumnsType } from 'antd/es/table';
 import type {
   Personnel,
@@ -63,6 +67,14 @@ interface SystemUserOption {
   status: string;
 }
 
+// 可选组织类型
+interface AvailableOrganization {
+  id: string;
+  name: string;
+  type: 'district' | 'school';
+  districtName?: string;  // 学校所属区县名称
+}
+
 interface AddPersonModalProps {
   visible: boolean;
   onCancel: () => void;
@@ -72,6 +84,7 @@ interface AddPersonModalProps {
   userList?: SystemUserOption[];
   loadingUsers?: boolean;
   presetRole?: string;  // 预设角色（从角色标题行点击时传入）
+  availableOrganizations?: AvailableOrganization[];  // 可选的组织列表（来自填报学校配置）
 }
 
 // 系统角色到人员角色的映射（一对一，保持一致）
@@ -121,9 +134,26 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
   userList = [],
   loadingUsers = false,
   presetRole,
+  availableOrganizations = [],
 }) => {
   const [selectMode, setSelectMode] = React.useState<'select' | 'manual'>('select');
   const [selectedUsers, setSelectedUsers] = React.useState<string[]>([]);
+
+  // 根据预设角色过滤可选组织
+  const filteredOrganizations = React.useMemo(() => {
+    if (!presetRole || availableOrganizations.length === 0) return [];
+
+    // 区县填报员只能选区县
+    if (presetRole === 'district_reporter') {
+      return availableOrganizations.filter(org => org.type === 'district');
+    }
+    // 学校填报员只能选学校
+    if (presetRole === 'school_reporter') {
+      return availableOrganizations.filter(org => org.type === 'school');
+    }
+    // 其他角色不限制
+    return [];
+  }, [presetRole, availableOrganizations]);
 
   // 重置状态
   React.useEffect(() => {
@@ -308,9 +338,25 @@ export const AddPersonModal: React.FC<AddPersonModalProps> = ({
             <Form.Item
               label="单位"
               name="organization"
-              rules={[{ required: true, message: '请输入单位' }]}
+              rules={[{ required: true, message: filteredOrganizations.length > 0 ? '请选择单位' : '请输入单位' }]}
             >
-              <Input placeholder="请输入单位" />
+              {filteredOrganizations.length > 0 ? (
+                <Select
+                  placeholder="请选择单位"
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={filteredOrganizations.map(org => ({
+                    value: org.name,
+                    label: org.type === 'school' && org.districtName
+                      ? `${org.name}（${org.districtName}）`
+                      : org.name,
+                  }))}
+                />
+              ) : (
+                <Input placeholder="请输入单位" />
+              )}
             </Form.Item>
             <Form.Item
               label="电话号码（登录账号）"
@@ -865,3 +911,492 @@ export const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
     </Form>
   </Modal>
 );
+
+// ==================== 添加填报区县弹窗 ====================
+
+interface AddSubmissionDistrictModalProps {
+  visible: boolean;
+  onCancel: () => void;
+  onSubmit: (values: { name: string; code?: string }) => void;
+  form: FormInstance;
+}
+
+export const AddSubmissionDistrictModal: React.FC<AddSubmissionDistrictModalProps> = ({
+  visible,
+  onCancel,
+  onSubmit,
+  form,
+}) => (
+  <Modal
+    title="添加填报区县"
+    open={visible}
+    onCancel={onCancel}
+    footer={null}
+    width={400}
+    destroyOnClose
+  >
+    <p className={styles.modalSubtitle}>添加需要参与填报的区县</p>
+    <Form form={form} onFinish={onSubmit} layout="vertical">
+      <Form.Item
+        label="区县名称"
+        name="name"
+        rules={[{ required: true, message: '请输入区县名称' }]}
+      >
+        <Input placeholder="如：和平区" />
+      </Form.Item>
+      <Form.Item label="区县代码" name="code">
+        <Input placeholder="可选，如：210102" />
+      </Form.Item>
+      <Form.Item className={styles.formFooter}>
+        <Button onClick={onCancel}>取消</Button>
+        <Button type="primary" htmlType="submit">确定添加</Button>
+      </Form.Item>
+    </Form>
+  </Modal>
+);
+
+// ==================== 添加填报学校弹窗 ====================
+
+interface AddSubmissionSchoolModalProps {
+  visible: boolean;
+  districtName: string;
+  onCancel: () => void;
+  onSubmit: (values: { name: string; code?: string; schoolType: string }) => void;
+  form: FormInstance;
+}
+
+export const AddSubmissionSchoolModal: React.FC<AddSubmissionSchoolModalProps> = ({
+  visible,
+  districtName,
+  onCancel,
+  onSubmit,
+  form,
+}) => (
+  <Modal
+    title={`添加填报学校 - ${districtName}`}
+    open={visible}
+    onCancel={onCancel}
+    footer={null}
+    width={450}
+    destroyOnClose
+  >
+    <p className={styles.modalSubtitle}>添加需要参与填报的学校</p>
+    <Form form={form} onFinish={onSubmit} layout="vertical">
+      <Form.Item
+        label="学校名称"
+        name="name"
+        rules={[{ required: true, message: '请输入学校名称' }]}
+      >
+        <Input placeholder="请输入学校名称" />
+      </Form.Item>
+      <Form.Item label="学校代码" name="code">
+        <Input placeholder="可选，如：2101020001" />
+      </Form.Item>
+      <Form.Item
+        label="学校类型"
+        name="schoolType"
+        rules={[{ required: true, message: '请选择学校类型' }]}
+        initialValue="小学"
+      >
+        <Select placeholder="请选择学校类型">
+          <Select.Option value="小学">小学</Select.Option>
+          <Select.Option value="初中">初中</Select.Option>
+          <Select.Option value="九年一贯制">九年一贯制</Select.Option>
+          <Select.Option value="完全中学">完全中学</Select.Option>
+        </Select>
+      </Form.Item>
+      <Form.Item className={styles.formFooter}>
+        <Button onClick={onCancel}>取消</Button>
+        <Button type="primary" htmlType="submit">确定添加</Button>
+      </Form.Item>
+    </Form>
+  </Modal>
+);
+
+// ==================== 导入填报学校弹窗 ====================
+
+// Excel 解析后的原始行数据
+interface ExcelSchoolRow {
+  schoolCode: string;
+  schoolName: string;
+  districtCode: string;
+  districtName: string;
+  districtType?: string;
+  schoolType: string;
+  schoolNature?: string;  // 办学性质
+  urbanRural?: string;    // 城乡类型
+  address?: string;
+  principal?: string;
+  phone?: string;
+  studentCount?: number;
+  teacherCount?: number;
+}
+
+// 预览用的区县数据
+interface PreviewDistrict {
+  code: string;
+  name: string;
+  schools: ExcelSchoolRow[];
+}
+
+// 导入结果
+interface ImportSchoolResult {
+  success: number;
+  failed: number;
+  errors: string[];
+}
+
+interface ImportSubmissionSchoolModalProps {
+  visible: boolean;
+  onCancel: () => void;
+  onImport: (districts: PreviewDistrict[]) => Promise<ImportSchoolResult>;
+  existingDistricts?: Array<{ name: string; code?: string }>;
+}
+
+export const ImportSubmissionSchoolModal: React.FC<ImportSubmissionSchoolModalProps> = ({
+  visible,
+  onCancel,
+  onImport,
+  existingDistricts = [],
+}) => {
+  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [parsedData, setParsedData] = useState<PreviewDistrict[]>([]);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [expandedDistricts, setExpandedDistricts] = useState<string[]>([]);
+
+  // 重置状态
+  const resetState = useCallback(() => {
+    setStep('upload');
+    setParsedData([]);
+    setParseError(null);
+    setImporting(false);
+    setExpandedDistricts([]);
+  }, []);
+
+  // 取消时重置
+  const handleCancel = useCallback(() => {
+    resetState();
+    onCancel();
+  }, [resetState, onCancel]);
+
+  // 解析 Excel 文件
+  const parseExcelFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet);
+
+        if (jsonData.length === 0) {
+          setParseError('Excel 文件为空或格式不正确');
+          return;
+        }
+
+        // 检测列名并解析数据
+        const rows: ExcelSchoolRow[] = jsonData.map((row) => {
+          // 支持多种可能的列名
+          const schoolCode = String(row['学校代码'] || row['schoolCode'] || '');
+          const schoolName = String(row['学校名称'] || row['schoolName'] || '');
+          const districtCode = String(row['区县代码'] || row['districtCode'] || '');
+          const districtName = String(row['区县名称'] || row['districtName'] || '');
+          const districtType = String(row['区县类型'] || row['districtType'] || '');
+          const schoolType = String(row['学校类型'] || row['schoolType'] || '小学');
+          const schoolNature = String(row['办学性质'] || row['schoolNature'] || '');
+          const urbanRural = String(row['城乡类型'] || row['urbanRural'] || '');
+          const address = String(row['地址'] || row['address'] || '');
+          const principal = String(row['校长'] || row['principal'] || '');
+          const phone = String(row['联系电话'] || row['phone'] || '');
+          const studentCount = Number(row['学生数'] || row['studentCount'] || 0);
+          const teacherCount = Number(row['教师数'] || row['teacherCount'] || 0);
+
+          return {
+            schoolCode,
+            schoolName,
+            districtCode,
+            districtName,
+            districtType,
+            schoolType,
+            schoolNature,
+            urbanRural,
+            address,
+            principal,
+            phone,
+            studentCount,
+            teacherCount,
+          };
+        }).filter(row => row.schoolName && row.districtName); // 过滤无效行
+
+        if (rows.length === 0) {
+          setParseError('未找到有效的学校数据，请确保Excel包含"学校名称"和"区县名称"列');
+          return;
+        }
+
+        // 按区县分组
+        const districtMap = new Map<string, PreviewDistrict>();
+        rows.forEach(row => {
+          const key = row.districtCode || row.districtName;
+          if (!districtMap.has(key)) {
+            districtMap.set(key, {
+              code: row.districtCode,
+              name: row.districtName,
+              schools: [],
+            });
+          }
+          districtMap.get(key)!.schools.push(row);
+        });
+
+        const districts = Array.from(districtMap.values());
+        setParsedData(districts);
+        setExpandedDistricts(districts.map(d => d.code || d.name)); // 默认全部展开
+        setParseError(null);
+        setStep('preview');
+      } catch (err) {
+        console.error('解析 Excel 失败:', err);
+        setParseError('解析 Excel 文件失败，请检查文件格式');
+      }
+    };
+    reader.onerror = () => {
+      setParseError('读取文件失败');
+    };
+    reader.readAsBinaryString(file);
+  }, []);
+
+  // 处理文件上传
+  const handleFileUpload = useCallback((file: UploadFile) => {
+    if (file.originFileObj) {
+      parseExcelFile(file.originFileObj);
+    }
+    return false; // 阻止自动上传
+  }, [parseExcelFile]);
+
+  // 执行导入
+  const handleImport = useCallback(async () => {
+    if (parsedData.length === 0) return;
+
+    setImporting(true);
+    try {
+      const result = await onImport(parsedData);
+      message.success(`导入成功：${result.success} 所学校`);
+      if (result.failed > 0) {
+        message.warning(`${result.failed} 条记录导入失败`);
+      }
+      handleCancel();
+    } catch (err) {
+      console.error('导入失败:', err);
+      message.error('导入失败，请稍后重试');
+    } finally {
+      setImporting(false);
+    }
+  }, [parsedData, onImport, handleCancel]);
+
+  // 检查区县是否已存在
+  const isDistrictExisting = useCallback((districtName: string) => {
+    return existingDistricts.some(d => d.name === districtName);
+  }, [existingDistricts]);
+
+  // 统计信息
+  const stats = React.useMemo(() => {
+    const totalDistricts = parsedData.length;
+    const totalSchools = parsedData.reduce((sum, d) => sum + d.schools.length, 0);
+    const newDistricts = parsedData.filter(d => !isDistrictExisting(d.name)).length;
+    const existingDistrictsCount = totalDistricts - newDistricts;
+
+    const schoolsByType: Record<string, number> = {};
+    parsedData.forEach(d => {
+      d.schools.forEach(s => {
+        const type = s.schoolType || '其他';
+        schoolsByType[type] = (schoolsByType[type] || 0) + 1;
+      });
+    });
+
+    return { totalDistricts, totalSchools, newDistricts, existingDistrictsCount, schoolsByType };
+  }, [parsedData, isDistrictExisting]);
+
+  // 表格列定义
+  const schoolColumns: ColumnsType<ExcelSchoolRow> = [
+    { title: '学校代码', dataIndex: 'schoolCode', key: 'schoolCode', width: 120 },
+    { title: '学校名称', dataIndex: 'schoolName', key: 'schoolName', width: 200 },
+    {
+      title: '学校类型',
+      dataIndex: 'schoolType',
+      key: 'schoolType',
+      width: 100,
+      render: (type: string) => {
+        const colorMap: Record<string, string> = {
+          '小学': 'blue',
+          '初中': 'green',
+          '九年一贯制': 'purple',
+          '完全中学': 'orange',
+        };
+        return <Tag color={colorMap[type] || 'default'}>{type}</Tag>;
+      },
+    },
+    { title: '办学性质', dataIndex: 'schoolNature', key: 'schoolNature', width: 80 },
+    { title: '城乡类型', dataIndex: 'urbanRural', key: 'urbanRural', width: 80 },
+    { title: '学生数', dataIndex: 'studentCount', key: 'studentCount', width: 80, align: 'right' },
+    { title: '教师数', dataIndex: 'teacherCount', key: 'teacherCount', width: 80, align: 'right' },
+  ];
+
+  return (
+    <Modal
+      title="批量导入填报学校"
+      open={visible}
+      onCancel={handleCancel}
+      footer={step === 'preview' ? [
+        <Button key="back" onClick={resetState}>重新选择</Button>,
+        <Button key="cancel" onClick={handleCancel}>取消</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={importing}
+          onClick={handleImport}
+          disabled={parsedData.length === 0}
+        >
+          确认导入 ({stats.totalSchools} 所学校)
+        </Button>,
+      ] : null}
+      width={step === 'preview' ? 1000 : 600}
+      destroyOnClose
+    >
+      {step === 'upload' ? (
+        <>
+          {/* 导入说明 */}
+          <div className={styles.importGuide}>
+            <h4 className={styles.guideTitle}>导入说明</h4>
+            <ul className={styles.guideList}>
+              <li>Excel文件应包含以下字段（按顺序）：</li>
+              <li style={{ marginLeft: 16 }}>
+                <strong>必填</strong>：学校代码、学校名称、区县代码、区县名称、学校类型
+              </li>
+              <li style={{ marginLeft: 16 }}>
+                <strong>可选</strong>：区县类型、办学性质、城乡类型、地址、校长、联系电话、学生数、教师数
+              </li>
+              <li>学校类型可选：<strong>小学、初中、九年一贯制、完全中学</strong></li>
+              <li>系统会自动识别并按区县分组</li>
+              <li>已存在的区县将添加新学校，不会删除现有数据</li>
+            </ul>
+          </div>
+
+          {parseError && (
+            <Alert
+              type="error"
+              message={parseError}
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {/* 文件上传区域 */}
+          <div className={styles.uploadSection}>
+            <Upload.Dragger
+              accept=".xlsx,.xls"
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handleFileUpload({ originFileObj: file } as UploadFile);
+                return false;
+              }}
+              className={styles.uploadDragger}
+            >
+              <p className={styles.uploadIcon}><FileExcelOutlined style={{ fontSize: 48, color: '#52c41a' }} /></p>
+              <p className={styles.uploadText}>点击选择 Excel 文件或拖拽文件到此处</p>
+              <p className={styles.uploadHint}>支持 .xlsx、.xls 格式</p>
+            </Upload.Dragger>
+          </div>
+        </>
+      ) : (
+        <Spin spinning={importing}>
+          {/* 统计信息 */}
+          <Alert
+            type="info"
+            showIcon
+            icon={<CheckCircleOutlined />}
+            message={
+              <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+                <span>共 <strong>{stats.totalDistricts}</strong> 个区县</span>
+                <span>共 <strong>{stats.totalSchools}</strong> 所学校</span>
+                {stats.newDistricts > 0 && (
+                  <span style={{ color: '#52c41a' }}>新增区县 {stats.newDistricts} 个</span>
+                )}
+                {stats.existingDistrictsCount > 0 && (
+                  <span style={{ color: '#faad14' }}>已有区县 {stats.existingDistrictsCount} 个</span>
+                )}
+              </Space>
+            }
+            style={{ marginBottom: 16 }}
+          />
+
+          {/* 学校类型分布 */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ marginRight: 8, color: '#666' }}>学校类型分布：</span>
+            {Object.entries(stats.schoolsByType).map(([type, count]) => {
+              const colorMap: Record<string, string> = {
+                '小学': 'blue',
+                '初中': 'green',
+                '九年一贯制': 'purple',
+                '完全中学': 'orange',
+              };
+              return (
+                <Tag key={type} color={colorMap[type] || 'default'}>
+                  {type}: {count}
+                </Tag>
+              );
+            })}
+          </div>
+
+          {/* 区县和学校预览 */}
+          <div style={{ maxHeight: 400, overflow: 'auto' }}>
+            {parsedData.map(district => (
+              <div key={district.code || district.name} style={{ marginBottom: 16 }}>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    background: '#fafafa',
+                    borderRadius: 4,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    const key = district.code || district.name;
+                    setExpandedDistricts(prev =>
+                      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+                    );
+                  }}
+                >
+                  <Space>
+                    <span style={{ fontWeight: 500 }}>{district.name}</span>
+                    {district.code && <span style={{ color: '#999' }}>({district.code})</span>}
+                    <Tag>{district.schools.length} 所学校</Tag>
+                    {isDistrictExisting(district.name) ? (
+                      <Tag color="warning" icon={<ExclamationCircleOutlined />}>已存在</Tag>
+                    ) : (
+                      <Tag color="success" icon={<CheckCircleOutlined />}>新增</Tag>
+                    )}
+                  </Space>
+                  <span style={{ color: '#999' }}>
+                    {expandedDistricts.includes(district.code || district.name) ? '收起' : '展开'}
+                  </span>
+                </div>
+                {expandedDistricts.includes(district.code || district.name) && (
+                  <Table
+                    rowKey="schoolCode"
+                    columns={schoolColumns}
+                    dataSource={district.schools}
+                    pagination={false}
+                    size="small"
+                    style={{ marginTop: 8 }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </Spin>
+      )}
+    </Modal>
+  );
+};
