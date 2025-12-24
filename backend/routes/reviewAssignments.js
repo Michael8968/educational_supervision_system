@@ -418,7 +418,108 @@ router.post('/projects/:projectId/reviewers/:reviewerId/scopes', async (req, res
         });
     }
 
-    res.json({ code: 200, message: '审核范围配置成功' });
+    // 配置成功后，自动分配符合范围的待分配任务
+    let autoAssignedCount = 0;
+    try {
+      // 查询所有待分配的填报记录（status=submitted 且完全没有分配审核任务）
+      const pendingSubmissions = await db.query(`
+        SELECT s.id as "submissionId", s.form_id as "formId", s.submitter_org as "submitterOrg"
+        FROM submissions s
+        LEFT JOIN review_assignments ra ON s.id = ra.submission_id
+        WHERE s.project_id = $1
+          AND s.status = 'submitted'
+          AND ra.id IS NULL
+      `, [projectId]);
+
+      // 根据配置的范围匹配任务并分配
+      for (const submission of pendingSubmissions.rows) {
+        let shouldAssign = false;
+
+        for (const scope of scopes) {
+          if (!scope.scopeType) continue;
+
+          if (scope.scopeType === 'all') {
+            // 全部范围，直接分配
+            shouldAssign = true;
+            break;
+          } else if (scope.scopeType === 'tool' && scope.scopeId) {
+            // 工具范围：匹配 form_id
+            if (submission.formId === scope.scopeId) {
+              shouldAssign = true;
+              break;
+            }
+          } else if (scope.scopeType === 'district' && scope.scopeId) {
+            // 区县范围：匹配该区县及其下所有学校的提交
+            // 1. 检查 submitter_org 是否直接匹配区县名称
+            // 2. 检查 submitter_org 是否匹配该区县下的学校名称
+            const districtMatch = await db.query(`
+              SELECT ps.id 
+              FROM project_samples ps
+              WHERE ps.project_id = $1
+                AND (
+                  (ps.id = $2 AND ps.type = 'district' AND ps.name = $3)
+                  OR (ps.type = 'school' AND ps.parent_id = $2 AND ps.name = $3)
+                )
+              LIMIT 1
+            `, [projectId, scope.scopeId, submission.submitterOrg]);
+            if (districtMatch.rows.length > 0) {
+              shouldAssign = true;
+              break;
+            }
+          } else if (scope.scopeType === 'school' && scope.scopeId) {
+            // 学校范围：通过 project_samples 匹配 submitter_org
+            const schoolMatch = await db.query(`
+              SELECT id FROM project_samples 
+              WHERE id = $1 AND type = 'school' 
+                AND name = $2
+                AND project_id = $3
+              LIMIT 1
+            `, [scope.scopeId, submission.submitterOrg, projectId]);
+            if (schoolMatch.rows.length > 0) {
+              shouldAssign = true;
+              break;
+            }
+          }
+        }
+
+        // 如果匹配，创建审核任务分配记录
+        if (shouldAssign) {
+          // 检查是否已分配（避免重复）
+          const { data: existing } = await db.supabase
+            .from('review_assignments')
+            .select('id')
+            .eq('submission_id', submission.submissionId)
+            .eq('reviewer_id', reviewerId)
+            .limit(1);
+
+          if (!existing || existing.length === 0) {
+            const assignmentId = generateId();
+            await db.supabase
+              .from('review_assignments')
+              .insert({
+                id: assignmentId,
+                project_id: projectId,
+                submission_id: submission.submissionId,
+                reviewer_id: reviewerId,
+                status: 'pending',
+                assigned_at: timestamp,
+                created_at: timestamp,
+                updated_at: timestamp
+              });
+            autoAssignedCount++;
+          }
+        }
+      }
+    } catch (assignError) {
+      // 自动分配失败不影响配置成功，只记录错误
+      console.error('自动分配审核任务失败:', assignError);
+    }
+
+    const message = autoAssignedCount > 0
+      ? `审核范围配置成功，已自动分配 ${autoAssignedCount} 个待审核任务`
+      : '审核范围配置成功';
+
+    res.json({ code: 200, message, data: { autoAssignedCount } });
   } catch (error) {
     console.error('设置专家审核范围失败:', error);
     res.status(500).json({ code: 500, message: error.message });
