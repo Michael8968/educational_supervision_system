@@ -4,7 +4,7 @@
  * 支持编辑数据指标与评估要素的关联
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Button,
   Tree,
@@ -40,6 +40,7 @@ import {
   MenuFoldOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
+import { useLocation } from 'react-router-dom';
 import type { DataNode } from 'antd/es/tree';
 import type { UploadFile } from 'antd/es/upload/interface';
 import * as indicatorService from '../../../services/indicatorService';
@@ -116,7 +117,22 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
   disabled = false,
   elementLibraryId,
 }) => {
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
+
+  // 根据当前路径确定指标体系库的链接
+  // /home/balanced/project/xxx/config -> /home/balanced/indicators
+  // /home/kindergarten/project/xxx/config -> /home/kindergarten/indicators
+  const indicatorLibraryUrl = useMemo(() => {
+    const path = location.pathname;
+    if (path.includes('/home/balanced/')) {
+      return '/home/balanced/indicators';
+    } else if (path.includes('/home/kindergarten/')) {
+      return '/home/kindergarten/indicators';
+    }
+    // 默认使用 balanced
+    return '/home/balanced/indicators';
+  }, [location.pathname]);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
@@ -961,7 +977,7 @@ const IndicatorTab: React.FC<IndicatorTabProps> = ({
           <Button
             icon={<EyeOutlined />}
             size="small"
-            onClick={() => window.open(`/indicator-library`, '_blank')}
+            onClick={() => window.open(indicatorLibraryUrl, '_blank')}
           >
             查看完整体系
           </Button>
