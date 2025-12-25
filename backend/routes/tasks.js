@@ -481,6 +481,7 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
     const { projectId, status, scopeType, scopeId, includeSubSchools } = req.query;
     // 通过登录会话（token.timestamp）拿到当前 username/scopes
     const username = req.auth?.username;
+    console.log('[/my/tasks] req.auth =', JSON.stringify(req.auth));
     const u = username ? userStore.getUser(username) : null;
     let scopes = (req.auth?.scopes && Array.isArray(req.auth.scopes)) ? req.auth.scopes : (u?.scopes || []);
 
@@ -560,34 +561,56 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
       params.push(status);
     }
 
-    // 根据用户 scopes 或 assignee 进行过滤
-    // 1. 如果前端指定了 scopeType/scopeId，则按指定的单个 scope 过滤
-    // 2. 如果前端没有指定，但用户有 scopes，则按用户的所有 scopes 过滤
-    // 3. 如果用户没有 scopes，则通过 username 匹配 project_personnel.name 和 district_id 过滤
-    // 4. 只有在以上都不满足时（如管理员）才返回所有任务
-    const hasUserScopes = Array.isArray(scopes) && scopes.length > 0;
-    const hasExplicitScope = scopeType && scopeId;
-
-    // 如果用户没有 scopes，尝试通过 phone/name 查找用户对应的 project_personnel 记录
-    // 这样可以根据 assignee_id 和 district_id 过滤任务
+    // 核心逻辑：通过 phone/name 查找用户对应的 project_personnel 记录
+    // 然后通过 assignee_id 匹配任务（任务只与用户ID相关，与scopes无关）
     let personnelIds = [];
     let personnelDistrictIds = [];
-    if (!hasUserScopes && !hasExplicitScope && username) {
+    
+    // 获取用户标识信息
+    let phone = req.auth?.phone || username;
+    let name = req.auth?.name;
+    
+    console.log(`[/my/tasks] 调试信息:`, {
+      timestamp: req.auth?.timestamp,
+      phone: phone,
+      name: name,
+      username: username,
+      'req.auth': req.auth,
+      projectId: projectId
+    });
+    
+    // 如果 session 丢失（服务重启后），尝试从数据库恢复用户信息
+    // 通过查询最近登录的用户（基于 timestamp 或其他方式）
+    if (!phone && !name && req.auth?.timestamp) {
+      try {
+        // 尝试从 sys_users 表查询最近活跃的用户
+        // 注意：这是一个临时解决方案，不够安全，但可以帮助恢复会话
+        console.log(`[/my/tasks] Session 丢失，尝试从数据库恢复用户信息...`);
+        
+        // 由于无法确定具体用户，我们无法安全地恢复
+        // 但我们可以提供更详细的错误信息
+        console.warn(`[/my/tasks] 无法从 session 恢复用户信息，需要用户重新登录`);
+      } catch (err) {
+        console.error('尝试恢复用户信息失败:', err);
+      }
+    }
+    
+    // 如果 session 丢失（服务重启后），phone 和 username 可能都是 null
+    // 但仍然尝试查询，以便看到详细的错误信息
+    if (phone || name || username) {
       try {
         // 查找当前用户对应的 project_personnel 记录
         // 匹配条件优先级：
         // 1. phone = req.auth.phone（优先通过手机号匹配）
         // 2. name = req.auth.name（通过姓名匹配）
         // 3. name = username（兼容旧逻辑）
-        const phone = req.auth?.phone || username;
-        const name = req.auth?.name;
         let personnelQuery = `
-          SELECT pp.id, pp.district_id, pp.role, pp.name, psd.name as district_name
+          SELECT pp.id, pp.district_id, pp.role, pp.name, pp.phone, psd.name as district_name
           FROM project_personnel pp
           LEFT JOIN project_samples psd ON pp.district_id = psd.id AND psd.type = 'district'
           WHERE pp.status = 'active' AND (pp.phone = $1 OR pp.name = $2 OR pp.name ILIKE $3)
         `;
-        const personnelParams = [phone, name || username, `%${username}%`];
+        const personnelParams = [phone, name || username, `%${username || ''}%`];
 
         // 如果有 projectId，限制到特定项目
         if (projectId) {
@@ -595,173 +618,75 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
           personnelParams.push(projectId);
         }
 
+        console.log(`[/my/tasks] 执行查询:`, {
+          query: personnelQuery,
+          params: personnelParams
+        });
+
         const personnelResult = await db.query(personnelQuery, personnelParams);
         personnelIds = personnelResult.rows.map(r => r.id);
         personnelDistrictIds = personnelResult.rows.map(r => r.district_id).filter(Boolean);
 
-        console.log(`[/my/tasks] username=${username}, personnelIds=`, personnelIds, ', personnelDistrictIds=', personnelDistrictIds);
-
-        // 如果找到了 personnel 记录的 district_id，将其添加到 districtIds 用于过滤
-        if (personnelDistrictIds.length > 0 && !hasUserScopes) {
-          // 查询区县名称
-          const districtResult = await db.query(
-            'SELECT id, name FROM project_samples WHERE id = ANY($1) AND type = $2',
-            [personnelDistrictIds, 'district']
-          );
-          districtResult.rows.forEach(d => {
-            if (!districtIds.includes(d.id)) {
-              districtIds.push(d.id);
-            }
-            if (d.name && !districtNames.includes(d.name)) {
-              districtNames.push(d.name);
-            }
-          });
-        }
+        console.log(`[/my/tasks] 查询结果:`, {
+          phone: phone,
+          name: name,
+          username: username,
+          foundPersonnel: personnelResult.rows.length,
+          personnelIds: personnelIds,
+          personnelDetails: personnelResult.rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            phone: r.phone,
+            role: r.role,
+            district: r.district_name
+          }))
+        });
       } catch (err) {
-        console.warn('查询 project_personnel 失败:', err);
+        console.error('查询 project_personnel 失败:', err);
+        console.error('错误详情:', {
+          message: err.message,
+          stack: err.stack,
+          phone: phone,
+          name: name,
+          username: username
+        });
+      }
+    } else {
+      console.warn(`[/my/tasks] 无法识别用户身份: phone=${phone}, name=${name}, username=${username}`);
+      console.warn(`[/my/tasks] 可能原因: 服务重启后 session 丢失，请重新登录`);
+    }
+
+    // 如果没有匹配的 personnel 记录，返回空结果
+    if (personnelIds.length === 0) {
+      const hasSession = req.auth?.phone || req.auth?.name;
+      
+      if (!hasSession) {
+        // Session 丢失的情况
+        const errorMsg = `会话已过期或丢失（服务可能已重启），无法识别用户身份`;
+        console.warn(`[/my/tasks] ${errorMsg}`);
+        console.warn(`[/my/tasks] Token: ${req.auth?.token}, Timestamp: ${req.auth?.timestamp}, Role: ${req.auth?.role}`);
+        console.warn(`[/my/tasks] 解决方案: 请重新登录获取新的 token`);
+        
+        // 返回错误信息（但保持 200 状态码以兼容前端）
+        return res.json({ 
+          code: 200, 
+          data: [],
+          message: '会话已过期，请重新登录',
+          needRelogin: true 
+        });
+      } else {
+        // 有 session 但没有匹配的 personnel 记录
+        const errorMsg = `用户 ${username || phone || '未知'} 没有匹配的 personnel 记录`;
+        console.warn(`[/my/tasks] ${errorMsg}`);
+        console.warn(`[/my/tasks] 建议检查: 1) project_personnel 表中是否存在该用户的记录 2) 记录的 phone/name 是否匹配 3) 记录状态是否为 'active' 4) 如果指定了 projectId，记录是否属于该项目`);
+        
+        return res.json({ code: 200, data: [] });
       }
     }
 
-    // 如果用户没有任何权限范围（scopes 为空、没有匹配的 personnel 记录），
-    // 则返回空结果，避免返回所有任务
-    if (!hasUserScopes && !hasExplicitScope && personnelIds.length === 0 && personnelDistrictIds.length === 0) {
-      console.warn(`[/my/tasks] 用户 ${username} 没有匹配的权限范围，返回空结果`);
-      return res.json({ code: 200, data: [] });
-    }
-
-    // 是否有任何过滤条件
-    const hasPersonnelFilter = personnelIds.length > 0 || personnelDistrictIds.length > 0;
-
-    if (hasExplicitScope || hasUserScopes || hasPersonnelFilter) {
-      // 优先使用 target_type/target_id（若任务创建时带上），否则回退到 assignee 的 organization 匹配 scope.name
-      const scopeConds = [];
-      const st = hasExplicitScope ? String(scopeType) : null;
-      const sid = hasExplicitScope ? String(scopeId) : null;
-
-      if (schoolIds.length > 0) {
-        scopeConds.push(`(t.target_type = 'school' AND t.target_id = ANY($${paramIndex++}))`);
-        params.push(schoolIds);
-      }
-      if (schoolNames.length > 0) {
-        scopeConds.push(`(pp.organization = ANY($${paramIndex++}))`);
-        params.push(schoolNames);
-      }
-      if (districtIds.length > 0) {
-        scopeConds.push(`(t.target_type = 'district' AND t.target_id = ANY($${paramIndex++}))`);
-        params.push(districtIds);
-      }
-      if (districtNames.length > 0) {
-        scopeConds.push(`(pp.organization = ANY($${paramIndex++}))`);
-        params.push(districtNames);
-      }
-
-      // 如果用户没有 scopes 但找到了 personnelIds，通过 assignee_id 过滤
-      if (personnelIds.length > 0) {
-        scopeConds.push(`(t.assignee_id = ANY($${paramIndex++}))`);
-        params.push(personnelIds);
-      }
-
-      // 如果没有匹配的 scope，但用户明确指定了 scopeType 和 scopeId，则尝试查询对应的名称
-      // 这样可以兼容服务重启后旧 token 的情况，同时支持通过 organization 匹配
-      if (scopeConds.length === 0 && hasExplicitScope) {
-        try {
-          if (st === 'school') {
-            // 查询学校名称
-            const schoolResult = await db.query('SELECT name FROM schools WHERE id = $1', [sid]);
-            const schoolName = schoolResult?.rows?.[0]?.name;
-
-            // 同时通过 target_id 和 organization 匹配
-            if (schoolName) {
-              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
-              params.push(sid);
-              scopeConds.push(`(pp.organization = $${paramIndex++})`);
-              params.push(schoolName);
-            } else {
-              // 如果查询不到学校名称，至少通过 target_id 匹配
-              scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
-              params.push(sid);
-            }
-          } else if (st === 'district') {
-            // 查询区县名称
-            const districtResult = await db.query('SELECT name FROM districts WHERE id = $1', [sid]);
-            const districtName = districtResult?.rows?.[0]?.name;
-
-            // 同时通过 target_id 和 organization 匹配
-            if (districtName) {
-              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
-              params.push(sid);
-              scopeConds.push(`(pp.organization = $${paramIndex++})`);
-              params.push(districtName);
-            } else {
-              // 如果查询不到区县名称，至少通过 target_id 匹配
-              scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
-              params.push(sid);
-            }
-          }
-        } catch (err) {
-          // 如果查询失败，至少通过 target_id 匹配
-          console.warn('查询学校/区县名称失败:', err);
-          if (st === 'school') {
-            scopeConds.push(`(t.target_type = 'school' AND t.target_id = $${paramIndex++})`);
-            params.push(sid);
-          } else if (st === 'district') {
-            scopeConds.push(`(t.target_type = 'district' AND t.target_id = $${paramIndex++})`);
-            params.push(sid);
-          }
-        }
-      }
-
-      // 添加兜底条件：如果任务没有关联到具体学校/区县（target_type 为空且 organization 为空），
-      // 也返回这些任务，但需要根据 scopeType 过滤对应的工具类型（dt.target）
-      // 判断用户主要的 scope 类型（用于兜底条件）
-      // 如果用户通过 personnelIds 匹配且有 district_id，则视为区县类型
-      const primaryScopeType = st || (districtScopes.length > 0 ? 'district' : (schoolScopes.length > 0 ? 'school' : (personnelDistrictIds.length > 0 ? 'district' : null)));
-
-      if (primaryScopeType === 'school') {
-        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '学校')`);
-      } else if (primaryScopeType === 'district') {
-        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '区县')`);
-
-        // 如果是区县 scope 且需要包含下属学校任务
-        if (includeSubSchools === 'true') {
-          try {
-            // 获取所有区县 ID（从 scopes 中提取、personnelDistrictIds、或使用指定的 sid）
-            const allDistrictIds = hasExplicitScope ? [sid] : (districtIds.length > 0 ? districtIds : personnelDistrictIds);
-
-            if (allDistrictIds.length > 0) {
-              // 查询所有区县下的学校（从项目样本表获取）
-              const schoolsResult = await db.query(
-                'SELECT id, name FROM project_samples WHERE parent_id = ANY($1) AND type = $2',
-                [allDistrictIds, 'school']
-              );
-              const subSchoolIds = schoolsResult.rows.map(s => s.id);
-              const subSchoolNames = schoolsResult.rows.map(s => s.name);
-
-              // 扩展过滤条件，包含下属学校的任务
-              if (subSchoolIds.length > 0) {
-                scopeConds.push(`(t.target_type = 'school' AND t.target_id = ANY($${paramIndex++}))`);
-                params.push(subSchoolIds);
-              }
-              if (subSchoolNames.length > 0) {
-                scopeConds.push(`(pp.organization = ANY($${paramIndex++}))`);
-                params.push(subSchoolNames);
-              }
-              // 也包含学校级别的通用任务
-              scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = '') AND dt.target = '学校')`);
-            }
-          } catch (err) {
-            console.warn('查询下属学校失败:', err);
-          }
-        }
-      } else if (hasUserScopes || hasPersonnelFilter) {
-        // 用户有 scopes 或 personnelFilter 但类型未知，只返回匹配的任务
-        scopeConds.push(`(t.target_type IS NULL AND (pp.organization IS NULL OR pp.organization = ''))`);
-      }
-
-      if (scopeConds.length > 0) {
-        sql += ` AND (${scopeConds.join(' OR ')})`;
-      }
-    }
+    // 通过 assignee_id 过滤任务（任务只与用户ID相关）
+    sql += ` AND t.assignee_id = ANY($${paramIndex++})`;
+    params.push(personnelIds);
 
     // DISTINCT ON 要求 ORDER BY 以 distinct key 作为前缀（并优先返回"更紧急"的那条）
     // 如果不使用 DISTINCT ON（查看下属学校任务），则按学校名称分组排序

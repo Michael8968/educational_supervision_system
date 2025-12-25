@@ -57,6 +57,8 @@ export const verifyToken: RequestHandler = (req: AuthenticatedRequest, res: Resp
   }
 
   // 解析 token 获取基本信息
+  // 新格式: token-{timestamp}-{role}-{encodedPhone}
+  // 旧格式: token-{timestamp}-{role} (兼容)
   // 注意: 这是简化实现，生产环境应使用 JWT 并验证签名
   const parts = token.split('-');
   if (parts.length < 2) {
@@ -80,15 +82,34 @@ export const verifyToken: RequestHandler = (req: AuthenticatedRequest, res: Resp
     return;
   }
 
-  // 将解析的信息附加到请求对象
+  // 从 sessionStore 获取会话信息（优先使用）
   const session = sessionStore.getSession(timestamp);
+
+  // 从 token 中提取 phone（如果 session 丢失时的备用方案）
+  let phoneFromToken: string | null = null;
+  if (parts.length >= 4) {
+    // 新格式：token 中包含 phone
+    try {
+      const encodedPhone = parts.slice(3).join('-'); // 支持 phone 中包含连字符的情况
+      phoneFromToken = Buffer.from(encodedPhone, 'base64').toString('utf8');
+    } catch (err) {
+      console.warn('从 token 解析 phone 失败:', err);
+    }
+  }
+
+  // 优先使用 session 中的信息，如果 session 丢失则使用 token 中的 phone
+  const phone = session?.phone || phoneFromToken;
+  const name = session?.name || null;
+  const roles = session?.roles || [];
+
+  // 将解析的信息附加到请求对象
   req.auth = {
     token,
     timestamp,
     role: parts[2] || null,
-    phone: session?.phone || null,
-    name: session?.name || null,
-    roles: session?.roles || [],
+    phone: phone || null,
+    name: name || null,
+    roles: roles,
   };
 
   next();

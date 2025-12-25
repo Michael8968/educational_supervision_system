@@ -119,6 +119,11 @@ export function createApp(db?: Database): Express {
           roles,
         });
 
+        // 将 phone 编码到 token 中（使用 Base64 编码，避免特殊字符问题）
+        // 格式: token-{timestamp}-{role}-{encodedPhone}
+        const encodedPhone = Buffer.from(user.phone || '').toString('base64');
+        const token = 'token-' + ts + '-' + (role || 'anonymous') + '-' + encodedPhone;
+
         res.json({
           code: 200,
           data: {
@@ -127,7 +132,7 @@ export function createApp(db?: Database): Express {
             role,
             roles,
             roleName: (role && roleNameMap[role]) || '',
-            token: 'token-' + ts + '-' + (role || 'anonymous'),
+            token: token,
           },
         });
       } else {
