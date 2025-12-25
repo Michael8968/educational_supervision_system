@@ -166,7 +166,7 @@ export function usePersonnel(projectId?: string) {
           const roleIdx = headers.findIndex(h => h === '角色类型' || h === '角色' || h === 'role');
           const nameIdx = headers.findIndex(h => h === '姓名' || h === 'name');
           const orgIdx = headers.findIndex(h => h === '单位' || h === 'organization');
-          const phoneIdx = headers.findIndex(h => h === '电话号码' || h === '电话' || h === 'phone');
+          const phoneIdx = headers.findIndex(h => h === '电话号码' || h === '电话' || h === '手机号' || h === 'phone');
           const idCardIdx = headers.findIndex(h => h === '身份证件号码' || h === '身份证' || h === 'idCard' || h === '身份证号');
           const districtIdIdx = headers.findIndex(h => h === '负责区县ID' || h === '区县ID' || h === 'districtId');
 

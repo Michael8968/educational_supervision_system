@@ -146,8 +146,33 @@ router.post('/projects/:projectId/personnel', async (req, res) => {
     }
 
     // 数据采集员必须关联区县
-    if (role === 'data_collector' && !districtId) {
-      return res.status(400).json({ code: 400, message: '数据采集员必须选择负责的区县' });
+    let finalDistrictId = districtId;
+    if (role === 'data_collector' && !finalDistrictId) {
+      // 尝试从 organization 字段自动匹配区县
+      if (organization) {
+        const districtMatch = await db.query(`
+          SELECT id, name
+          FROM project_samples
+          WHERE project_id = $1 AND type = 'district'
+          AND ($2 LIKE '%' || name || '%' OR name LIKE '%' || $2 || '%')
+          LIMIT 1
+        `, [projectId, organization]);
+
+        if (districtMatch.rows.length > 0) {
+          finalDistrictId = districtMatch.rows[0].id;
+          console.log(`自动匹配区县：${name} (${organization}) -> ${districtMatch.rows[0].name} (${finalDistrictId})`);
+        }
+      }
+
+      // 如果仍然没有匹配到区县，报错
+      if (!finalDistrictId) {
+        return res.status(400).json({
+          code: 400,
+          message: organization
+            ? `数据采集员必须选择负责的区县（无法从"${organization}"自动匹配）`
+            : '数据采集员必须选择负责的区县'
+        });
+      }
     }
 
     const id = generateId();
@@ -178,7 +203,7 @@ router.post('/projects/:projectId/personnel', async (req, res) => {
         phone: phone.trim(),
         id_card: idCard || '',
         role,
-        district_id: districtId || null,
+        district_id: finalDistrictId || null,
         user_phone: syncResult?.success ? phone.trim() : null,  // 关联系统用户
         status: 'active',
         created_at: timestamp,
@@ -274,13 +299,30 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
     const results = {
       success: 0,
       failed: 0,
+      skipped: 0,
       errors: [],
       sysUsersCreated: 0,
       sysUsersUpdated: 0,
     };
 
-    // 批量同步到系统用户
-    const personnelToSync = personnel.filter(p => p.phone && p.phone.trim());
+    // 获取该项目已存在的人员（用于去重）
+    const existingPersonnel = await db.query(`
+      SELECT phone, id_card FROM project_personnel WHERE project_id = $1
+    `, [projectId]);
+    const existingPhones = new Set(existingPersonnel.rows.map(p => p.phone).filter(Boolean));
+    const existingIdCards = new Set(existingPersonnel.rows.map(p => p.id_card).filter(Boolean));
+
+    // 批量同步到系统用户（只同步新用户）
+    const personnelToSync = personnel.filter(p => {
+      if (!p.phone || !p.phone.trim()) return false;
+      const phoneToCheck = p.phone.trim();
+      const idCardToCheck = p.idCard?.trim();
+      // 过滤掉已存在的用户
+      if (existingPhones.has(phoneToCheck)) return false;
+      if (idCardToCheck && existingIdCards.has(idCardToCheck)) return false;
+      return true;
+    });
+
     if (personnelToSync.length > 0) {
       try {
         const syncResult = await userSyncService.batchSyncPersonnelToSysUsers(
@@ -315,6 +357,22 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
           continue;
         }
 
+        // 检查是否已存在（通过手机号或身份证号去重）
+        const phoneToCheck = person.phone.trim();
+        const idCardToCheck = person.idCard?.trim();
+
+        if (existingPhones.has(phoneToCheck)) {
+          results.skipped++;
+          console.log(`跳过已存在用户：${person.name} (手机号: ${phoneToCheck})`);
+          continue;
+        }
+
+        if (idCardToCheck && existingIdCards.has(idCardToCheck)) {
+          results.skipped++;
+          console.log(`跳过已存在用户：${person.name} (身份证: ${idCardToCheck})`);
+          continue;
+        }
+
         if (!validRoles.includes(person.role)) {
           results.failed++;
           results.errors.push(`${person.name}: 无效的角色类型`);
@@ -322,10 +380,31 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
         }
 
         // 数据采集员必须关联区县
-        if (person.role === 'data_collector' && !person.districtId) {
-          results.failed++;
-          results.errors.push(`${person.name}: 数据采集员必须选择负责的区县`);
-          continue;
+        let finalDistrictId = person.districtId;
+        if (person.role === 'data_collector' && !finalDistrictId) {
+          // 尝试从 organization 字段自动匹配区县
+          if (person.organization) {
+            // 从 project_samples 中查找匹配的区县
+            const districtMatch = await db.query(`
+              SELECT id, name
+              FROM project_samples
+              WHERE project_id = $1 AND type = 'district'
+              AND ($2 LIKE '%' || name || '%' OR name LIKE '%' || $2 || '%')
+              LIMIT 1
+            `, [projectId, person.organization]);
+
+            if (districtMatch.rows.length > 0) {
+              finalDistrictId = districtMatch.rows[0].id;
+              console.log(`自动匹配区县：${person.name} (${person.organization}) -> ${districtMatch.rows[0].name} (${finalDistrictId})`);
+            }
+          }
+
+          // 如果仍然没有匹配到区县，报错
+          if (!finalDistrictId) {
+            results.failed++;
+            results.errors.push(`${person.name}: 数据采集员必须选择负责的区县（无法从"${person.organization}"自动匹配）`);
+            continue;
+          }
         }
 
         const id = generateId();
@@ -339,13 +418,19 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
             phone: person.phone.trim(),
             id_card: person.idCard || '',
             role: person.role,
-            district_id: person.districtId || null,
+            district_id: finalDistrictId || null,
             user_phone: person.phone.trim(),  // 关联系统用户
             status: 'active',
             created_at: timestamp,
             updated_at: timestamp,
           });
         if (error) throw error;
+
+        // 添加到已存在集合，防止同一批次中的重复
+        existingPhones.add(phoneToCheck);
+        if (idCardToCheck) {
+          existingIdCards.add(idCardToCheck);
+        }
 
         results.success++;
       } catch (err) {
@@ -357,7 +442,7 @@ router.post('/projects/:projectId/personnel/import', async (req, res) => {
     res.json({
       code: 200,
       data: results,
-      message: `导入完成：成功 ${results.success} 条，失败 ${results.failed} 条。系统用户：新建 ${results.sysUsersCreated} 个，更新 ${results.sysUsersUpdated} 个`
+      message: `导入完成：成功 ${results.success} 条，失败 ${results.failed} 条，跳过 ${results.skipped} 条（已存在）。系统用户：新建 ${results.sysUsersCreated} 个，更新 ${results.sysUsersUpdated} 个`
     });
   } catch (error) {
     res.status(500).json({ code: 500, message: error.message });
