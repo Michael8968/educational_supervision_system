@@ -924,11 +924,127 @@ router.get('/districts/:districtId/submissions', async (req, res) => {
     const { projectId, schoolId, formId, status } = req.query;
 
     // 验证区县存在
-    const districtResult = await db.query('SELECT id, name FROM districts WHERE id = $1', [districtId]);
+    const districtResult = await db.query('SELECT id, name, code FROM districts WHERE id = $1', [districtId]);
     if (!districtResult.rows[0]) {
       return res.status(404).json({ code: 404, message: '区县不存在' });
     }
 
+    const district = districtResult.rows[0];
+
+    // 如果没有指定项目ID，使用原有逻辑（通过schools表查询）
+    if (!projectId) {
+      let sql = `
+        SELECT s.id, s.project_id as "projectId",
+               COALESCE(s.form_id, s.tool_id) as "formId",
+               s.school_id as "schoolId",
+               s.submitter_id as "submitterId", s.submitter_name as "submitterName",
+               s.submitter_org as "submitterOrg", s.status, s.reject_reason as "rejectReason",
+               s.created_at as "createdAt", s.updated_at as "updatedAt",
+               s.submitted_at as "submittedAt", s.approved_at as "approvedAt",
+               t.name as "formName",
+               p.name as "projectName",
+               sc.name as "schoolName", sc.code as "schoolCode",
+               sc.school_type as "schoolType"
+        FROM submissions s
+        LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
+        LEFT JOIN projects p ON s.project_id = p.id
+        JOIN schools sc ON s.school_id = sc.id
+        WHERE sc.district_id = $1
+      `;
+      const params = [districtId];
+      let paramIndex = 2;
+
+      // 按学校过滤
+      if (schoolId) {
+        sql += ` AND s.school_id = $${paramIndex++}`;
+        params.push(schoolId);
+      }
+
+      // 按表单过滤
+      if (formId) {
+        sql += ` AND COALESCE(s.form_id, s.tool_id) = $${paramIndex++}`;
+        params.push(formId);
+      }
+
+      // 按状态过滤
+      if (status) {
+        sql += ` AND s.status = $${paramIndex++}`;
+        params.push(status);
+      }
+
+      sql += ' ORDER BY sc.name, s.updated_at DESC';
+
+      const result = await db.query(sql, params);
+
+      // 统计
+      const stats = {
+        total: result.rows.length,
+        draft: result.rows.filter(r => r.status === 'draft').length,
+        submitted: result.rows.filter(r => r.status === 'submitted').length,
+        approved: result.rows.filter(r => r.status === 'approved').length,
+        rejected: result.rows.filter(r => r.status === 'rejected').length
+      };
+
+      return res.json({
+        code: 200,
+        data: {
+          district,
+          stats,
+          submissions: result.rows
+        }
+      });
+    }
+
+    // 指定了项目ID，使用新逻辑（通过project_samples表查询）
+    // 1. 在 project_samples 中找到该区县的样本（通过code或name匹配）
+    const districtSampleResult = await db.query(`
+      SELECT id, name, code, type
+      FROM project_samples
+      WHERE project_id = $1
+        AND type = 'district'
+        AND (code = $2 OR name = $3)
+      LIMIT 1
+    `, [projectId, district.code, district.name]);
+
+    if (!districtSampleResult.rows[0]) {
+      // 如果项目中没有该区县的样本，返回空结果
+      return res.json({
+        code: 200,
+        data: {
+          district,
+          stats: { total: 0, draft: 0, submitted: 0, approved: 0, rejected: 0 },
+          submissions: []
+        }
+      });
+    }
+
+    const districtSampleId = districtSampleResult.rows[0].id;
+
+    // 2. 查找所有parent_id指向该区县样本的学校样本
+    const schoolSamplesResult = await db.query(`
+      SELECT id, name, code, school_type
+      FROM project_samples
+      WHERE project_id = $1
+        AND type = 'school'
+        AND parent_id = $2
+      ORDER BY name
+    `, [projectId, districtSampleId]);
+
+    if (!schoolSamplesResult.rows || schoolSamplesResult.rows.length === 0) {
+      // 如果该区县没有学校样本，返回空结果
+      return res.json({
+        code: 200,
+        data: {
+          district,
+          stats: { total: 0, draft: 0, submitted: 0, approved: 0, rejected: 0 },
+          submissions: []
+        }
+      });
+    }
+
+    const schoolSampleIds = schoolSamplesResult.rows.map(s => s.id);
+
+    // 3. 查询这些学校样本的提交记录
     let sql = `
       SELECT s.id, s.project_id as "projectId",
              COALESCE(s.form_id, s.tool_id) as "formId",
@@ -939,22 +1055,17 @@ router.get('/districts/:districtId/submissions', async (req, res) => {
              s.submitted_at as "submittedAt", s.approved_at as "approvedAt",
              t.name as "formName",
              p.name as "projectName",
-             sc.name as "schoolName", sc.code as "schoolCode",
-             sc.school_type as "schoolType"
+             ps.name as "schoolName", ps.code as "schoolCode",
+             ps.school_type as "schoolType"
       FROM submissions s
       LEFT JOIN data_tools t ON COALESCE(s.form_id, s.tool_id) = t.id
       LEFT JOIN projects p ON s.project_id = p.id
-      JOIN schools sc ON s.school_id = sc.id
-      WHERE sc.district_id = $1
+      LEFT JOIN project_samples ps ON s.school_id = ps.id
+      WHERE s.project_id = $1
+        AND s.school_id = ANY($2)
     `;
-    const params = [districtId];
-    let paramIndex = 2;
-
-    // 按项目过滤（可选）
-    if (projectId) {
-      sql += ` AND s.project_id = $${paramIndex++}`;
-      params.push(projectId);
-    }
+    const params = [projectId, schoolSampleIds];
+    let paramIndex = 3;
 
     // 按学校过滤
     if (schoolId) {
@@ -974,7 +1085,7 @@ router.get('/districts/:districtId/submissions', async (req, res) => {
       params.push(status);
     }
 
-    sql += ' ORDER BY sc.name, s.updated_at DESC';
+    sql += ' ORDER BY ps.name, s.updated_at DESC';
 
     const result = await db.query(sql, params);
 
@@ -990,7 +1101,7 @@ router.get('/districts/:districtId/submissions', async (req, res) => {
     res.json({
       code: 200,
       data: {
-        district: districtResult.rows[0],
+        district,
         stats,
         submissions: result.rows
       }
