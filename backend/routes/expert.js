@@ -219,21 +219,26 @@ router.get('/expert/projects/:projectId/district-stats', async (req, res) => {
     const project = projectResult.rows[0];
 
     // 获取各区县的审核统计
-    // 通过 submissions -> schools -> districts 关联
+    // 直接通过 tasks 和 submissions 关联统计，不依赖 schools 表
+    // 使用 submitter_org 字段来判断所属区县
     const districtStatsResult = await db.query(`
       SELECT
         d.id as "districtId",
         d.name as "districtName",
         d.code as "districtCode",
-        COUNT(DISTINCT sc.id) as "schoolCount",
+        COUNT(DISTINCT CASE
+          WHEN s.submitter_org IS NOT NULL AND s.submitter_org != d.name
+          THEN s.submitter_org
+          ELSE NULL
+        END) as "schoolCount",
         COUNT(s.id) as total,
         SUM(CASE WHEN s.status = 'draft' THEN 1 ELSE 0 END) as draft,
         SUM(CASE WHEN s.status = 'submitted' THEN 1 ELSE 0 END) as submitted,
         SUM(CASE WHEN s.status = 'approved' THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN s.status = 'rejected' THEN 1 ELSE 0 END) as rejected
       FROM districts d
-      LEFT JOIN schools sc ON sc.district_id = d.id
-      LEFT JOIN submissions s ON s.school_id = sc.id AND s.project_id = $1
+      LEFT JOIN submissions s ON s.project_id = $1
+        AND (s.submitter_org LIKE d.name || '%' OR s.submitter_org = d.name)
       GROUP BY d.id, d.name, d.code
       ORDER BY d.code
     `, [projectId]);
