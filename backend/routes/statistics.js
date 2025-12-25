@@ -1887,24 +1887,74 @@ router.get('/districts/:districtId/resource-indicators-summary', async (req, res
     const indicatorConfig = schoolType === '初中' ? RESOURCE_INDICATORS.junior : RESOURCE_INDICATORS.primary;
 
     // 获取该区县的学校列表
-    let schoolQuery = `
+    // 同时包含已提交数据的学校（从 submissions）和注册的学校（从 schools）
+    // 根据区县名称匹配提交数据
+    const districtName = district.name;
+
+    // 先获取所有已提交数据的学校
+    const submissionSchoolsResult = await db.query(`
+      SELECT DISTINCT
+        sub.school_id as id,
+        sub.submitter_org as name,
+        CASE
+          WHEN sub.submitter_org LIKE '%小学%' AND sub.submitter_org NOT LIKE '%九年一贯制%' THEN '小学'
+          WHEN sub.submitter_org LIKE '%初中%' AND sub.submitter_org NOT LIKE '%九年一贯制%' THEN '初中'
+          WHEN sub.submitter_org LIKE '%九年一贯制%' THEN '九年一贯制'
+          ELSE '未知'
+        END as "schoolType"
+      FROM submissions sub
+      WHERE sub.project_id = $1
+        AND sub.submitter_org LIKE $2
+        AND sub.status IN ('approved', 'submitted', 'rejected')
+    `, [projectId, `%${districtName}%`]);
+
+    // 获取注册的学校
+    let registeredSchoolsQuery = `
       SELECT s.id, s.code, s.name, s.school_type as "schoolType",
              s.student_count as "studentCount", s.teacher_count as "teacherCount"
       FROM schools s
       WHERE s.district_id = $1 AND s.status = 'active'
     `;
-    const params = [districtId];
+    const registeredSchoolsResult = await db.query(registeredSchoolsQuery, [districtId]);
 
+    // 合并两个列表，去重（优先使用注册学校的信息）
+    const schoolsMap = new Map();
+
+    // 先添加注册的学校
+    registeredSchoolsResult.rows.forEach(school => {
+      schoolsMap.set(school.id, {
+        id: school.id,
+        code: school.code,
+        name: school.name,
+        schoolType: school.schoolType,
+        studentCount: school.studentCount,
+        teacherCount: school.teacherCount
+      });
+    });
+
+    // 再添加提交数据中的学校（如果不存在）
+    submissionSchoolsResult.rows.forEach(school => {
+      if (!schoolsMap.has(school.id)) {
+        schoolsMap.set(school.id, {
+          id: school.id,
+          code: null,
+          name: school.name,
+          schoolType: school.schoolType,
+          studentCount: 0,
+          teacherCount: 0
+        });
+      }
+    });
+
+    // 转换为数组并按学校类型筛选
+    let schools = Array.from(schoolsMap.values());
     if (schoolType === '小学') {
-      schoolQuery += " AND (s.school_type = '小学' OR s.school_type = '九年一贯制')";
+      schools = schools.filter(s => s.schoolType === '小学' || s.schoolType === '九年一贯制');
     } else if (schoolType === '初中') {
-      schoolQuery += " AND (s.school_type = '初中' OR s.school_type = '九年一贯制' OR s.school_type = '完全中学')";
+      schools = schools.filter(s => s.schoolType === '初中' || s.schoolType === '九年一贯制' || s.schoolType === '完全中学');
     }
 
-    schoolQuery += ' ORDER BY s.name';
-
-    const schoolsResult = await db.query(schoolQuery, params);
-    const schools = schoolsResult.rows;
+    schools.sort((a, b) => a.name.localeCompare(b.name));
 
     if (schools.length === 0) {
       return res.json({
