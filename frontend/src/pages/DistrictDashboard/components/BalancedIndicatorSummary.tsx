@@ -400,8 +400,14 @@ const BalancedIndicatorSummary: React.FC<BalancedIndicatorSummaryProps> = ({
   const renderMaterialNode = (
     material: { id: string; code: string; name: string },
     uploadStatus?: string,
-    isCompliant?: boolean | null
+    isCompliant?: boolean | null,
+    dataSource?: 'district' | 'school_aggregate'
   ): DataNode => {
+    // 根据数据来源确定说明文案
+    const sourceDescription = dataSource === 'district'
+      ? '由区县教育行政部门上传相关佐证材料'
+      : '由各学校上传相关佐证材料，系统汇总统计上传情况';
+
     // 构建详情数据
     const detailData: IndicatorDetail = {
       code: material.code,
@@ -411,19 +417,41 @@ const BalancedIndicatorSummary: React.FC<BalancedIndicatorSummaryProps> = ({
       value: uploadStatus || null,
       displayValue: uploadStatus || '待上传',
       isCompliant: isCompliant ?? null,
-      dataSource: 'school_aggregate',
-      formula: '由各学校上传相关佐证材料，系统汇总统计上传情况',
+      dataSource: dataSource || 'school_aggregate',
+      formula: sourceDescription,
     };
+
+    // 根据达标状态显示状态标签（与数据指标保持一致）
+    let statusTag;
+    let valueClass = styles.indicatorValue;
+
+    if (isCompliant === null) {
+      statusTag = <Tag color="default">待填报</Tag>;
+      valueClass += ` ${styles.pending}`;
+    } else {
+      statusTag = isCompliant ? (
+        <Tag icon={<CheckCircleOutlined />} color="success">达标</Tag>
+      ) : (
+        <Tag icon={<CloseCircleOutlined />} color="error">未达标</Tag>
+      );
+      valueClass += isCompliant ? ` ${styles.compliant}` : ` ${styles.nonCompliant}`;
+    }
 
     return {
       key: `material-${material.id}`,
       title: (
         <div className={styles.indicatorTitle}>
-          <Tag icon={<UploadOutlined />} color="orange" className={styles.typeTag}>佐证资料</Tag>
+          <Tag color="blue" className={styles.typeTag}>数据指标</Tag>
           <span className={styles.indicatorCode}>{material.code}</span>
-          <span className={styles.indicatorName}>{material.name}</span>
-          <span className={styles.indicatorValue}>{uploadStatus || '待上传'}</span>
-          <Tooltip title="查看详情">
+          <Tooltip title={material.name}>
+            <span className={styles.indicatorName}>{material.name}</span>
+          </Tooltip>
+          <span className={valueClass}>
+            {uploadStatus || '待上传'}
+          </span>
+          <span className={styles.indicatorThreshold}>上传佐证材料</span>
+          <span className={styles.statusTag}>{statusTag}</span>
+          <Tooltip title="查看数据来源和计算公式">
             <InfoCircleOutlined
               style={{ color: '#1890ff', cursor: 'pointer', marginLeft: 8 }}
               onClick={(e) => {
@@ -628,21 +656,39 @@ const BalancedIndicatorSummary: React.FC<BalancedIndicatorSummaryProps> = ({
 
           // 处理佐证材料
           l2Indicator.supportingMaterials.forEach((material) => {
-            // 查找对应的佐证材料上传状态（从教育质量API中获取）
+            // 查找对应的佐证材料上传状态
             let uploadStatus: string | undefined;
             let materialCompliant: boolean | null = null;
-            if (dimension.code === '3') {
+            let dataSourceType: 'district' | 'school_aggregate' = 'school_aggregate';
+
+            if (dimension.code === '2') {
+              // 政府保障程度 - 根据L2指标编码构造API Code
+              const gCode = `G${l2Indicator.code.split('.')[1]}`;
+              const apiIndicator = govIndicatorMap.get(gCode);
+              if (apiIndicator) {
+                uploadStatus = apiIndicator.displayValue ?? undefined;
+                materialCompliant = apiIndicator.isCompliant;
+                // G1和G10是区县级别的佐证材料
+                dataSourceType = 'district';
+                dimensionTotal++;
+                if (apiIndicator.isCompliant === true) dimensionCompliant++;
+                else if (apiIndicator.isCompliant === null) dimensionPending++;
+              }
+            } else if (dimension.code === '3') {
+              // 教育质量 - 根据L2指标编码构造API Code
               const qCode = `Q${l2Indicator.code.split('.')[1]}`;
               const apiIndicator = eduIndicatorMap.get(qCode);
               if (apiIndicator) {
                 uploadStatus = apiIndicator.displayValue ?? undefined;
                 materialCompliant = apiIndicator.isCompliant;
+                // Q3/Q5/Q6/Q7/Q8是学校级别的佐证材料
+                dataSourceType = 'school_aggregate';
                 dimensionTotal++;
                 if (apiIndicator.isCompliant === true) dimensionCompliant++;
                 else if (apiIndicator.isCompliant === null) dimensionPending++;
               }
             }
-            l2Children.push(renderMaterialNode(material, uploadStatus, materialCompliant));
+            l2Children.push(renderMaterialNode(material, uploadStatus, materialCompliant, dataSourceType));
           });
         }
 
