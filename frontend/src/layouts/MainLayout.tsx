@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Layout, Menu, Dropdown, Space, Tag } from 'antd';
 import {
   HomeOutlined,
@@ -10,7 +10,7 @@ import {
   DownOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet, Navigate } from 'react-router-dom';
-import { useAuthStore, useUserPermissions, UserRole } from '../stores/authStore';
+import { useAuthStore, UserRole } from '../stores/authStore';
 import styles from './MainLayout.module.css';
 
 const { Header, Sider, Content } = Layout;
@@ -33,20 +33,35 @@ const roleColorMap: Record<string, string> = {
   decision_maker: 'purple',
 };
 
+// 路由与角色的映射关系
+const routeRoleMap: Record<string, UserRole> = {
+  '/home': 'project_admin',
+  '/collector': 'data_collector',
+  '/expert': 'project_expert',
+  '/reports': 'decision_maker',
+  '/users': 'admin',
+};
+
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
   const { user, isAuthenticated, logout, switchRole } = useAuthStore();
-  const permissions = useUserPermissions();
 
-  // 根据角色生成菜单项
+  // 获取用户所有角色（并集）
+  const userRoles = useMemo(() => {
+    if (!user) return [];
+    return user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  }, [user]);
+
+  // 根据用户所有角色生成菜单项（混合方案：显示所有可用功能）
   const menuItems = useMemo(() => {
     const items = [];
+    const isAdmin = userRoles.includes('admin');
 
-    // 教育督导 - 管理员和项目管理员可见完整内容
-    if (permissions.canManageProjects) {
+    // 教育督导 - 管理员和项目管理员可见
+    if (isAdmin || userRoles.includes('project_admin')) {
       items.push({
         key: '/home',
         icon: <HomeOutlined />,
@@ -54,8 +69,8 @@ const MainLayout: React.FC = () => {
       });
     }
 
-    // 数据填报 - 采集员专用入口
-    if (permissions.isCollector && !permissions.isAdmin) {
+    // 数据填报 - 采集员可见（管理员也可见，方便查看）
+    if (isAdmin || userRoles.includes('data_collector')) {
       items.push({
         key: '/collector',
         icon: <FormOutlined />,
@@ -63,8 +78,8 @@ const MainLayout: React.FC = () => {
       });
     }
 
-    // 专家评审 - 专家专用入口
-    if (permissions.isExpert && !permissions.isAdmin) {
+    // 专家评审 - 专家可见（管理员也可见，方便查看）
+    if (isAdmin || userRoles.includes('project_expert')) {
       items.push({
         key: '/expert',
         icon: <AuditOutlined />,
@@ -72,8 +87,8 @@ const MainLayout: React.FC = () => {
       });
     }
 
-    // 报告查看 - 决策者专用入口
-    if (permissions.isDecisionMaker && !permissions.isAdmin) {
+    // 报告查看 - 决策者可见（管理员也可见）
+    if (isAdmin || userRoles.includes('decision_maker')) {
       items.push({
         key: '/reports',
         icon: <FileTextOutlined />,
@@ -81,8 +96,8 @@ const MainLayout: React.FC = () => {
       });
     }
 
-    // 用户管理 - 仅管理员可见（含子菜单）
-    if (permissions.canManageSystem) {
+    // 用户管理 - 仅管理员可见
+    if (isAdmin) {
       items.push({
         key: '/users',
         icon: <TeamOutlined />,
@@ -101,7 +116,38 @@ const MainLayout: React.FC = () => {
     }
 
     return items;
-  }, [permissions]);
+  }, [userRoles]);
+
+  // 路由变化时自动切换到对应角色（混合方案核心）
+  useEffect(() => {
+    if (!user) return;
+
+    const path = location.pathname;
+    let targetRole: UserRole | null = null;
+
+    // 根据路由前缀匹配目标角色
+    for (const [routePrefix, role] of Object.entries(routeRoleMap)) {
+      if (path.startsWith(routePrefix)) {
+        targetRole = role;
+        break;
+      }
+    }
+
+    if (!targetRole) return;
+
+    // 管理员访问任何页面都保持 admin 角色
+    if (userRoles.includes('admin')) {
+      if (user.role !== 'admin') {
+        switchRole('admin');
+      }
+      return;
+    }
+
+    // 如果用户拥有该角色且当前不是该角色，则自动切换
+    if (userRoles.includes(targetRole) && user.role !== targetRole) {
+      switchRole(targetRole);
+    }
+  }, [location.pathname, user, userRoles, switchRole]);
 
   const handleMenuClick = (e: { key: string }) => {
     navigate(e.key);
@@ -137,20 +183,28 @@ const MainLayout: React.FC = () => {
   }
 
   const userMenuItems = (() => {
-    const roles = (user?.roles && user.roles.length > 0 ? user.roles : user?.role ? [user.role] : []) as UserRole[];
+    const roles = userRoles as UserRole[];
+    const hasMultipleRoles = roles.length > 1;
 
-    const roleItems = roles.map((r) => ({
-      key: `role:${r}`,
-      label: (
-        <Space>
-          <span>{roleNameMap[r] || r}</span>
-          {user?.role === r ? <Tag color={roleColorMap[r] || 'default'}>当前</Tag> : null}
-        </Space>
-      ),
-      onClick: () => handleSwitchRole(r),
-    }));
+    // 多角色时显示角色切换选项
+    const roleItems = hasMultipleRoles
+      ? roles.map((r) => ({
+          key: `role:${r}`,
+          label: (
+            <Space>
+              <span>{roleNameMap[r] || r}</span>
+              {user?.role === r ? <Tag color={roleColorMap[r] || 'default'}>当前</Tag> : null}
+            </Space>
+          ),
+          onClick: () => handleSwitchRole(r),
+        }))
+      : [];
 
     return [
+      // 多角色时显示切换提示
+      ...(hasMultipleRoles
+        ? [{ key: 'role-header', label: '切换身份', disabled: true }]
+        : []),
       ...roleItems,
       ...(roleItems.length > 0 ? [{ type: 'divider' as const }] : []),
       {

@@ -46,6 +46,7 @@ const ExpertProjectDetail: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ExpertProject | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [overviewRefreshKey, setOverviewRefreshKey] = useState(0);
 
   // 加载项目信息
   const loadProject = useCallback(async () => {
@@ -75,6 +76,15 @@ const ExpertProjectDetail: React.FC = () => {
 
   const statusInfo = statusConfig[project?.status || ''] || statusConfig['配置中'];
 
+  // 处理Tab切换
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    // 切换到评审概览Tab时刷新数据
+    if (key === 'overview') {
+      setOverviewRefreshKey(prev => prev + 1);
+    }
+  };
+
   const tabItems = [
     {
       key: 'overview',
@@ -84,7 +94,7 @@ const ExpertProjectDetail: React.FC = () => {
           评审概览
         </span>
       ),
-      children: <ReviewOverview projectId={projectId!} />,
+      children: <ReviewOverview projectId={projectId!} refreshKey={overviewRefreshKey} />,
     },
     {
       key: 'submissions',
@@ -169,7 +179,7 @@ const ExpertProjectDetail: React.FC = () => {
             <Card className={styles.contentCard}>
               <Tabs
                 activeKey={activeTab}
-                onChange={setActiveTab}
+                onChange={handleTabChange}
                 items={tabItems}
                 size="large"
               />

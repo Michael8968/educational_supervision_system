@@ -25,9 +25,10 @@ import type { DistrictInfo } from '../../../services/expertService';
 
 interface ReviewOverviewProps {
   projectId: string;
+  refreshKey?: number;
 }
 
-const ReviewOverview: React.FC<ReviewOverviewProps> = ({ projectId }) => {
+const ReviewOverview: React.FC<ReviewOverviewProps> = ({ projectId, refreshKey }) => {
   const [loading, setLoading] = useState(false);
   const [districts, setDistricts] = useState<DistrictInfo[]>([]);
   const [summary, setSummary] = useState<{
@@ -58,7 +59,7 @@ const ReviewOverview: React.FC<ReviewOverviewProps> = ({ projectId }) => {
 
   useEffect(() => {
     loadDistrictStats();
-  }, [loadDistrictStats]);
+  }, [loadDistrictStats, refreshKey]);
 
   // 表格列定义
   const columns: ColumnsType<DistrictInfo> = [
