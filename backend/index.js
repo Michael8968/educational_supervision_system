@@ -25,6 +25,9 @@ const { router: reviewAssignmentRoutes, setDb: setReviewAssignmentDb } = require
 const { router: expertRoutes, setDb: setExpertDb } = require('./routes/expert');
 const { router: userRoutes } = require('./routes/users');
 const uploadsRouteFactory = require('./routes/uploads');
+const projectIndicatorRoutes = require('./routes/projectIndicators');
+const projectElementRoutes = require('./routes/projectElements');
+const projectDataToolRoutes = require('./routes/projectDataTools');
 const userStore = require('./services/userStore');
 const sessionStore = require('./services/sessionStore');
 
@@ -66,6 +69,10 @@ async function initDatabase() {
       setTaskDb(db);
       setReviewAssignmentDb(db);
       setExpertDb(db);
+      // 项目级副本路由
+      projectIndicatorRoutes.setDb(db);
+      projectElementRoutes.setDb(db);
+      projectDataToolRoutes.setDb(db);
     } else {
       console.error('Database connection failed');
     }
@@ -92,6 +99,10 @@ app.use('/api', taskRoutes);
 app.use('/api', reviewAssignmentRoutes);
 app.use('/api', expertRoutes);
 app.use('/api', userRoutes);
+// 项目级副本路由（指标体系、要素库、采集工具）
+app.use('/api', projectIndicatorRoutes);
+app.use('/api', projectElementRoutes);
+app.use('/api', projectDataToolRoutes);
 // 文件上传路由
 app.use('/api', uploadsRouteFactory(db));
 

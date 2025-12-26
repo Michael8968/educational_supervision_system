@@ -3,6 +3,7 @@ const router = express.Router();
 const { projectRules, submissionRules, idParamRules } = require('../middleware/validate');
 const { validateEnum } = require('../constants/enums');
 const { deleteProject } = require('../services/cascadeService');
+const { copyTemplatesToProject } = require('../services/projectCopyService');
 const { verifyToken, roles, checkProjectPermission } = require('../src/middleware/auth');
 const { checkCompliance } = require('../services/statisticsService');
 const {
@@ -499,6 +500,35 @@ router.post('/projects', verifyToken, roles.admin, projectRules.create, async (r
 
     if (error) throw error;
     return res.json({ code: 200, data: { id: data?.[0]?.id || id }, message: '创建成功' });
+  } catch (error) {
+    return res.status(500).json({ code: 500, message: error.message });
+  }
+});
+
+// 复制模板到项目（将指标体系、要素库、采集工具复制为项目级副本）
+router.post('/projects/:id/copy-templates', verifyToken, checkProjectPermission(['project_admin']), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { indicatorSystemId, elementLibraryId, toolIds } = req.body;
+
+    if (!indicatorSystemId && !elementLibraryId && (!toolIds || toolIds.length === 0)) {
+      return res.status(400).json({
+        code: 400,
+        message: '请至少指定一个要复制的模板（indicatorSystemId、elementLibraryId 或 toolIds）'
+      });
+    }
+
+    const result = await copyTemplatesToProject(projectId, {
+      indicatorSystemId,
+      elementLibraryId,
+      toolIds
+    });
+
+    return res.json({
+      code: 200,
+      message: '复制成功',
+      data: result
+    });
   } catch (error) {
     return res.status(500).json({ code: 500, message: error.message });
   }
