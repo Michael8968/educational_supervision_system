@@ -303,34 +303,15 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
     setCurrentToolScope(scope);
     setSelectedTargetIds([]);
 
-    // 重置表单中的评估对象和填报账号选择
+    // 重置表单
     assignForm.setFieldsValue({
       toolId,
-      targetIds: undefined,
-      assigneeIds: undefined,
     });
   };
 
-  // 当选择评估对象时，自动更新可用的填报账号
+  // 当选择评估对象时更新状态
   const handleTargetChange = (targetIds: string[]) => {
     setSelectedTargetIds(targetIds);
-
-    // 自动选中这些评估对象对应的采集员
-    const autoSelectedCollectorIds: string[] = [];
-    targetIds.forEach(targetId => {
-      const target = availableTargets.find(t => t.id === targetId);
-      if (target?.collectorId) {
-        if (!autoSelectedCollectorIds.includes(target.collectorId)) {
-          autoSelectedCollectorIds.push(target.collectorId);
-        }
-      }
-    });
-
-    // 同时更新表单字段值（确保全选等操作能正确同步）
-    assignForm.setFieldsValue({
-      targetIds: targetIds,
-      assigneeIds: autoSelectedCollectorIds,
-    });
   };
 
   // 打开分配任务弹窗
@@ -348,13 +329,9 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
       return;
     }
 
-    if (!values.targetIds || values.targetIds.length === 0) {
+    // 使用 selectedTargetIds 状态而不是 values.targetIds（因为 Form.Item 无法正确绑定自定义结构）
+    if (selectedTargetIds.length === 0) {
       message.warning('请选择评估对象');
-      return;
-    }
-
-    if (!values.assigneeIds || values.assigneeIds.length === 0) {
-      message.warning('请选择填报账号');
       return;
     }
 
@@ -363,13 +340,15 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
       // 确定目标类型
       const targetType = currentToolScope === '区县' ? 'district' : 'school';
 
-      // 为每个目标创建任务（目标和采集员按关联关系匹配）
-      const targetIds = values.targetIds as string[];
+      // 为每个选中的评估对象创建任务（直接使用该对象关联的采集员）
+      let createdCount = 0;
+      const skippedTargets: string[] = [];
 
-      for (const targetId of targetIds) {
+      for (const targetId of selectedTargetIds) {
         // 找到该目标对应的采集员
         const target = availableTargets.find(t => t.id === targetId);
-        if (target?.collectorId && values.assigneeIds.includes(target.collectorId)) {
+        if (target?.collectorId) {
+          // 直接使用评估对象关联的采集员，无需再验证
           await taskService.createTask({
             projectId,
             toolId: values.toolId,
@@ -378,13 +357,24 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
             targetId,
             dueDate: values.dueDate?.format('YYYY-MM-DD'),
           });
+          createdCount++;
+        } else {
+          skippedTargets.push(target?.name || targetId);
         }
       }
 
-      message.success('任务分配成功');
-      setAssignModalVisible(false);
-      loadData();
+      if (createdCount > 0) {
+        message.success(`成功分配 ${createdCount} 个任务`);
+        if (skippedTargets.length > 0) {
+          message.warning(`跳过 ${skippedTargets.length} 个无采集员的评估对象`);
+        }
+        setAssignModalVisible(false);
+        loadData();
+      } else {
+        message.warning('没有创建任务，所选评估对象均无关联采集员');
+      }
     } catch (error) {
+      console.error('任务分配失败:', error);
       message.error('任务分配失败');
     } finally {
       setAssignLoading(false);
@@ -811,14 +801,16 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
           {/* 第二步：选择评估对象（根据工具范围显示） */}
           {currentToolScope && (
             <Form.Item
-              name="targetIds"
               label={
                 <Space>
                   <span>2. 选择评估对象</span>
                   <Tag color="green">{availableTargets.length} 个可选</Tag>
+                  {selectedTargetIds.length > 0 && (
+                    <Tag color="blue">已选 {selectedTargetIds.length} 个</Tag>
+                  )}
                 </Space>
               }
-              rules={[{ required: true, message: '请选择评估对象' }]}
+              required
               extra={
                 availableTargets.length === 0
                   ? `暂无已配置采集员的${currentToolScope === '区县' ? '区县' : '学校'}，请先在"填报账号"中设置数据采集员`
@@ -884,37 +876,32 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
             </Form.Item>
           )}
 
-          {/* 第三步：确认填报账号 */}
+          {/* 第三步：确认填报账号（只读展示） */}
           {currentToolScope && selectedTargetIds.length > 0 && (
             <Form.Item
-              name="assigneeIds"
               label={
                 <Space>
-                  <span>3. 确认填报账号</span>
-                  <Tag color="orange">{availableCollectors.length} 个关联</Tag>
+                  <span>3. 将分配给以下采集员</span>
+                  <Tag color="orange">{availableCollectors.length} 人</Tag>
                 </Space>
               }
-              rules={[{ required: true, message: '请选择填报账号' }]}
-              extra="根据所选评估对象自动匹配关联的数据采集员"
+              extra="任务将自动分配给所选评估对象关联的数据采集员"
             >
-              <Select
-                mode="multiple"
-                placeholder="请选择填报账号（可多选）"
-                optionFilterProp="children"
-                maxTagCount={5}
-              >
-                {availableCollectors.map(p => (
-                  <Select.Option key={p.id} value={p.id}>
-                    <Space>
-                      <UserOutlined />
+              <div style={{
+                border: '1px solid #d9d9d9',
+                borderRadius: 4,
+                padding: 8,
+                background: '#fafafa'
+              }}>
+                <Space wrap>
+                  {availableCollectors.map(p => (
+                    <Tag key={p.id} icon={<UserOutlined />} color="blue">
                       {p.name}
-                      {p.phone && (
-                        <span style={{ color: '#999' }}>({p.phone})</span>
-                      )}
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
+                      {p.phone && <span style={{ marginLeft: 4, opacity: 0.7 }}>({p.phone})</span>}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
             </Form.Item>
           )}
 
