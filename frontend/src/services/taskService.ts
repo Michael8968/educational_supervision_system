@@ -26,6 +26,10 @@ export interface Task {
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
+  // 审核相关字段
+  requiresReview?: boolean;  // 是否需要审核
+  reviewerId?: string;       // 审核员ID
+  reviewerName?: string;     // 审核员姓名
 }
 
 // 任务统计类型
@@ -76,6 +80,7 @@ export async function createTask(data: {
   dueDate?: string;
   // 新增字段
   requiresReview?: boolean;  // 是否需要审核
+  reviewerId?: string;       // 审核员ID
   accessUrl?: string;        // 访问地址（问卷类型）
   accessMode?: 'anonymous' | 'login';  // 访问模式：匿名/需要登录
 }): Promise<{ id: string }> {

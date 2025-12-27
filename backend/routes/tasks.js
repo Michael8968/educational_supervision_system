@@ -34,6 +34,8 @@ router.get('/projects/:projectId/tasks', verifyToken, checkProjectPermission(['p
         t.completed_at as "completedAt",
         t.created_at as "createdAt",
         t.updated_at as "updatedAt",
+        t.requires_review as "requiresReview",
+        t.reviewer_id as "reviewerId",
         dt.name as "toolName",
         dt.type as "toolType",
         -- 优先从 sys_users 获取采集员信息（assignee_id 是用户手机号）
@@ -46,7 +48,9 @@ router.get('/projects/:projectId/tasks', verifyToken, checkProjectPermission(['p
           su.organization,
           pp.organization
         ) as "assigneeOrg",
-        ps.name as "assigneeDistrict"
+        ps.name as "assigneeDistrict",
+        -- 获取审核员姓名
+        (SELECT pp2.name FROM project_personnel pp2 WHERE pp2.id = t.reviewer_id LIMIT 1) as "reviewerName"
       FROM tasks t
       LEFT JOIN data_tools dt ON t.tool_id = dt.id
       LEFT JOIN sys_users su ON t.assignee_id = su.phone
@@ -201,6 +205,7 @@ router.post('/projects/:projectId/tasks', verifyToken, checkProjectPermission(['
       dueDate,
       // 新增字段
       requiresReview,  // 是否需要审核
+      reviewerId,      // 审核员ID
       accessUrl,       // 问卷访问地址
       accessMode,      // 访问模式：anonymous | login
     } = req.body;
@@ -226,6 +231,7 @@ router.post('/projects/:projectId/tasks', verifyToken, checkProjectPermission(['
         status: 'pending',
         // 新增字段
         requires_review: requiresReview || false,
+        reviewer_id: reviewerId || null,
         access_url: accessUrl || null,
         access_mode: accessMode || null,
         created_at: timestamp,

@@ -122,8 +122,14 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
 
   // 新增状态：任务配置选项
   const [requiresReview, setRequiresReview] = useState<boolean>(false);  // 是否需要审核
+  const [reviewerId, setReviewerId] = useState<string>('');  // 审核员ID
   const [accessUrl, setAccessUrl] = useState<string>('');  // 问卷访问地址
   const [accessMode, setAccessMode] = useState<'anonymous' | 'login'>('anonymous');  // 访问模式
+
+  // 获取项目管理员列表（用于审核员选择）
+  const projectAdmins = useMemo(() => [
+    ...(personnel['project_admin'] || []),
+  ], [personnel]);
 
   // 获取数据采集员列表（支持新旧角色）
   const collectors = useMemo(() => [
@@ -362,8 +368,9 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
     setSelectedTargetIds([]);
     // 重置任务配置选项
     setRequiresReview(false);
+    setReviewerId('');  // 重置审核员
     setAccessUrl('');
-    setAccessMode('login');
+    setAccessMode('anonymous');  // 默认匿名访问
     setAssignModalVisible(true);
   };
 
@@ -377,6 +384,12 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
     // 使用 selectedTargetIds 状态而不是 values.targetIds（因为 Form.Item 无法正确绑定自定义结构）
     if (selectedTargetIds.length === 0) {
       message.warning('请选择评估对象');
+      return;
+    }
+
+    // 验证：如果需要审核，必须选择审核员
+    if (requiresReview && !reviewerId) {
+      message.warning('请选择审核员');
       return;
     }
 
@@ -403,6 +416,8 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
             dueDate: values.dueDate?.format('YYYY-MM-DD'),
             // 新增字段
             requiresReview,
+            // 审核员ID（需要审核时必填）
+            ...(requiresReview && reviewerId ? { reviewerId } : {}),
             // 问卷类型才传访问地址和访问模式
             ...(isQuestionnaireType && accessUrl ? {
               accessUrl,
@@ -494,9 +509,9 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
     {
       title: '采集员',
       key: 'assignee',
-      width: 120,
+      width: '10%',
       render: (_, record) => (
-        <Space>
+        <Space style={{ whiteSpace: 'nowrap' }}>
           <UserOutlined />
           <span>{record.assigneeName || '未知'}</span>
         </Space>
@@ -505,17 +520,23 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
     {
       title: '采集工具',
       key: 'tool',
+      ellipsis: true,
+      width: '20%',
       render: (_, record) => (
-        <Space>
-          <FileTextOutlined style={{ color: '#1890ff' }} />
-          <span>{record.toolName || '未知工具'}</span>
-        </Space>
+        <Tooltip title={record.toolName || '未知工具'}>
+          <Space>
+            <FileTextOutlined style={{ color: '#1890ff' }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {record.toolName || '未知工具'}
+            </span>
+          </Space>
+        </Tooltip>
       ),
     },
     {
       title: '填报范围',
       key: 'target',
-      width: 180,
+      width: '20%',
       ellipsis: true,
       render: (_, record) => {
         const targetName = getTargetName(record);
@@ -530,7 +551,7 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
             <Tag
               icon={icon}
               color={color}
-              style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
             >
               {targetName}
             </Tag>
@@ -539,18 +560,38 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
       },
     },
     {
-      title: '所属单位',
-      dataIndex: 'assigneeOrg',
-      key: 'assigneeOrg',
-      ellipsis: true,
-      width: 150,
-      render: (org) => org || '-',
+      title: '审核配置',
+      key: 'review',
+      width: '15%',
+      render: (_, record) => {
+        if (record.requiresReview) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Space size={4}>
+                <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                <span style={{ color: '#52c41a', fontSize: 13 }}>需要审核</span>
+              </Space>
+              {record.reviewerName && (
+                <span style={{ color: '#666', fontSize: 12 }}>
+                  审核人：{record.reviewerName}
+                </span>
+              )}
+            </Space>
+          );
+        }
+        return (
+          <Space size={4}>
+            <CloseCircleOutlined style={{ color: '#999' }} />
+            <span style={{ color: '#999', fontSize: 13 }}>无需审核</span>
+          </Space>
+        );
+      },
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: '15%',
       render: (status: TaskStatus) => {
         const config = statusConfig[status] || statusConfig.pending;
         return (
@@ -562,25 +603,23 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
       title: '截止日期',
       dataIndex: 'dueDate',
       key: 'dueDate',
-      width: 110,
+      width: '15%',
       render: (date) => date ? (
-        <Space>
-          <CalendarOutlined />
-          {new Date(date).toLocaleDateString('zh-CN')}
-        </Space>
+        <span>{new Date(date).toLocaleDateString('zh-CN')}</span>
       ) : '-',
     },
     {
       title: '完成时间',
       dataIndex: 'completedAt',
       key: 'completedAt',
-      width: 150,
+      width: '15%',
       render: (time) => time ? new Date(time).toLocaleString('zh-CN') : '-',
     },
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: '10%',
+      align: 'center',
       render: (_, record) => (
         <Space>
           {!disabled && record.status === 'pending' && (
@@ -901,7 +940,7 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
                             handleTargetChange([]);
                           }
                         }}
-                        style={{ fontWeight: 'bold', marginBottom: 8, display: 'block' }}
+                        style={{ fontWeight: 'bold', marginBottom: 8 }}
                       >
                         全选未分配（{unassignedTargetsCount}）
                       </Checkbox>
@@ -998,13 +1037,18 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
             >
               <div style={{ border: '1px solid #d9d9d9', borderRadius: 4, padding: 12 }}>
                 {/* 是否需要审核 */}
-                <div style={{ marginBottom: isQuestionnaireType ? 16 : 0 }}>
+                <div style={{ marginBottom: requiresReview || isQuestionnaireType ? 16 : 0 }}>
                   <Space>
                     <AuditOutlined style={{ color: '#1890ff' }} />
                     <span>是否需要审核：</span>
                     <Switch
                       checked={requiresReview}
-                      onChange={setRequiresReview}
+                      onChange={(checked) => {
+                        setRequiresReview(checked);
+                        if (!checked) {
+                          setReviewerId('');  // 关闭审核时清空审核员
+                        }
+                      }}
                       checkedChildren="是"
                       unCheckedChildren="否"
                     />
@@ -1013,6 +1057,42 @@ const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
                     </span>
                   </Space>
                 </div>
+
+                {/* 选择审核员（需要审核时显示） */}
+                {requiresReview && (
+                  <div style={{ marginBottom: isQuestionnaireType ? 16 : 0 }}>
+                    <Space align="start" style={{ width: '100%' }}>
+                      <UserOutlined style={{ color: '#1890ff', marginTop: 4 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ marginBottom: 4 }}>选择审核员：</div>
+                        <Select
+                          value={reviewerId || undefined}
+                          onChange={setReviewerId}
+                          placeholder="请选择审核员"
+                          style={{ width: 300 }}
+                          allowClear
+                        >
+                          {projectAdmins.map(admin => (
+                            <Select.Option key={admin.id} value={admin.id}>
+                              <Space>
+                                <UserOutlined />
+                                {admin.name}
+                                {admin.phone && (
+                                  <span style={{ color: '#999', fontSize: 12 }}>({admin.phone})</span>
+                                )}
+                              </Space>
+                            </Select.Option>
+                          ))}
+                        </Select>
+                        {projectAdmins.length === 0 && (
+                          <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>
+                            暂无项目管理员，请先在"填报账号"中添加项目管理员
+                          </div>
+                        )}
+                      </div>
+                    </Space>
+                  </div>
+                )}
 
                 {/* 问卷类型专属配置 */}
                 {isQuestionnaireType && (
