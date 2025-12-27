@@ -138,6 +138,7 @@ const ProjectConfig: React.FC = () => {
     getAllDistricts,
     getAllSchools,
     importSchools,
+    setCollector,
     // 系统学校相关
     systemDistricts,
     filteredSystemDistricts,
@@ -222,6 +223,11 @@ const ProjectConfig: React.FC = () => {
       setLoadingUsers(false);
     }
   }, []);
+
+  // 组件加载时加载用户列表
+  useEffect(() => {
+    loadUserList();
+  }, [loadUserList]);
 
   // 打开添加人员弹窗时加载用户列表
   const handleOpenAddPerson = (role?: string) => {
@@ -338,6 +344,27 @@ const ProjectConfig: React.FC = () => {
     setCreateSchoolModalVisible(false);
     createSchoolForm.resetFields();
   };
+
+  // 设置数据采集员
+  const handleSetCollector = useCallback(async (
+    targetType: 'district' | 'school',
+    targetId: string,
+    userId: string | null,
+    applyToChildren?: boolean
+  ) => {
+    // 获取用户信息
+    const user = userId ? userList.find(u => u.phone === userId) : null;
+
+    // 调用 hook 中的方法保存数据
+    await setCollector(
+      targetType,
+      targetId,
+      userId,
+      user?.name || null,
+      userId, // phone 作为 collectorPhone
+      applyToChildren
+    );
+  }, [userList, setCollector]);
 
   // ==================== 可选组织列表（用于人员配置） ====================
 
@@ -733,6 +760,10 @@ const ProjectConfig: React.FC = () => {
                   }}
                   filterPersonnel={filterPersonnel}
                   disabled={isReadOnly}
+                  submissionDistricts={submissionDistricts}
+                  userList={userList}
+                  loadingUsers={loadingUsers}
+                  onSetCollector={handleSetCollector}
                 />
               ),
             },

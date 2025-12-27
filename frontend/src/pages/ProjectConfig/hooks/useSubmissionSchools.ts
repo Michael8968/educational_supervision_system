@@ -47,6 +47,10 @@ export interface SubmissionSchool {
   code?: string;
   schoolType: string;
   parentId: string;
+  // 数据采集员信息
+  collectorId?: string;
+  collectorName?: string;
+  collectorPhone?: string;
 }
 
 // 填报区县类型（包含学校列表，兼容旧接口）
@@ -55,6 +59,10 @@ export interface SubmissionDistrict {
   name: string;
   code?: string;
   schools: SubmissionSchool[];
+  // 数据采集员信息
+  collectorId?: string;
+  collectorName?: string;
+  collectorPhone?: string;
 }
 
 // 区县表单值
@@ -106,6 +114,10 @@ function convertApiToTree(apiSamples: sampleService.Sample[]): SubmissionDistric
         name: d.name,
         code: d.code,
         schools: [],
+        // 数据采集员信息
+        collectorId: d.collectorId,
+        collectorName: d.collectorName,
+        collectorPhone: d.collectorPhone,
       };
       districtMap.set(d.id, district);
       districts.push(district);
@@ -121,6 +133,10 @@ function convertApiToTree(apiSamples: sampleService.Sample[]): SubmissionDistric
         code: s.code,
         schoolType: s.schoolType || '小学',
         parentId: s.parentId || '',
+        // 数据采集员信息
+        collectorId: s.collectorId,
+        collectorName: s.collectorName,
+        collectorPhone: s.collectorPhone,
       };
 
       // 添加到对应区县
@@ -553,6 +569,48 @@ export function useSubmissionSchools(projectId?: string) {
     return districts.find(d => d.id === districtId);
   }, [districts]);
 
+  // 设置数据采集员
+  const setCollector = useCallback(async (
+    targetType: 'district' | 'school',
+    targetId: string,
+    collectorId: string | null,
+    collectorName: string | null,
+    collectorPhone: string | null,
+    applyToChildren?: boolean
+  ) => {
+    if (!projectId) return;
+
+    try {
+      // 更新目标节点（允许传 null 来清除采集员）
+      await sampleService.updateSample(projectId, targetId, {
+        collectorId: collectorId ?? '',
+        collectorName: collectorName ?? '',
+        collectorPhone: collectorPhone ?? '',
+      });
+
+      // 如果是区县且需要应用到下级学校
+      if (targetType === 'district' && applyToChildren) {
+        const district = districts.find(d => d.id === targetId);
+        if (district) {
+          // 批量更新所有学校
+          for (const school of district.schools) {
+            await sampleService.updateSample(projectId, school.id, {
+              collectorId: collectorId ?? '',
+              collectorName: collectorName ?? '',
+              collectorPhone: collectorPhone ?? '',
+            });
+          }
+        }
+      }
+
+      message.success('设置数据采集员成功');
+      loadData();
+    } catch (error) {
+      console.error('设置数据采集员失败:', error);
+      message.error('设置数据采集员失败');
+    }
+  }, [projectId, districts, loadData]);
+
   // 批量导入学校（从Excel解析后的数据）
   const importSchools = useCallback(async (
     importDistricts: Array<{
@@ -662,5 +720,6 @@ export function useSubmissionSchools(projectId?: string) {
     statistics,
     loadData,
     importSchools,
+    setCollector,
   };
 }

@@ -34,6 +34,10 @@ export interface Sample {
   createdAt: string;
   updatedAt: string;
   children?: Sample[];
+  // 数据采集员信息
+  collectorId?: string;
+  collectorName?: string;
+  collectorPhone?: string;
 }
 
 // 样本统计类型

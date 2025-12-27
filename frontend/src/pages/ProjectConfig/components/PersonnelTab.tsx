@@ -3,8 +3,8 @@
  * 配置填报账号，并根据采集工具的填报对象匹配自动分配任务
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Input, Tag, Space, Select, message, Modal, Tooltip, Card, Row, Col, Statistic } from 'antd';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Table, Button, Input, Tag, Space, Select, message, Modal, Tooltip, Card, Row, Col, Statistic, Switch, Empty } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -13,7 +13,10 @@ import {
   RightOutlined,
   ThunderboltOutlined,
   UserOutlined,
-  CheckCircleOutlined,
+  BankOutlined,
+  HomeOutlined,
+  SettingOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Personnel, RoleInfo } from '../types';
@@ -21,6 +24,37 @@ import * as projectToolService from '../../../services/projectToolService';
 import * as taskService from '../../../services/taskService';
 import type { ProjectTool } from '../../../services/projectToolService';
 import styles from '../index.module.css';
+
+// 评估对象学校类型
+interface SubmissionSchoolForPersonnel {
+  id: string;
+  name: string;
+  code?: string;
+  schoolType: string;
+  parentId: string;
+  collectorId?: string;
+  collectorName?: string;
+  collectorPhone?: string;
+}
+
+// 评估对象区县类型
+interface SubmissionDistrictForPersonnel {
+  id: string;
+  name: string;
+  code?: string;
+  schools: SubmissionSchoolForPersonnel[];
+  collectorId?: string;
+  collectorName?: string;
+  collectorPhone?: string;
+}
+
+// 系统用户类型（用于选择数据采集员）
+interface SystemUserForSelect {
+  phone: string;
+  name?: string;
+  roles: string[];
+  status: string;
+}
 
 interface PersonnelTabProps {
   projectId?: string;
@@ -33,6 +67,11 @@ interface PersonnelTabProps {
   onOpenMore: (role: string) => void;
   filterPersonnel: (role: string) => Personnel[];
   disabled?: boolean;
+  // 评估对象相关 props
+  submissionDistricts?: SubmissionDistrictForPersonnel[];
+  userList?: SystemUserForSelect[];
+  loadingUsers?: boolean;
+  onSetCollector?: (targetType: 'district' | 'school', targetId: string, userId: string | null, applyToChildren?: boolean) => void;
 }
 
 // 填报对象类型
@@ -68,6 +107,15 @@ export const PERSONNEL_ROLE_OPTIONS = [
   { value: 'project_expert', label: '项目评估专家' },
 ];
 
+// 学校类型颜色
+const SCHOOL_TYPE_COLORS: Record<string, string> = {
+  '幼儿园': 'magenta',
+  '小学': 'blue',
+  '初中': 'green',
+  '九年一贯制': 'purple',
+  '完全中学': 'orange',
+};
+
 const PersonnelTab: React.FC<PersonnelTabProps> = ({
   projectId,
   personnel,
@@ -79,11 +127,25 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
   onOpenMore,
   filterPersonnel,
   disabled = false,
+  submissionDistricts = [],
+  userList = [],
+  loadingUsers = false,
+  onSetCollector,
 }) => {
   const [tools, setTools] = useState<ProjectTool[]>([]);
-  const [loading, setLoading] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState<string>('');
+
+  // 数据采集员树形结构展开状态
+  const [expandedDistricts, setExpandedDistricts] = useState<string[]>([]);
+  // 是否使用统一账号模式
+  const [useUnifiedAccount, setUseUnifiedAccount] = useState(false);
+  // 当前正在设置的目标
+  const [settingTarget, setSettingTarget] = useState<{ type: 'district' | 'school'; id: string; name: string } | null>(null);
+  // 选中的用户
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
+  // 是否应用到下级学校
+  const [applyToChildren, setApplyToChildren] = useState(false);
 
   // 加载项目采集工具
   const loadTools = useCallback(async () => {
@@ -115,13 +177,10 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
   const projectAdmins = personnel['project_admin'] || [];
   const dataCollectors = personnel['data_collector'] || [];
   const projectExperts = personnel['project_expert'] || [];
-  const filteredDataCollectors = filterPersonnel('data_collector');
 
   // 保留旧角色兼容
   const districtReporters = personnel['district_reporter'] || [];
-  const filteredDistrictReporters = filterPersonnel('district_reporter');
   const schoolReporters = personnel['school_reporter'] || [];
-  const filteredSchoolReporters = filterPersonnel('school_reporter');
 
   // 自动分配采集工具
   const handleAutoAssign = async () => {
@@ -460,35 +519,240 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
         className={styles.personnelTable}
       />
 
-      {/* 数据采集员配置 */}
+      {/* 数据采集员配置 - 按评估对象树形结构展示 */}
       <div className={styles.personnelHeader} style={{ marginTop: 24 }}>
         <h3 className={styles.sectionTitle}>数据采集员</h3>
         <div className={styles.personnelActions}>
-          {!disabled && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => onAddPerson('data_collector')}
-            >
-              添加采集员
-            </Button>
-          )}
+          <Space>
+            <span style={{ color: '#666', fontSize: 13 }}>区县和学校使用相同账号：</span>
+            <Switch
+              checked={useUnifiedAccount}
+              onChange={setUseUnifiedAccount}
+              disabled={disabled}
+              size="small"
+            />
+          </Space>
         </div>
       </div>
 
-      {/* 数据采集员列表 */}
-      <Table
-        rowKey="id"
-        columns={dataCollectorColumns}
-        dataSource={filteredDataCollectors}
-        pagination={{
-          pageSize: 10,
-          showTotal: (total) => `共 ${total} 人`,
-          showSizeChanger: true,
+      {/* 评估对象树形结构 - 数据采集员配置 */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        {submissionDistricts.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="暂未添加评估对象，请先在「评估对象」中添加区县和学校"
+          />
+        ) : (
+          <div className={styles.collectorTreeContainer}>
+            {submissionDistricts.map(district => (
+              <div key={district.id} className={styles.collectorDistrictItem}>
+                {/* 区县行 */}
+                <div className={styles.collectorDistrictRow}>
+                  <div className={styles.collectorNodeLeft}>
+                    <span
+                      className={styles.expandIcon}
+                      onClick={() => {
+                        setExpandedDistricts(prev =>
+                          prev.includes(district.id)
+                            ? prev.filter(id => id !== district.id)
+                            : [...prev, district.id]
+                        );
+                      }}
+                    >
+                      {expandedDistricts.includes(district.id) ? <DownOutlined /> : <RightOutlined />}
+                    </span>
+                    <BankOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                    <span className={styles.collectorNodeName}>{district.name}</span>
+                    <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>
+                      ({district.schools.length} 所学校)
+                    </span>
+                  </div>
+                  <div className={styles.collectorNodeRight}>
+                    {district.collectorName ? (
+                      <Space>
+                        <Tag color="blue">
+                          <UserOutlined style={{ marginRight: 4 }} />
+                          {district.collectorName}
+                        </Tag>
+                        <span style={{ color: '#999', fontSize: 12 }}>{district.collectorPhone}</span>
+                        {!disabled && (
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<SettingOutlined />}
+                            onClick={() => {
+                              setSettingTarget({ type: 'district', id: district.id, name: district.name });
+                              setSelectedUserId(district.collectorId);
+                              setApplyToChildren(useUnifiedAccount);
+                            }}
+                          >
+                            修改
+                          </Button>
+                        )}
+                      </Space>
+                    ) : (
+                      !disabled && (
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<PlusOutlined />}
+                          onClick={() => {
+                            setSettingTarget({ type: 'district', id: district.id, name: district.name });
+                            setSelectedUserId(undefined);
+                            setApplyToChildren(useUnifiedAccount);
+                          }}
+                        >
+                          设置采集员
+                        </Button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* 学校列表 */}
+                {expandedDistricts.includes(district.id) && (
+                  <div className={styles.collectorSchoolList}>
+                    {district.schools.map(school => (
+                      <div key={school.id} className={styles.collectorSchoolRow}>
+                        <div className={styles.collectorNodeLeft}>
+                          <HomeOutlined style={{ color: '#52c41a', marginRight: 8, marginLeft: 24 }} />
+                          <span className={styles.collectorNodeName}>{school.name}</span>
+                          <Tag
+                            color={SCHOOL_TYPE_COLORS[school.schoolType] || 'default'}
+                            style={{ marginLeft: 8 }}
+                          >
+                            {school.schoolType}
+                          </Tag>
+                        </div>
+                        <div className={styles.collectorNodeRight}>
+                          {/* 统一账号模式下显示区县的账号 */}
+                          {useUnifiedAccount ? (
+                            district.collectorName ? (
+                              <Tag color="default">
+                                <UserOutlined style={{ marginRight: 4 }} />
+                                同区县（{district.collectorName}）
+                              </Tag>
+                            ) : (
+                              <span style={{ color: '#999', fontSize: 12 }}>未设置（继承区县）</span>
+                            )
+                          ) : (
+                            // 独立账号模式
+                            school.collectorName ? (
+                              <Space>
+                                <Tag color="green">
+                                  <UserOutlined style={{ marginRight: 4 }} />
+                                  {school.collectorName}
+                                </Tag>
+                                <span style={{ color: '#999', fontSize: 12 }}>{school.collectorPhone}</span>
+                                {!disabled && (
+                                  <Button
+                                    type="link"
+                                    size="small"
+                                    icon={<SettingOutlined />}
+                                    onClick={() => {
+                                      setSettingTarget({ type: 'school', id: school.id, name: school.name });
+                                      setSelectedUserId(school.collectorId);
+                                      setApplyToChildren(false);
+                                    }}
+                                  >
+                                    修改
+                                  </Button>
+                                )}
+                              </Space>
+                            ) : (
+                              !disabled && (
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  icon={<PlusOutlined />}
+                                  onClick={() => {
+                                    setSettingTarget({ type: 'school', id: school.id, name: school.name });
+                                    setSelectedUserId(undefined);
+                                    setApplyToChildren(false);
+                                  }}
+                                >
+                                  设置采集员
+                                </Button>
+                              )
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* 设置数据采集员弹窗 */}
+      <Modal
+        title={`设置数据采集员 - ${settingTarget?.name || ''}`}
+        open={!!settingTarget}
+        onCancel={() => {
+          setSettingTarget(null);
+          setSelectedUserId(undefined);
+          setApplyToChildren(false);
         }}
-        size="small"
-        className={styles.personnelTable}
-      />
+        onOk={() => {
+          if (settingTarget && onSetCollector) {
+            onSetCollector(
+              settingTarget.type,
+              settingTarget.id,
+              selectedUserId || null,
+              settingTarget.type === 'district' ? applyToChildren : false
+            );
+          }
+          setSettingTarget(null);
+          setSelectedUserId(undefined);
+          setApplyToChildren(false);
+        }}
+        okText="确定"
+        cancelText="取消"
+        width={480}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, color: '#666' }}>选择数据采集员账号</div>
+          <Select
+            placeholder="请选择数据采集员"
+            style={{ width: '100%' }}
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            loading={loadingUsers}
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+            }
+            options={userList
+              .filter(u => u.status === 'active' && u.roles?.includes('data_collector'))
+              .map(u => ({
+                value: u.phone,
+                label: `${u.name || u.phone}`,
+              }))}
+          />
+          {userList.filter(u => u.status === 'active' && u.roles?.includes('data_collector')).length === 0 && (
+            <p style={{ color: '#999', marginTop: 8, fontSize: 12 }}>
+              暂无可用的数据采集员账号，请先在用户管理中创建数据采集员角色的账号
+            </p>
+          )}
+        </div>
+
+        {settingTarget?.type === 'district' && (
+          <div>
+            <Space>
+              <Switch
+                checked={applyToChildren}
+                onChange={setApplyToChildren}
+                size="small"
+              />
+              <span style={{ color: '#666', fontSize: 13 }}>同时应用到该区县下的所有学校</span>
+            </Space>
+          </div>
+        )}
+      </Modal>
 
       {/* 项目评估专家配置 */}
       <div className={styles.personnelHeader} style={{ marginTop: 24 }}>

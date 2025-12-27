@@ -120,6 +120,7 @@ router.get('/projects/:projectId/samples', async (req, res) => {
       SELECT id, project_id as "projectId", parent_id as "parentId", type, code, name,
              school_type as "schoolType", teacher_sample_mode as "teacherSampleMode",
              phone, id_card as "idCard", sort_order as "sortOrder", status,
+             collector_id as "collectorId", collector_name as "collectorName", collector_phone as "collectorPhone",
              created_at as "createdAt", updated_at as "updatedAt"
       FROM project_samples
       WHERE project_id = $1
@@ -171,6 +172,7 @@ router.get('/projects/:projectId/samples/list', async (req, res) => {
       SELECT id, project_id as "projectId", parent_id as "parentId", type, code, name,
              school_type as "schoolType", teacher_sample_mode as "teacherSampleMode",
              phone, id_card as "idCard", sort_order as "sortOrder", status,
+             collector_id as "collectorId", collector_name as "collectorName", collector_phone as "collectorPhone",
              created_at as "createdAt", updated_at as "updatedAt"
       FROM project_samples
       WHERE project_id = $1
@@ -312,7 +314,7 @@ router.post('/projects/:projectId/samples/teachers', async (req, res) => {
 router.put('/projects/:projectId/samples/:id', async (req, res) => {
   try {
     const { projectId, id } = req.params;
-    const { code, name, schoolType, teacherSampleMode, phone, idCard, sortOrder, status } = req.body;
+    const { code, name, schoolType, teacherSampleMode, phone, idCard, sortOrder, status, collectorId, collectorName, collectorPhone } = req.body;
 
     const timestamp = now();
 
@@ -325,6 +327,9 @@ router.put('/projects/:projectId/samples/:id', async (req, res) => {
       ...(idCard !== undefined ? { id_card: idCard } : {}),
       ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
       ...(status !== undefined ? { status } : {}),
+      ...(collectorId !== undefined ? { collector_id: collectorId } : {}),
+      ...(collectorName !== undefined ? { collector_name: collectorName } : {}),
+      ...(collectorPhone !== undefined ? { collector_phone: collectorPhone } : {}),
       updated_at: timestamp,
     };
 
