@@ -279,6 +279,13 @@ async function deepCopySupportingMaterials(projectId, indicatorIdMap) {
     const newId = generateId();
     idMap[material.id] = newId;
 
+    // 处理 max_size 字段（可能是字符串如 "20MB" 或数字）
+    let maxSize = material.max_size;
+    if (typeof maxSize === 'string') {
+      const match = maxSize.match(/^(\d+)/);
+      maxSize = match ? parseInt(match[1], 10) : null;
+    }
+
     const newMaterial = {
       id: newId,
       project_id: projectId,
@@ -286,7 +293,7 @@ async function deepCopySupportingMaterials(projectId, indicatorIdMap) {
       code: material.code,
       name: material.name,
       file_types: material.file_types,
-      max_size: material.max_size,
+      max_size: maxSize,
       required: material.required,
       description: material.description,
       sort_order: material.sort_order,

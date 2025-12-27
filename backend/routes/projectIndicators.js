@@ -433,15 +433,18 @@ router.put('/projects/:projectId/indicator-system/tree', verifyToken, checkProje
       }
 
       // 佐证资料处理策略：
-      // - 如果前端传了 supportingMaterials（包括空数组），使用前端数据
-      // - 如果前端没传（undefined），从备份中恢复
+      // - 如果前端传了 supportingMaterials 且有数据，使用前端数据
+      // - 如果前端传了空数组或没传（undefined），且备份中有数据，从备份恢复
+      // - 这样可以防止前端意外清空佐证材料
       if (node.isLeaf) {
-        const hasSupportingMaterials = node.supportingMaterials !== undefined;
+        const frontendMaterials = node.supportingMaterials;
+        const hasFrontendData = Array.isArray(frontendMaterials) && frontendMaterials.length > 0;
+        const hasBackupData = oldMaterialsByCode[node.code] && oldMaterialsByCode[node.code].length > 0;
 
-        if (hasSupportingMaterials && Array.isArray(node.supportingMaterials)) {
-          // 前端传了数据，使用前端数据
-          for (let idx = 0; idx < node.supportingMaterials.length; idx++) {
-            const sm = node.supportingMaterials[idx];
+        if (hasFrontendData) {
+          // 前端传了有效数据，使用前端数据
+          for (let idx = 0; idx < frontendMaterials.length; idx++) {
+            const sm = frontendMaterials[idx];
             const smId = await ensureUniqueId(sm.id, 'project_supporting_materials');
             // 处理 max_size 字段（可能是字符串如 "20MB" 或数字）
             let maxSize = sm.maxSize || sm.max_size;
@@ -464,8 +467,8 @@ router.put('/projects/:projectId/indicator-system/tree', verifyToken, checkProje
               updated_at: timestamp
             });
           }
-        } else if (!hasSupportingMaterials && oldMaterialsByCode[node.code]) {
-          // 前端没传，从备份中恢复
+        } else if (hasBackupData) {
+          // 前端没传有效数据，但备份中有数据，从备份恢复
           const backupMaterials = oldMaterialsByCode[node.code];
           for (let idx = 0; idx < backupMaterials.length; idx++) {
             const oldM = backupMaterials[idx];
@@ -487,6 +490,7 @@ router.put('/projects/:projectId/indicator-system/tree', verifyToken, checkProje
             restoredMaterialCount++;
           }
         }
+        // 如果前端传了空数组且备份也为空，则不插入任何佐证材料
       }
 
       // 子节点
