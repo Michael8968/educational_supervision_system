@@ -35,11 +35,34 @@ const CASCADE_MAP = {
     { table: 'project_tools', field: 'tool_id', cascade: false }
   ],
   projects: [
+    // 填报数据（级联删除 submission_materials）
     { table: 'submissions', field: 'project_id', cascade: true },
-    { table: 'project_tools', field: 'project_id', cascade: false },
+    // 审核相关
+    { table: 'review_assignments', field: 'project_id', cascade: false },
+    { table: 'reviewer_scopes', field: 'project_id', cascade: false },
+    // 任务数据
+    { table: 'tasks', field: 'project_id', cascade: false },
+    // 统计和合规数据
     { table: 'school_indicator_data', field: 'project_id', cascade: false },
     { table: 'district_statistics', field: 'project_id', cascade: false },
-    { table: 'compliance_results', field: 'project_id', cascade: false }
+    { table: 'compliance_results', field: 'project_id', cascade: false },
+    // 项目配置
+    { table: 'project_tools', field: 'project_id', cascade: false },
+    { table: 'project_personnel', field: 'project_id', cascade: false },
+    { table: 'project_samples', field: 'project_id', cascade: false },
+    { table: 'project_sample_config', field: 'project_id', cascade: false },
+    // 项目级副本表（按依赖顺序，先删子表）
+    { table: 'project_field_mappings', field: 'project_id', cascade: false },
+    { table: 'project_data_indicator_elements', field: 'project_id', cascade: false },
+    { table: 'project_supporting_material_elements', field: 'project_id', cascade: false },
+    { table: 'project_threshold_standards', field: 'project_id', cascade: false },
+    { table: 'project_data_indicators', field: 'project_id', cascade: false },
+    { table: 'project_supporting_materials', field: 'project_id', cascade: false },
+    { table: 'project_indicators', field: 'project_id', cascade: false },
+    { table: 'project_elements', field: 'project_id', cascade: false },
+    { table: 'project_element_libraries', field: 'project_id', cascade: false },
+    { table: 'project_data_tools', field: 'project_id', cascade: false },
+    { table: 'project_indicator_systems', field: 'project_id', cascade: false }
   ],
   submissions: [
     { table: 'submission_materials', field: 'submission_id', cascade: false }
@@ -169,15 +192,40 @@ async function cascadeDelete(table, id) {
   // 3. 按照依赖顺序删除（先删子表，后删父表）
   // 注意：当前库未启用外键约束，此顺序主要用于保持逻辑一致性
   const deleteOrder = [
+    // 合规检查相关
     'compliance_results',
     'rule_actions',
     'rule_conditions',
     'compliance_rules',
+    // 填报相关
     'submission_materials',
     'submissions',
+    // 审核相关
+    'review_assignments',
+    'reviewer_scopes',
+    // 任务相关
+    'tasks',
+    // 统计相关
     'district_statistics',
     'school_indicator_data',
+    // 项目配置
     'project_tools',
+    'project_personnel',
+    'project_samples',
+    'project_sample_config',
+    // 项目级副本表（按依赖顺序）
+    'project_field_mappings',
+    'project_data_indicator_elements',
+    'project_supporting_material_elements',
+    'project_threshold_standards',
+    'project_data_indicators',
+    'project_supporting_materials',
+    'project_indicators',
+    'project_elements',
+    'project_element_libraries',
+    'project_data_tools',
+    'project_indicator_systems',
+    // 模板相关
     'field_mappings',
     'data_indicator_elements',
     'threshold_standards',
@@ -189,6 +237,7 @@ async function cascadeDelete(table, id) {
     'schools',
     'districts',
     'data_tools',
+    // 主表
     'projects',
     'indicator_systems',
   ];

@@ -22,6 +22,7 @@ import * as toolService from '../../services/toolService';
 import * as projectToolService from '../../services/projectToolService';
 import * as personnelService from '../../services/personnelService';
 import * as taskService from '../../services/taskService';
+import * as projectIndicatorService from '../../services/projectIndicatorService';
 import type { Project } from '../../services/projectService';
 import type { IndicatorSystem } from '../../services/indicatorService';
 import type { DataTool, ElementLibrary } from '../../services/toolService';
@@ -49,6 +50,12 @@ const ProjectPage: React.FC = () => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  // 编辑对话框字段禁用状态
+  const [editFieldsDisabled, setEditFieldsDisabled] = useState({
+    indicatorSystem: false, // 指标体系已建立要素关联时禁用
+    elementLibrary: false,  // 要素库已建立关联时禁用
+    tools: false,           // 采集工具已分配任务时禁用
+  });
 
   // 根据路由判断项目类型
   const projectType = useMemo(() => {
@@ -248,19 +255,13 @@ const ProjectPage: React.FC = () => {
   const handleCreate = async (values: any) => {
     setSaving(true);
     try {
-      const indicatorSystemIds: string[] = Array.isArray(values.indicatorSystemIds)
-        ? values.indicatorSystemIds
-        : (values.indicatorSystemIds ? [values.indicatorSystemIds] : []);
-      const indicatorSystemId: string | undefined = indicatorSystemIds[0];
+      const indicatorSystemId: string | undefined = values.indicatorSystemId;
 
       const data = {
         name: values.name,
         keywords: values.keywords ? values.keywords.split(/[,，;；|\s]+/).filter(Boolean) : [],
         description: values.description || '',
-        // 向后兼容：后端目前仍以 indicatorSystemId（单选）为主
         indicatorSystemId,
-        // 预留：未来支持项目绑定多个指标体系时可直接启用
-        indicatorSystemIds,
         // 要素库（单选）
         elementLibraryId: values.elementLibraryId,
         startDate: values.startDate?.format('YYYY-MM-DD'),
@@ -407,13 +408,39 @@ const ProjectPage: React.FC = () => {
         console.error('加载项目采集工具失败:', e);
       }
 
+      // 检查是否已建立要素关联
+      let hasElementAssociation = false;
+      try {
+        const dataIndicatorElements = await projectIndicatorService.getProjectDataIndicatorElements(currentProject.id);
+        // 检查是否有任何数据指标关联了要素
+        hasElementAssociation = dataIndicatorElements.some(di => di.elements && di.elements.length > 0);
+      } catch (e) {
+        console.error('检查要素关联失败:', e);
+      }
+
+      // 检查是否已分配任务
+      let hasTaskAssigned = false;
+      try {
+        const taskStats = await taskService.getTaskStats(currentProject.id);
+        hasTaskAssigned = taskStats.total > 0;
+      } catch (e) {
+        console.error('检查任务分配失败:', e);
+      }
+
+      // 设置字段禁用状态
+      setEditFieldsDisabled({
+        indicatorSystem: hasElementAssociation,
+        elementLibrary: hasElementAssociation,
+        tools: hasTaskAssigned,
+      });
+
       editForm.setFieldsValue({
         name: currentProject.name,
         keywords: Array.isArray(currentProject.keywords)
           ? currentProject.keywords.join(',')
           : currentProject.keywords || '',
         description: currentProject.description,
-        indicatorSystemIds: currentProject.indicatorSystemId ? [currentProject.indicatorSystemId] : [],
+        indicatorSystemId: currentProject.indicatorSystemId || undefined,
         elementLibraryId: currentProject.elementLibraryId || undefined,
         toolIds,
         startDate: currentProject.startDate ? dayjs(currentProject.startDate) : null,
@@ -429,10 +456,7 @@ const ProjectPage: React.FC = () => {
     if (!currentProject) return;
     setSaving(true);
     try {
-      const indicatorSystemIds: string[] = Array.isArray(values.indicatorSystemIds)
-        ? values.indicatorSystemIds
-        : (values.indicatorSystemIds ? [values.indicatorSystemIds] : []);
-      const indicatorSystemId: string | undefined = indicatorSystemIds[0];
+      const indicatorSystemId: string | undefined = values.indicatorSystemId;
 
       await projectService.updateProject(currentProject.id, {
         name: values.name,
@@ -731,7 +755,7 @@ const ProjectPage: React.FC = () => {
           </Form.Item>
           <Form.Item
             label="指标体系"
-            name="indicatorSystemIds"
+            name="indicatorSystemId"
             rules={[
               {
                 required: true,
@@ -740,12 +764,10 @@ const ProjectPage: React.FC = () => {
             ]}
           >
             <Select
-              mode="multiple"
               allowClear
               showSearch
-              placeholder="选择评估指标体系（可多选）"
+              placeholder="选择评估指标体系"
               optionFilterProp="children"
-              maxTagCount="responsive"
             >
               {filteredIndicatorSystems.map(sys => (
                 <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
@@ -871,7 +893,7 @@ const ProjectPage: React.FC = () => {
 
             <div className={styles.infoModalFooter}>
               <Button onClick={() => setInfoModalVisible(false)}>关闭</Button>
-              {permissions.canManageSystem && (
+              {permissions.canManageSystem && !currentProject.isPublished && (
                 <Button type="primary" icon={<EditOutlined />} onClick={handleEditInfo}>编辑</Button>
               )}
             </div>
@@ -905,21 +927,21 @@ const ProjectPage: React.FC = () => {
           </Form.Item>
           <Form.Item
             label="指标体系"
-            name="indicatorSystemIds"
+            name="indicatorSystemId"
             rules={[
               {
                 required: true,
                 message: '请选择评估指标体系',
               }
             ]}
+            extra={editFieldsDisabled.indicatorSystem ? <span style={{ color: '#faad14' }}>已建立要素关联，不可修改</span> : undefined}
           >
             <Select
-              mode="multiple"
               allowClear
               showSearch
-              placeholder="选择评估指标体系（可多选）"
+              placeholder="选择评估指标体系"
               optionFilterProp="children"
-              maxTagCount="responsive"
+              disabled={editFieldsDisabled.indicatorSystem}
             >
               {filteredIndicatorSystems.map(sys => (
                 <Select.Option key={sys.id} value={sys.id}>{sys.name}</Select.Option>
@@ -930,12 +952,14 @@ const ProjectPage: React.FC = () => {
             label="要素库"
             name="elementLibraryId"
             rules={[{ required: true, message: '请选择要素库' }]}
+            extra={editFieldsDisabled.elementLibrary ? <span style={{ color: '#faad14' }}>已建立要素关联，不可修改</span> : undefined}
           >
             <Select
               allowClear
               showSearch
               placeholder="选择要素库（单选）"
               optionFilterProp="children"
+              disabled={editFieldsDisabled.elementLibrary}
             >
               {filteredElementLibraries.map(lib => (
                 <Select.Option key={lib.id} value={lib.id}>
@@ -956,6 +980,7 @@ const ProjectPage: React.FC = () => {
                 message: '请选择采集工具',
               },
             ]}
+            extra={editFieldsDisabled.tools ? <span style={{ color: '#faad14' }}>已分配填报任务，不可修改</span> : undefined}
           >
             <Select
               mode="multiple"
@@ -964,6 +989,7 @@ const ProjectPage: React.FC = () => {
               placeholder="选择采集工具（可多选，按填报对象分组）"
               optionFilterProp="label"
               maxTagCount="responsive"
+              disabled={editFieldsDisabled.tools}
             >
               {toolOptions}
             </Select>
