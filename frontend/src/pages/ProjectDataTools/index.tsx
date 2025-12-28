@@ -18,21 +18,18 @@ import {
   message,
   Popconfirm,
   Tooltip,
-  Badge,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   ArrowLeftOutlined,
-  PlusOutlined,
   DeleteOutlined,
   EditOutlined,
   ReloadOutlined,
   FormOutlined,
   CopyOutlined,
-  SendOutlined,
-  StopOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as projectService from '../../services/projectService';
@@ -181,22 +178,21 @@ const ProjectDataTools: React.FC = () => {
     }
   };
 
-  // 发布/取消发布
-  const handleTogglePublish = async (tool: ProjectDataTool) => {
-    if (!projectId) return;
-
+  // 跳转到第三方问卷系统
+  const handleGoToSurveySystem = async (tool: ProjectDataTool) => {
     try {
-      if (tool.status === 'published') {
-        await projectDataToolService.unpublishProjectDataTool(projectId, tool.id);
-        message.success('已取消发布');
-      } else {
-        await projectDataToolService.publishProjectDataTool(projectId, tool.id);
-        message.success('发布成功');
+      // 必须有原始工具ID才能跳转到问卷系统
+      if (!tool.sourceToolId) {
+        message.warning('该工具没有关联的模板工具，无法跳转到问卷系统');
+        return;
       }
-      loadData();
+      const sourceTool = await toolService.getTool(tool.sourceToolId);
+      const action = sourceTool.externalSurveyId ? 'edit' : 'create';
+      const result = await toolService.createSurveyUrl(tool.sourceToolId, action);
+      window.open(result.url, '_blank');
     } catch (error) {
-      console.error('操作失败:', error);
-      message.error('操作失败');
+      console.error('跳转到问卷系统失败:', error);
+      message.error('跳转到问卷系统失败');
     }
   };
 
@@ -270,18 +266,6 @@ const ProjectDataTools: React.FC = () => {
       render: (target: string) => target || '-',
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Badge
-          status={status === 'published' ? 'success' : 'default'}
-          text={status === 'published' ? '已发布' : '草稿'}
-        />
-      ),
-    },
-    {
       title: '必填',
       dataIndex: 'isRequired',
       key: 'isRequired',
@@ -337,28 +321,33 @@ const ProjectDataTools: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <Tooltip title="编辑表单">
-            <Button
-              type="link"
-              size="small"
-              icon={<FormOutlined />}
-              onClick={() => navigate(getFormEditorUrl(record.id))}
-            />
-          </Tooltip>
+          {record.type === '问卷' ? (
+            // 问卷类型：跳转到第三方系统
+            <Tooltip title="前往问卷系统">
+              <Button
+                type="link"
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => handleGoToSurveySystem(record)}
+              />
+            </Tooltip>
+          ) : (
+            // 表单类型：编辑表单schema
+            <Tooltip title="编辑表单">
+              <Button
+                type="link"
+                size="small"
+                icon={<FormOutlined />}
+                onClick={() => navigate(getFormEditorUrl(record.id))}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="编辑信息">
             <Button
               type="link"
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          <Tooltip title={record.status === 'published' ? '取消发布' : '发布'}>
-            <Button
-              type="link"
-              size="small"
-              icon={record.status === 'published' ? <StopOutlined /> : <SendOutlined />}
-              onClick={() => handleTogglePublish(record)}
             />
           </Tooltip>
           <Popconfirm

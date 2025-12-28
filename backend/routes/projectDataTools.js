@@ -81,6 +81,7 @@ router.get('/projects/:projectId/data-tools', verifyToken, async (req, res) => {
 
     const formatted = (data || []).map(t => ({
       id: t.id,
+      sourceToolId: t.source_tool_id,
       name: t.name,
       type: t.type,
       target: t.target,
@@ -121,6 +122,7 @@ router.get('/projects/:projectId/data-tools/:toolId', verifyToken, async (req, r
 
     const result = {
       id: data.id,
+      sourceToolId: data.source_tool_id,
       name: data.name,
       type: data.type,
       target: data.target,

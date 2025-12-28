@@ -11,6 +11,7 @@ import { get, post, put, del } from './api';
 export interface ProjectDataTool {
   id: string;
   projectId?: string;
+  sourceToolId?: string;  // 来源模板工具ID
   name: string;
   type?: string;  // 表单 | 问卷
   target?: string;
