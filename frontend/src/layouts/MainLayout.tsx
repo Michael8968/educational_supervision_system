@@ -12,6 +12,9 @@ import {
   OrderedListOutlined,
   WarningOutlined,
   LineChartOutlined,
+  AimOutlined,
+  EyeOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore, UserRole } from '../stores/authStore';
@@ -80,14 +83,36 @@ const MainLayout: React.FC = () => {
         icon: <FormOutlined />,
         label: '数据填报',
       });
+      items.push({
+        key: '/rectification',
+        icon: <WarningOutlined />,
+        label: '问题整改',
+      });
     }
 
-    // 专家评审 - 仅专家可见
+    // 专家评估 - 仅专家可见
     if (userRoles.includes('project_expert')) {
       items.push({
         key: '/expert',
         icon: <AuditOutlined />,
-        label: '专家评审',
+        label: '专家工作台',
+        children: [
+          {
+            key: '/expert',
+            icon: <EyeOutlined />,
+            label: '数据查看',
+          },
+          {
+            key: '/expert/evaluations',
+            icon: <AimOutlined />,
+            label: '专业评估',
+          },
+          {
+            key: '/expert/pending-reviews',
+            icon: <SyncOutlined />,
+            label: '待复评',
+          },
+        ],
       });
     }
 
@@ -252,6 +277,9 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     if (path.startsWith('/home')) return '/home';
     if (path.startsWith('/collector')) return '/collector';
+    if (path.startsWith('/rectification')) return '/rectification';
+    if (path.startsWith('/expert/pending-reviews')) return '/expert/pending-reviews';
+    if (path.startsWith('/expert/evaluations')) return '/expert/evaluations';
     if (path.startsWith('/expert')) return '/expert';
     if (path.startsWith('/reports')) return '/reports';
     if (path.startsWith('/users/school-account')) return '/users/school-account';
@@ -264,6 +292,8 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = () => {
     const path = location.pathname;
     if (path.startsWith('/users')) return ['/users'];
+    if (path.startsWith('/expert')) return ['/expert'];
+    if (path.startsWith('/reports')) return ['/reports'];
     return [];
   };
 

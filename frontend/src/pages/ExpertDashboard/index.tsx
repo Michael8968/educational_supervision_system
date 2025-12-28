@@ -1,6 +1,6 @@
 /**
- * 专家评审工作台 - 项目列表页面
- * 显示专家负责的项目列表，支持进入项目评审详情
+ * 专家评估工作台 - 项目列表页面
+ * 显示专家负责的项目列表，支持进入项目评估详情
  */
 
 import React, { useState, useEffect, useCallback } from 'react';

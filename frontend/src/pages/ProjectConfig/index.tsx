@@ -45,7 +45,7 @@ import {
   IndicatorTab,
   DataEntryTab,
   TaskAssignmentTab,
-  ExpertReviewTab,
+  ExpertEvaluationTab,
   ProgressOverview,
   SubmissionSchoolTab,
   AddPersonModal,
@@ -823,10 +823,10 @@ const ProjectConfig: React.FC = () => {
             //   ),
             // },
             {
-              key: 'review',
-              label: '专家评审',
+              key: 'evaluation',
+              label: '专家评估',
               children: (
-                <ExpertReviewTab
+                <ExpertEvaluationTab
                   projectId={projectId || ''}
                   projectStatus={project.status}
                   personnel={personnel}

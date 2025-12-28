@@ -187,7 +187,7 @@ const ReportDetailPage: React.FC = () => {
     },
   ];
 
-  // 专家评审表格列
+  // 专家评估表格列
   const expertColumns: TableColumnsType<ReportDetail['expertReviews'][0]> = [
     {
       title: '专家姓名',
@@ -420,7 +420,7 @@ const ReportDetailPage: React.FC = () => {
             },
             {
               key: 'experts',
-              label: '专家评审',
+              label: '专家评估',
               children: report.expertReviews.length > 0 ? (
                 <Table
                   dataSource={report.expertReviews}
@@ -431,7 +431,7 @@ const ReportDetailPage: React.FC = () => {
                 />
               ) : (
                 <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
-                  暂无专家评审记录
+                  暂无专家评估记录
                 </div>
               ),
             },

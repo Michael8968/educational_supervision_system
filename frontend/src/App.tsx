@@ -26,6 +26,11 @@ import CollectorDashboard from './pages/CollectorDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
 import ExpertProjectDetail from './pages/ExpertProjectDetail';
 import ExpertDistrictDetail from './pages/ExpertDistrictDetail';
+import ExpertEvaluation from './pages/ExpertEvaluation';
+import EvaluationDetail from './pages/ExpertEvaluation/EvaluationDetail';
+import PendingReviews from './pages/ExpertEvaluation/PendingReviews';
+import IssueRectification from './pages/IssueRectification';
+import EvaluationSummary from './pages/EvaluationSummary';
 import UserManagement from './pages/UserManagement';
 import ExpertAccountManagement from './pages/ExpertAccountManagement';
 import DistrictDashboard from './pages/DistrictDashboard';
@@ -140,6 +145,11 @@ const App: React.FC = () => {
             } />
             <Route path="home/balanced/project/:projectId/cv-analysis" element={<CVAnalysis />} />
             <Route path="home/balanced/project/:projectId/compliance" element={<ComplianceStats />} />
+            <Route path="home/balanced/project/:projectId/evaluation-summary" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <EvaluationSummary />
+              </ProtectedRoute>
+            } />
 
             {/* 学前教育普及普惠路由 */}
             <Route path="home/kindergarten" element={
@@ -225,6 +235,11 @@ const App: React.FC = () => {
             } />
             <Route path="home/kindergarten/project/:projectId/cv-analysis" element={<CVAnalysis />} />
             <Route path="home/kindergarten/project/:projectId/compliance" element={<ComplianceStats />} />
+            <Route path="home/kindergarten/project/:projectId/evaluation-summary" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <EvaluationSummary />
+              </ProtectedRoute>
+            } />
 
             {/* 系统管理路由 - 仅管理员 */}
             <Route path="home/system/districts" element={
@@ -278,7 +293,14 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } />
 
-            {/* 专家评审专用路由 */}
+            {/* 问题整改路由 - 被评估对象（学校/区县）*/}
+            <Route path="rectification" element={
+              <ProtectedRoute requiredPermission="canCollectData">
+                <IssueRectification />
+              </ProtectedRoute>
+            } />
+
+            {/* 专家评估专用路由 */}
             <Route path="expert" element={
               <ProtectedRoute requiredPermission="canReviewData">
                 <ExpertDashboard />
@@ -292,6 +314,22 @@ const App: React.FC = () => {
             <Route path="expert/projects/:projectId/districts/:districtId" element={
               <ProtectedRoute requiredPermission="canReviewData">
                 <ExpertDistrictDetail />
+              </ProtectedRoute>
+            } />
+            {/* 专家专业评估路由 */}
+            <Route path="expert/evaluations" element={
+              <ProtectedRoute requiredPermission="canReviewData">
+                <ExpertEvaluation />
+              </ProtectedRoute>
+            } />
+            <Route path="expert/evaluations/:evaluationId" element={
+              <ProtectedRoute requiredPermission="canReviewData">
+                <EvaluationDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="expert/pending-reviews" element={
+              <ProtectedRoute requiredPermission="canReviewData">
+                <PendingReviews />
               </ProtectedRoute>
             } />
 

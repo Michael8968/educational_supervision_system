@@ -23,6 +23,7 @@ const { router: samplesRoutes, setDb: setSamplesDb } = require('./routes/samples
 const { router: taskRoutes, setDb: setTaskDb } = require('./routes/tasks');
 const { router: reviewAssignmentRoutes, setDb: setReviewAssignmentDb } = require('./routes/reviewAssignments');
 const { router: expertRoutes, setDb: setExpertDb } = require('./routes/expert');
+const evaluationRoutes = require('./routes/evaluation');
 const { router: userRoutes } = require('./routes/users');
 const uploadsRouteFactory = require('./routes/uploads');
 const projectIndicatorRoutes = require('./routes/projectIndicators');
@@ -69,6 +70,7 @@ async function initDatabase() {
       setTaskDb(db);
       setReviewAssignmentDb(db);
       setExpertDb(db);
+      evaluationRoutes.setDb(db);
       // 项目级副本路由
       projectIndicatorRoutes.setDb(db);
       projectElementRoutes.setDb(db);
@@ -104,6 +106,7 @@ app.use('/api', samplesRoutes);
 app.use('/api', taskRoutes);
 app.use('/api', reviewAssignmentRoutes);
 app.use('/api', expertRoutes);
+app.use('/api', evaluationRoutes);
 app.use('/api', userRoutes);
 // 文件上传路由
 app.use('/api', uploadsRouteFactory(db));

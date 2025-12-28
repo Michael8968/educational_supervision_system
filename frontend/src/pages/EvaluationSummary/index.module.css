@@ -1,0 +1,45 @@
+.evaluationSummary {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+.pageHeader {
+  margin-bottom: 24px;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1890ff;
+  margin-bottom: 4px;
+}
+
+.pageSubtitle {
+  color: #666;
+  margin: 0;
+}
+
+.statsRow {
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.statCard :global(.ant-statistic-title) {
+  font-size: 14px;
+  color: #666;
+}
+
+.statCard :global(.ant-statistic-content) {
+  font-size: 24px;
+}

@@ -1,0 +1,347 @@
+.expertEvaluation {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+.welcomeSection {
+  margin-bottom: 24px;
+}
+
+.welcomeTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+.welcomeSubtitle {
+  color: #666;
+  margin: 0;
+}
+
+.statsRow {
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.filterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* 评估详情页样式 */
+.evaluationDetail {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+.breadcrumb {
+  margin-bottom: 16px;
+}
+
+.backButton {
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.headerCard {
+  margin-bottom: 16px;
+}
+
+.targetInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.targetMain {
+  flex: 1;
+}
+
+.targetName {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.targetMeta {
+  color: #666;
+  margin-top: 8px;
+}
+
+.progressCard {
+  text-align: center;
+  min-width: 200px;
+}
+
+.progressLabel {
+  display: block;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.contentCard {
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 指标评分面板 */
+.indicatorPanel {
+  display: flex;
+  gap: 16px;
+}
+
+.indicatorTree {
+  width: 300px;
+  border-right: 1px solid #f0f0f0;
+  padding-right: 16px;
+}
+
+.indicatorContent {
+  flex: 1;
+}
+
+.indicatorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.indicatorTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.indicatorCode {
+  color: #1890ff;
+  margin-right: 8px;
+}
+
+.dataSection {
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.dataCard {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.dataItem {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dataLabel {
+  color: #666;
+}
+
+.dataValue {
+  font-weight: 500;
+}
+
+.scoringSection {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.scoringTitle {
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #52c41a;
+}
+
+.scoreLevels {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.scoreLevel {
+  flex: 1;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.scoreLevel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.scoreLevel.selected {
+  border-color: currentColor;
+}
+
+.scoreLevelA {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.scoreLevelB {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.scoreLevelC {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.scoreLevelD {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.scoreLevelLabel {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.scoreLevelText {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.scoreBasis {
+  margin-top: 16px;
+}
+
+/* 评语区域 */
+.commentsSection {
+  margin-top: 24px;
+}
+
+.commentsList {
+  margin-bottom: 16px;
+}
+
+.commentItem {
+  background: #fafafa;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.commentContent {
+  flex: 1;
+}
+
+.commentActions {
+  margin-left: 12px;
+}
+
+/* 结论区域 */
+.resultSection {
+  margin-top: 24px;
+}
+
+.resultCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.resultTitle {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.resultScore {
+  font-size: 48px;
+  font-weight: 700;
+}
+
+.resultLevel {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.resultStats {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.resultStatItem {
+  text-align: center;
+}
+
+.resultStatValue {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.resultStatLabel {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 空状态 */
+.emptyIndicator {
+  padding: 60px 0;
+  text-align: center;
+  color: #999;
+}
+
+/* 材料列表 */
+.materialList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.materialItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.materialItem:hover {
+  background: #e6e6e6;
+}
+
+.materialIcon {
+  margin-right: 8px;
+  color: #1890ff;
+}
