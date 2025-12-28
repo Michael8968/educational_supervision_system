@@ -9,11 +9,13 @@ import {
   EditOutlined,
   CloseOutlined,
   DeleteOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as toolService from '../../services/toolService';
 import type { DataTool } from '../../services/toolService';
 import { useUserPermissions } from '../../stores/authStore';
+import SurveyLinkModal from './SurveyLinkModal';
 import styles from './index.module.css';
 
 const { Search } = Input;
@@ -29,6 +31,8 @@ const ToolLibrary: React.FC = () => {
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentTool, setCurrentTool] = useState<DataTool | null>(null);
+  const [linkModalVisible, setLinkModalVisible] = useState(false);
+  const [linkTool, setLinkTool] = useState<DataTool | null>(null);
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
@@ -205,6 +209,12 @@ const ToolLibrary: React.FC = () => {
     }
   };
 
+  // 打开问卷链接生成弹窗
+  const handleOpenLinkModal = (tool: DataTool) => {
+    setLinkTool(tool);
+    setLinkModalVisible(true);
+  };
+
   // 编辑工具（处理表单类型和问卷类型）
   const handleEditTool = async (tool: DataTool) => {
     if (tool.type === '问卷') {
@@ -280,6 +290,11 @@ const ToolLibrary: React.FC = () => {
                     {permissions.canManageSystem && (
                       <span className={styles.actionBtn} onClick={() => handleEditTool(tool)}>
                         <EditOutlined /> 编辑工具
+                      </span>
+                    )}
+                    {tool.type === '问卷' && permissions.canManageSystem && (
+                      <span className={styles.actionBtn} onClick={() => handleOpenLinkModal(tool)}>
+                        <LinkOutlined /> 生成链接
                       </span>
                     )}
                     {permissions.canManageSystem && (
@@ -503,6 +518,16 @@ const ToolLibrary: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 问卷链接生成弹窗 */}
+      <SurveyLinkModal
+        visible={linkModalVisible}
+        tool={linkTool}
+        onClose={() => {
+          setLinkModalVisible(false);
+          setLinkTool(null);
+        }}
+      />
     </div>
   );
 };

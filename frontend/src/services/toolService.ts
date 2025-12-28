@@ -189,6 +189,101 @@ export async function createSurveyUrl(
   );
 }
 
+// ==================== 问卷集成 API ====================
+
+// 问卷访问链接类型
+export interface SurveyAccessLink {
+  id: string;
+  toolId: string;
+  projectId: string;
+  schoolId: string;
+  schoolName?: string;
+  districtId?: string;
+  districtName?: string;
+  accessUrl: string;
+  accessToken: string;
+  qrCodeUrl?: string;
+  targetAudience: 'parent' | 'teacher' | 'student' | 'principal';
+  linkType: 'url' | 'qrcode' | 'shortlink';
+  isActive: boolean;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+// 批量生成访问链接参数
+export interface GenerateAccessLinksParams {
+  projectId: string;
+  schoolIds?: string[];
+  targetAudience: 'parent' | 'teacher' | 'student' | 'principal';
+  linkType?: 'url' | 'qrcode' | 'shortlink';
+  expiresIn?: number; // 过期时间（小时）
+}
+
+// 批量生成访问链接结果
+export interface GenerateAccessLinksResult {
+  success: boolean;
+  links: SurveyAccessLink[];
+  totalGenerated: number;
+  errors?: Array<{ schoolId: string; error: string }>;
+}
+
+// 批量生成学校访问链接
+export async function generateAccessLinks(
+  toolId: string,
+  params: GenerateAccessLinksParams
+): Promise<GenerateAccessLinksResult> {
+  return post<GenerateAccessLinksResult>(
+    `/tools/${toolId}/generate-access-links`,
+    params
+  );
+}
+
+// 问卷统计数据类型
+export interface SurveyStatistics {
+  toolId: string;
+  projectId?: string;
+  schoolId?: string;
+  totalSent: number;           // 问卷总数/发放总数
+  totalSentToParents: number;  // 发给家长的数量
+  totalValid: number;          // 回收有效问卷数
+  totalValidFromParents: number; // 家长有效问卷数
+  totalSatisfied: number;      // 满意问卷数
+  totalSatisfiedFromParents: number; // 家长满意问卷数
+  responseRate: number;        // 回收率（百分比）
+  satisfactionRate: number;    // 满意度（百分比）
+  source: 'external' | 'manual';
+  collectedAt?: string;
+}
+
+// 获取问卷统计数据
+export async function getSurveyStatistics(params: {
+  toolId: string;
+  projectId?: string;
+  schoolId?: string;
+}): Promise<SurveyStatistics> {
+  return get<SurveyStatistics>('/survey/statistics', params as Record<string, string>);
+}
+
+// 更新问卷信息（第三方系统回调后手动更新）
+export async function updateSurveyInfo(
+  toolId: string,
+  data: {
+    externalSurveyId: string;
+    externalSurveyUrl: string;
+  }
+): Promise<void> {
+  return put(`/tools/${toolId}/survey-info`, data);
+}
+
+// 获取问卷访问链接列表
+export async function getSurveyAccessLinks(params: {
+  toolId: string;
+  projectId?: string;
+  schoolId?: string;
+}): Promise<SurveyAccessLink[]> {
+  return get<SurveyAccessLink[]>('/survey/access-links', params as Record<string, string>);
+}
+
 // ==================== 要素库 API ====================
 
 // 获取要素库列表

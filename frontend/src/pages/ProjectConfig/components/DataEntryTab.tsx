@@ -45,7 +45,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import * as projectToolService from '../../../services/projectToolService';
+import * as toolService from '../../../services/toolService';
 import type { ProjectTool, AvailableTool } from '../../../services/projectToolService';
+import SurveyLinkModal from '../../ToolLibrary/SurveyLinkModal';
+import type { DataTool } from '../../../services/toolService';
 import styles from '../index.module.css';
 
 interface DataEntryTabProps {
@@ -103,6 +106,9 @@ const DataEntryTab: React.FC<DataEntryTabProps> = ({ projectId, disabled = false
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
+  // 问卷链接弹窗
+  const [linkModalVisible, setLinkModalVisible] = useState(false);
+  const [linkTool, setLinkTool] = useState<DataTool | null>(null);
 
   // 拖拽传感器配置
   const sensors = useSensors(
@@ -223,6 +229,31 @@ const DataEntryTab: React.FC<DataEntryTabProps> = ({ projectId, disabled = false
     }
   };
 
+  // 打开问卷链接生成弹窗
+  const handleOpenLinkModal = async (record: ProjectTool) => {
+    try {
+      const tool = await toolService.getTool(record.toolId);
+      setLinkTool(tool);
+      setLinkModalVisible(true);
+    } catch (error) {
+      console.error('获取工具信息失败:', error);
+      message.error('获取工具信息失败');
+    }
+  };
+
+  // 跳转到第三方问卷系统
+  const handleGoToSurveySystem = async (record: ProjectTool) => {
+    try {
+      const tool = await toolService.getTool(record.toolId);
+      const action = tool.externalSurveyId ? 'edit' : 'create';
+      const result = await toolService.createSurveyUrl(record.toolId, action);
+      window.open(result.url, '_blank');
+    } catch (error) {
+      console.error('跳转到问卷系统失败:', error);
+      message.error('跳转到问卷系统失败');
+    }
+  };
+
   // 拖拽排序结束
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
@@ -335,26 +366,51 @@ const DataEntryTab: React.FC<DataEntryTabProps> = ({ projectId, disabled = false
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
-          <Tooltip title="查看表单">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => window.open(`/form-tool/${record.toolId}`, '_blank')}
-            />
-          </Tooltip>
-          {!disabled && (
-            <Tooltip title="配置映射">
-              <Button
-                type="link"
-                size="small"
-                icon={<LinkOutlined />}
-                onClick={() => window.open(`/form-tool/${record.toolId}/edit`, '_blank')}
-              />
-            </Tooltip>
+          {record.toolType === '问卷' ? (
+            // 问卷类型操作按钮
+            <>
+              <Tooltip title="前往问卷系统">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<FileTextOutlined />}
+                  onClick={() => handleGoToSurveySystem(record)}
+                />
+              </Tooltip>
+              <Tooltip title="生成访问链接">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<LinkOutlined />}
+                  onClick={() => handleOpenLinkModal(record)}
+                />
+              </Tooltip>
+            </>
+          ) : (
+            // 表单类型操作按钮
+            <>
+              <Tooltip title="查看表单">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => window.open(`/form-tool/${record.toolId}`, '_blank')}
+                />
+              </Tooltip>
+              {!disabled && (
+                <Tooltip title="配置映射">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<SettingOutlined />}
+                    onClick={() => window.open(`/form-tool/${record.toolId}/edit`, '_blank')}
+                  />
+                </Tooltip>
+              )}
+            </>
           )}
           {!disabled && (
             <Tooltip title="移除">
@@ -502,6 +558,16 @@ const DataEntryTab: React.FC<DataEntryTabProps> = ({ projectId, disabled = false
           }}
         />
       </Modal>
+
+      {/* 问卷链接生成弹窗 */}
+      <SurveyLinkModal
+        visible={linkModalVisible}
+        tool={linkTool}
+        onClose={() => {
+          setLinkModalVisible(false);
+          setLinkTool(null);
+        }}
+      />
     </div>
   );
 };
