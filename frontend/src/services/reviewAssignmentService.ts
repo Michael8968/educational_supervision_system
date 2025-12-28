@@ -1,6 +1,16 @@
 /**
- * 审核任务分配服务
- * 管理评审专家的审核任务分配
+ * @deprecated 此服务已废弃
+ *
+ * 审核任务分配服务（已废弃）
+ *
+ * 说明：
+ * - 审核功能已转移给项目管理员，直接使用 submissionService 中的 approve/reject 方法
+ * - 评估专家将使用新的评估功能（evaluationService），而非审核功能
+ * - 相关数据库表 review_assignments 和 reviewer_scopes 将在后续版本中删除
+ *
+ * 迁移指南：
+ * - 审核提交：使用 submissionService.approveSubmission / rejectSubmission
+ * - 专家评估：使用新的 evaluationService（待实现）
  */
 
 import { get, post, del } from './api';

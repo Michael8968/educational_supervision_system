@@ -1,6 +1,7 @@
 /**
- * 待审核列表Tab
- * 支持筛选和审核操作
+ * 填报记录列表Tab
+ * 供评估专家查看填报数据（只读）
+ * 审核功能已移交给项目管理员
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -14,9 +15,6 @@ import {
   Input,
   Empty,
   Spin,
-  message,
-  Modal,
-  Form,
   Tooltip,
 } from 'antd';
 import {
@@ -24,13 +22,9 @@ import {
   ReloadOutlined,
   UserOutlined,
   EyeOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import * as expertService from '../../../services/expertService';
-import * as submissionService from '../../../services/submissionService';
 import type { ExpertSubmission, FormInfo, DistrictOption } from '../../../services/expertService';
 
 interface SubmissionListProps {
@@ -58,18 +52,12 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
   // 筛选条件
   const [districtId, setDistrictId] = useState<string>('');
   const [formId, setFormId] = useState<string>('');
-  const [status, setStatus] = useState<string>('submitted');
+  const [status, setStatus] = useState<string>('');
   const [keyword, setKeyword] = useState('');
 
   // 下拉选项
   const [districts, setDistricts] = useState<DistrictOption[]>([]);
   const [forms, setForms] = useState<FormInfo[]>([]);
-
-  // 驳回弹窗
-  const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<ExpertSubmission | null>(null);
-  const [rejectForm] = Form.useForm();
-  const [actionLoading, setActionLoading] = useState(false);
 
   // 加载筛选选项
   const loadFilterOptions = useCallback(async () => {
@@ -117,52 +105,6 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
   // 查看详情
   const handleViewDetail = (submission: ExpertSubmission) => {
     window.open(`/data-entry/${submission.id}`, '_blank');
-  };
-
-  // 批准
-  const handleApprove = async (submission: ExpertSubmission) => {
-    Modal.confirm({
-      title: '确认批准',
-      content: `确定批准 "${submission.submitterName || '未知'}" 的填报记录吗？`,
-      okText: '批准',
-      cancelText: '取消',
-      onOk: async () => {
-        setActionLoading(true);
-        try {
-          await submissionService.approveSubmission(submission.id);
-          message.success('批准成功');
-          loadSubmissions();
-        } catch (error) {
-          message.error('批准失败');
-        } finally {
-          setActionLoading(false);
-        }
-      },
-    });
-  };
-
-  // 打开驳回弹窗
-  const handleOpenReject = (submission: ExpertSubmission) => {
-    setSelectedSubmission(submission);
-    rejectForm.resetFields();
-    setRejectModalVisible(true);
-  };
-
-  // 驳回
-  const handleReject = async (values: { reason: string }) => {
-    if (!selectedSubmission) return;
-
-    setActionLoading(true);
-    try {
-      await submissionService.rejectSubmission(selectedSubmission.id, values.reason);
-      message.success('驳回成功');
-      setRejectModalVisible(false);
-      loadSubmissions();
-    } catch (error) {
-      message.error('驳回失败');
-    } finally {
-      setActionLoading(false);
-    }
   };
 
   // 表格列定义
@@ -221,39 +163,19 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 80,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Tooltip title="查看详情">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewDetail(record)}
-            />
-          </Tooltip>
-          {record.status === 'submitted' && (
-            <>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleApprove(record)}
-              >
-                批准
-              </Button>
-              <Button
-                danger
-                size="small"
-                icon={<CloseCircleOutlined />}
-                onClick={() => handleOpenReject(record)}
-              >
-                驳回
-              </Button>
-            </>
-          )}
-        </Space>
+        <Tooltip title="查看详情">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
+            查看
+          </Button>
+        </Tooltip>
       ),
     },
   ];
@@ -316,7 +238,14 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
 
       {/* 列表区域 */}
       <Card
-        title={`填报记录 (${stats?.total || 0} 条，待审核 ${stats?.submitted || 0} 条)`}
+        title={`填报记录 (${stats?.total || 0} 条)`}
+        extra={
+          <Space>
+            <Tag color="processing">待审核 {stats?.submitted || 0}</Tag>
+            <Tag color="success">已通过 {stats?.approved || 0}</Tag>
+            <Tag color="error">已驳回 {stats?.rejected || 0}</Tag>
+          </Space>
+        }
       >
         <Spin spinning={loading}>
           {submissions.length > 0 ? (
@@ -330,7 +259,7 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
                 showTotal: (total) => `共 ${total} 条记录`,
                 showSizeChanger: true,
               }}
-              scroll={{ x: 1100 }}
+              scroll={{ x: 900 }}
               size="middle"
             />
           ) : (
@@ -345,46 +274,6 @@ const SubmissionList: React.FC<SubmissionListProps> = ({ projectId }) => {
           )}
         </Spin>
       </Card>
-
-      {/* 驳回弹窗 */}
-      <Modal
-        title={
-          <Space>
-            <ExclamationCircleOutlined style={{ color: '#faad14' }} />
-            驳回填报
-          </Space>
-        }
-        open={rejectModalVisible}
-        onCancel={() => setRejectModalVisible(false)}
-        footer={null}
-        width={480}
-      >
-        <p style={{ marginBottom: 16 }}>
-          驳回 <strong>{selectedSubmission?.submitterName}</strong> 的填报记录，请填写驳回原因：
-        </p>
-        <Form form={rejectForm} onFinish={handleReject} layout="vertical">
-          <Form.Item
-            name="reason"
-            label="驳回原因"
-            rules={[{ required: true, message: '请输入驳回原因' }]}
-          >
-            <Input.TextArea
-              placeholder="请输入驳回原因，填报人将收到此反馈"
-              rows={4}
-              maxLength={500}
-              showCount
-            />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setRejectModalVisible(false)}>取消</Button>
-              <Button type="primary" danger htmlType="submit" loading={actionLoading}>
-                确认驳回
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </>
   );
 };

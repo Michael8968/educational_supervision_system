@@ -1,6 +1,21 @@
 /**
- * 审核任务分配路由
- * 管理评审专家的审核任务分配
+ * @deprecated 此路由已废弃，将在后续版本中删除
+ *
+ * 审核任务分配路由（已废弃）
+ *
+ * 说明：
+ * - 审核功能已转移给项目管理员
+ * - 项目管理员直接使用 submissions.js 中的 /approve 和 /reject 接口
+ * - 评估专家将使用新的评估接口（evaluation.js，待实现）
+ *
+ * 相关废弃内容：
+ * - 数据库表：review_assignments, reviewer_scopes
+ * - 前端服务：reviewAssignmentService.ts
+ * - 前端组件：ManualAssignModal, ReviewerScopeModal（已删除）
+ *
+ * 迁移说明：
+ * - 审核提交：POST /submissions/:id/approve, POST /submissions/:id/reject
+ * - 专家评估：新的 /evaluations/* 接口（待实现）
  */
 
 const express = require('express');
