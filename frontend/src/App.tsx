@@ -18,8 +18,6 @@ import ProjectConfig from './pages/ProjectConfig';
 import ProjectIndicatorSystem from './pages/ProjectIndicatorSystem';
 import ProjectElements from './pages/ProjectElements';
 import ProjectDataTools from './pages/ProjectDataTools';
-import DistrictManagement from './pages/DistrictManagement';
-import SchoolManagement from './pages/SchoolManagement';
 import CVAnalysis from './pages/CVAnalysis';
 import ComplianceStats from './pages/ComplianceStats';
 import CollectorDashboard from './pages/CollectorDashboard';
@@ -250,16 +248,6 @@ const App: React.FC = () => {
             } />
 
             {/* 系统管理路由 - 仅管理员 */}
-            <Route path="home/system/districts" element={
-              <ProtectedRoute requiredPermission="canManageSystem">
-                <DistrictManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="home/system/schools" element={
-              <ProtectedRoute requiredPermission="canManageSystem">
-                <SchoolManagement />
-              </ProtectedRoute>
-            } />
             <Route path="system" element={
               <ProtectedRoute requiredPermission="canManageSystem">
                 <div style={{ padding: 24 }}>系统配置页面（开发中）</div>

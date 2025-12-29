@@ -6,8 +6,6 @@ import {
   SmileOutlined,
   FileSearchOutlined,
   AuditOutlined,
-  EnvironmentOutlined,
-  BankOutlined,
 } from '@ant-design/icons';
 import { useUserPermissions } from '../../stores/authStore';
 import styles from './index.module.css';
@@ -55,22 +53,7 @@ const modules: ModuleCard[] = [
 ];
 
 // 基础数据管理模块
-const baseDataModules: ModuleCard[] = [
-  {
-    key: 'districts',
-    title: '区县管理',
-    icon: <EnvironmentOutlined />,
-    color: '#52c41a',
-    path: '/home/system/districts',
-  },
-  {
-    key: 'schools',
-    title: '学校管理',
-    icon: <BankOutlined />,
-    color: '#52c41a',
-    path: '/home/system/schools',
-  },
-];
+const baseDataModules: ModuleCard[] = [];
 
 const Home: React.FC = () => {
   const navigate = useNavigate();

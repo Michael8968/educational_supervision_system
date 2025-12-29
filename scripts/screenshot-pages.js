@@ -4,6 +4,7 @@
  * 使用方法:
  * 1. 确保前端服务已启动: cd frontend && npm run dev
  * 2. 运行脚本: node scripts/screenshot-pages.js
+ * 3. 仅截对话框: node scripts/screenshot-pages.js --dialogs-only
  *
  * 截图将保存到 docs/screenshots/ 目录
  */
@@ -29,22 +30,23 @@ const ACCOUNTS = {
 // 页面配置 - 按角色分类 (使用 body 作为通用等待选择器)
 const PAGES_BY_ROLE = {
   admin: [
-    { path: '/home/system/districts', name: '01-区县管理', waitFor: 'body' },
-    { path: '/home/system/schools', name: '02-学校管理', waitFor: 'body' },
-    { path: '/users/school-account', name: '03-学校账号管理', waitFor: 'body' },
-    { path: '/users/expert-account', name: '04-专家账号管理', waitFor: 'body' },
-  ],
-  project_admin: [
-    { path: '/home', name: '01-系统首页', waitFor: 'body' },
-    { path: '/home/balanced', name: '02-项目列表-义务教育', waitFor: 'body' },
+    { path: '/users/school-account', name: '01-学校账号管理', waitFor: 'body' },
+    { path: '/users/expert-account', name: '02-专家账号管理', waitFor: 'body' },
     { path: '/home/balanced/elements', name: '03-要素库', waitFor: 'body' },
     { path: '/home/balanced/indicators', name: '04-指标体系库', waitFor: 'body' },
     { path: '/home/balanced/tools', name: '05-工具库', waitFor: 'body' },
-    { path: '/data-review', name: '06-数据审核', waitFor: 'body' },
+    { path: '/home/balanced', name: '06-项目列表-义务教育', waitFor: 'body' },
+  ],
+  project_admin: [
+    { path: '/home', name: '01-系统首页', waitFor: 'body' },
+    { path: '/data-review', name: '02-数据审核', waitFor: 'body' },
   ],
   data_collector: [
     { path: '/collector', name: '01-采集员工作台', waitFor: 'body' },
-    { path: '/rectification', name: '02-问题整改', waitFor: 'body' },
+    { path: '/home/balanced/entry', name: '02-数据填报首页', waitFor: 'body' },
+    { path: '/rectification', name: '03-问题整改', waitFor: 'body' },
+    // 注意: 表单填报页面 (/home/balanced/entry/:projectId/form/:formId) 需要具体的项目和表单ID
+    // 可以通过从采集员工作台点击任务进入，或从数据填报首页选择项目和工具进入
   ],
   project_expert: [
     { path: '/expert', name: '01-专家工作台', waitFor: 'body' },
@@ -63,32 +65,152 @@ const PAGES_BY_ROLE = {
   ],
 };
 
+// 辅助函数：根据文字查找并点击按钮
+async function findAndClickButton(page, keywords, delay_ms = 800) {
+  // 等待页面稳定
+  await delay(2000);
+
+  // 先尝试所有按钮
+  const buttons = await page.$$('.ant-btn');
+  console.log(`    找到 ${buttons.length} 个按钮`);
+
+  for (const btn of buttons) {
+    const text = await btn.evaluate(el => el.textContent?.trim() || '');
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        console.log(`    点击按钮: "${text}"`);
+        // 滚动到按钮位置
+        await btn.evaluate(el => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
+        await delay(300);
+        // 使用多种点击方式尝试
+        try {
+          // 方式1: 使用evaluate直接触发click事件
+          await btn.evaluate(el => el.click());
+          await delay(delay_ms);
+          return true;
+        } catch (e) {
+          console.log(`    evaluate click失败: ${e.message}`);
+          // 方式2: 使用puppeteer原生click
+          await btn.click();
+          await delay(delay_ms);
+          return true;
+        }
+      }
+    }
+  }
+
+  // 尝试 ant-btn-primary 按钮
+  const primaryButtons = await page.$$('.ant-btn-primary');
+  console.log(`    找到 ${primaryButtons.length} 个主要按钮`);
+
+  for (const btn of primaryButtons) {
+    const text = await btn.evaluate(el => el.textContent?.trim() || '');
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        console.log(`    点击主要按钮: "${text}"`);
+        await btn.evaluate(el => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
+        await delay(300);
+        await btn.evaluate(el => el.click());
+        await delay(delay_ms);
+        return true;
+      }
+    }
+  }
+
+  console.log(`    未找到包含 [${keywords.join(', ')}] 的按钮`);
+  return false;
+}
+
+// 辅助函数：点击表格中的操作按钮（需要先有数据）
+async function findAndClickTableActionButton(page, buttonText) {
+  await delay(1500);
+
+  // 等待表格加载
+  const tableExists = await page.$('.ant-table');
+  if (!tableExists) {
+    console.log('    表格未找到');
+    return false;
+  }
+
+  // 查找表格行中的操作按钮
+  const actionButtons = await page.$$('.ant-table-tbody .ant-btn, .ant-table-tbody a');
+  console.log(`    找到 ${actionButtons.length} 个表格操作按钮`);
+
+  for (const btn of actionButtons) {
+    const text = await btn.evaluate(el => el.textContent?.trim() || '');
+    if (text.includes(buttonText)) {
+      console.log(`    点击表格操作按钮: "${text}"`);
+      await btn.click();
+      await delay(800);
+      return true;
+    }
+  }
+
+  console.log(`    未找到表格操作按钮: ${buttonText}`);
+  return false;
+}
+
 // 对话框配置 - 需要特殊处理
+// 注意：大部分创建功能需要 canManageSystem 权限（仅admin）
 const DIALOGS = [
+  // ========== 专家账号管理页对话框 ==========
   {
-    name: '01-添加评估学校弹窗',
-    role: 'project_admin',
+    name: '01-新增专家弹窗',
+    role: 'admin',
+    navigateTo: '/users/expert-account',
+    action: async (page) => {
+      return await findAndClickButton(page, ['新增专家']);
+    }
+  },
+
+  // ========== 项目列表页对话框 ==========
+  {
+    name: '02-创建项目弹窗',
+    role: 'admin',
     navigateTo: '/home/balanced',
     action: async (page) => {
-      // 点击第一个项目的配置按钮
-      await page.waitForSelector('.ant-card');
-      await page.click('.ant-card .ant-btn');
-      await page.waitForTimeout(1000);
-      // 尝试找到并点击"评估对象"tab，然后点击添加按钮
-      try {
-        await page.waitForSelector('.ant-tabs-tab', { timeout: 3000 });
-        const tabs = await page.$$('.ant-tabs-tab');
-        if (tabs.length > 0) {
-          await tabs[0].click();
-          await page.waitForTimeout(500);
-          await page.click('.ant-btn-primary');
-          await page.waitForTimeout(500);
-        }
-      } catch (e) {
-        console.log('    跳过对话框截图（页面结构不匹配）');
-        return false;
-      }
-      return true;
+      return await findAndClickButton(page, ['创建项目']);
+    }
+  },
+
+  // ========== 要素库页对话框 ==========
+  {
+    name: '03-新建要素库弹窗',
+    role: 'admin',
+    navigateTo: '/home/balanced/elements',
+    action: async (page) => {
+      return await findAndClickButton(page, ['新建要素库']);
+    }
+  },
+
+  // ========== 指标体系库页对话框 ==========
+  {
+    name: '04-创建评估指标体系弹窗',
+    role: 'admin',
+    navigateTo: '/home/balanced/indicators',
+    action: async (page) => {
+      return await findAndClickButton(page, ['创建评估指标体系']);
+    }
+  },
+
+  // ========== 工具库页对话框 ==========
+  {
+    name: '05-创建数据采集工具弹窗',
+    role: 'admin',
+    navigateTo: '/home/balanced/tools',
+    action: async (page) => {
+      return await findAndClickButton(page, ['创建数据采集工具']);
+    }
+  },
+
+  // ========== 数据审核页对话框 ==========
+  {
+    name: '06-数据审核驳回弹窗',
+    role: 'project_admin',
+    navigateTo: '/data-review',
+    action: async (page) => {
+      // 驳回按钮在表格行中，需要有待审核的数据
+      return await findAndClickTableActionButton(page, '驳回');
     }
   },
 ];
@@ -182,6 +304,97 @@ async function takeScreenshot(page, filePath, options = {}) {
   }
 }
 
+// 截取对话框截图
+async function takeDialogScreenshot(page, filePath) {
+  try {
+    // 等待对话框出现（增加等待时间）
+    await delay(1500); // 先等待一下
+
+    // 检查是否有任何类型的模态框
+    const modalSelectors = [
+      '.ant-modal',
+      '.ant-drawer',
+      '.ant-modal-wrap',
+      '.ant-modal-root',
+      '[role="dialog"]',
+      '.ant-modal-mask'
+    ];
+
+    let modalFound = false;
+    for (const selector of modalSelectors) {
+      const element = await page.$(selector);
+      if (element) {
+        const isVisible = await element.evaluate(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        });
+        if (isVisible) {
+          console.log(`    检测到对话框: ${selector}`);
+          modalFound = true;
+          break;
+        }
+      }
+    }
+
+    if (!modalFound) {
+      // 即使没有检测到对话框，也截取全屏看看发生了什么
+      await page.screenshot({ path: filePath });
+      console.log(`    已保存(调试): ${path.basename(filePath)}`);
+      return true;
+    }
+
+    await delay(800); // 等待动画完成
+
+    // 尝试只截取对话框区域
+    const modal = await page.$('.ant-modal-content, .ant-drawer-content');
+    if (modal) {
+      await modal.screenshot({ path: filePath });
+      console.log(`    已保存: ${path.basename(filePath)}`);
+      return true;
+    }
+
+    // 如果无法定位对话框，截取整个页面
+    await page.screenshot({ path: filePath });
+    console.log(`    已保存(全屏): ${path.basename(filePath)}`);
+    return true;
+  } catch (error) {
+    console.log(`    对话框截图失败: ${error.message}`);
+    // 即使出错也截取一张
+    try {
+      await page.screenshot({ path: filePath });
+      console.log(`    已保存(出错后): ${path.basename(filePath)}`);
+    } catch (e) {}
+    return false;
+  }
+}
+
+// 关闭对话框
+async function closeDialog(page) {
+  try {
+    // 尝试点击关闭按钮
+    const closeBtn = await page.$('.ant-modal-close, .ant-drawer-close');
+    if (closeBtn) {
+      await closeBtn.click();
+      await delay(500);
+      return;
+    }
+
+    // 尝试点击取消按钮
+    const cancelBtn = await page.$('.ant-modal-footer .ant-btn:not(.ant-btn-primary), .ant-btn:has-text("取消")');
+    if (cancelBtn) {
+      await cancelBtn.click();
+      await delay(500);
+      return;
+    }
+
+    // 尝试按 ESC 键
+    await page.keyboard.press('Escape');
+    await delay(500);
+  } catch (e) {
+    // 忽略关闭失败
+  }
+}
+
 // 截取角色页面
 async function screenshotRolePages(browser, role, pages, account) {
   console.log(`\n========== ${account.name} ==========`);
@@ -251,13 +464,88 @@ async function screenshotCommonPages(browser, pages) {
   await page.close();
 }
 
+// 截取对话框
+async function screenshotDialogs(browser) {
+  console.log('\n========== 对话框截图 ==========');
+
+  const dialogsDir = path.join(SCREENSHOT_DIR, 'dialogs');
+  ensureDir(dialogsDir);
+
+  // 按角色分组对话框
+  const dialogsByRole = {};
+  for (const dialog of DIALOGS) {
+    if (!dialogsByRole[dialog.role]) {
+      dialogsByRole[dialog.role] = [];
+    }
+    dialogsByRole[dialog.role].push(dialog);
+  }
+
+  // 逐个角色处理
+  for (const [role, dialogs] of Object.entries(dialogsByRole)) {
+    const account = ACCOUNTS[role];
+    if (!account) continue;
+
+    console.log(`\n  角色: ${account.name}`);
+
+    const page = await browser.newPage();
+    await page.setViewport(VIEWPORT);
+
+    // 登录
+    const loginSuccess = await login(page, account);
+    if (!loginSuccess) {
+      console.log('    登录失败，跳过该角色的对话框');
+      await page.close();
+      continue;
+    }
+
+    // 截取该角色的所有对话框
+    for (const dialog of dialogs) {
+      console.log(`  对话框: ${dialog.name}`);
+
+      try {
+        // 导航到目标页面
+        await page.goto(`${BASE_URL}${dialog.navigateTo}`, {
+          waitUntil: 'networkidle2',
+          timeout: 30000
+        });
+        await delay(1000);
+
+        // 执行打开对话框的操作
+        const opened = await dialog.action(page);
+        if (!opened) {
+          console.log('    无法打开对话框，跳过');
+          continue;
+        }
+
+        // 截图
+        const filePath = path.join(dialogsDir, `${dialog.name}.png`);
+        await takeDialogScreenshot(page, filePath);
+
+        // 关闭对话框
+        await closeDialog(page);
+
+      } catch (error) {
+        console.log(`    对话框处理失败: ${error.message}`);
+      }
+    }
+
+    await page.close();
+  }
+}
+
 // 主函数
 async function main() {
+  const args = process.argv.slice(2);
+  const dialogsOnly = args.includes('--dialogs-only');
+
   console.log('教育督导系统 - 页面自动截图');
   console.log('============================\n');
   console.log(`目标URL: ${BASE_URL}`);
   console.log(`截图目录: ${SCREENSHOT_DIR}`);
   console.log(`分辨率: ${VIEWPORT.width}x${VIEWPORT.height}`);
+  if (dialogsOnly) {
+    console.log('模式: 仅截取对话框');
+  }
 
   // 检查前端服务是否运行
   const browser = await puppeteer.launch({
@@ -277,18 +565,23 @@ async function main() {
       process.exit(1);
     }
 
-    // 截取公共页面
-    await screenshotCommonPages(browser, PAGES_BY_ROLE.common);
+    if (!dialogsOnly) {
+      // 截取公共页面
+      await screenshotCommonPages(browser, PAGES_BY_ROLE.common);
 
-    // 按角色截取页面
-    for (const [role, pages] of Object.entries(PAGES_BY_ROLE)) {
-      if (role === 'common') continue;
+      // 按角色截取页面
+      for (const [role, pages] of Object.entries(PAGES_BY_ROLE)) {
+        if (role === 'common') continue;
 
-      const account = ACCOUNTS[role];
-      if (!account) continue;
+        const account = ACCOUNTS[role];
+        if (!account) continue;
 
-      await screenshotRolePages(browser, role, pages, account);
+        await screenshotRolePages(browser, role, pages, account);
+      }
     }
+
+    // 截取对话框
+    await screenshotDialogs(browser);
 
     console.log('\n============================');
     console.log('截图完成！');
