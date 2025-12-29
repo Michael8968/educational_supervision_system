@@ -319,7 +319,7 @@ canViewReports      → /reports/*
 *操作入口：*
 | 操作 | 入口 | 跳转/弹窗 |
 |------|------|----------|
-| 创建指标体系 | 点击"+ 创建评估指标体系"按钮 | 弹出创建表单 |
+| 创建指标体系 | 点击"+ 创建评估指标体系"按钮 | 弹出创建对话框 |
 | 查看基础信息 | 点击"基础信息"按钮 | 弹出详情弹窗 |
 | 编辑指标 | 点击"编辑指标"按钮 | 跳转到指标树编辑页面 |
 | 发布 | 点击"发布"按钮 | 执行发布校验 |
@@ -350,7 +350,7 @@ canViewReports      → /reports/*
 | 附件 | file[] | | 单文件≤10MB，支持pdf/doc/docx，最多5个 | 政策文件等 |
 
 *主流程：*
-1. 点击"新建指标体系"按钮，弹出创建表单
+1. 点击"新建指标体系"按钮，弹出创建对话框
 2. 填写名称（必填，系统校验唯一性）
 3. 选择指标体系类型（达标类/评分类）
 4. 填写评估对象（必填，如"学校"）
@@ -1151,7 +1151,7 @@ canViewReports      → /reports/*
 *操作入口：*
 | 操作 | 入口 | 跳转/弹窗 |
 |------|------|----------|
-| 创建工具 | 点击"+ 创建采集工具"按钮 | 弹出创建表单 |
+| 创建工具 | 点击"+ 创建采集工具"按钮 | 弹出创建对话框 |
 | 工具信息 | 点击"工具信息"按钮 | 弹出详情弹窗 |
 | 编辑工具 | 点击"编辑工具"按钮 | 跳转到对应类型的编辑器 |
 | 发布 | 点击"发布"按钮 | 直接发布 |
@@ -1201,7 +1201,7 @@ canViewReports      → /reports/*
 ```
 
 *主流程：*
-1. 点击"+ 创建采集工具"按钮，弹出创建表单
+1. 点击"+ 创建采集工具"按钮，弹出创建对话框
 2. 选择工具类型（表单/问卷/访谈/现场查验）
 3. 填写工具名称（必填）
 4. 选择填报对象（必填，可多选）
@@ -1221,6 +1221,122 @@ canViewReports      → /reports/*
 | satisfaction_config | json | 满意度调查配置（题目映射、计分规则等） |
 
 > 问卷类型工具通过集成第三方问卷系统实现，创建时自动跳转到第三方系统设计问卷，完成后回调保存问卷ID和访问链接。
+
+*满意度调查配置 (satisfaction_config)：*
+
+本系统从第三方问卷系统获取原始答案数据，根据配置的计分规则计算满意度分数。
+
+| 属性 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| enabled | boolean | ✓ | 是否启用满意度计算 |
+| total_score | number | ✓ | 满分值（如 100） |
+| questions | array | ✓ | 参与计算的题目配置 |
+
+*题目计分配置 (questions[])：*
+| 属性 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| question_id | string | ✓ | 第三方问卷系统的题目ID |
+| question_type | enum | ✓ | 题目类型：scale / single / multiple |
+| weight | number | ✓ | 权重（所有题目权重之和应为1） |
+| scoring | object | ✓ | 计分规则 |
+
+*计分规则 (scoring) 按题目类型：*
+
+**量表题 (scale)**：直接使用量表分值
+```json
+{
+  "question_id": "Q1",
+  "question_type": "scale",
+  "weight": 0.2,
+  "scoring": {
+    "min": 1,
+    "max": 5
+  }
+}
+```
+
+**单选题 (single)**：每个选项对应分值
+```json
+{
+  "question_id": "Q2",
+  "question_type": "single",
+  "weight": 0.15,
+  "scoring": {
+    "options": {
+      "A": 5,
+      "B": 4,
+      "C": 3,
+      "D": 2,
+      "E": 1
+    }
+  }
+}
+```
+
+**多选题 (multiple)**：按选中正向选项数量计分
+```json
+{
+  "question_id": "Q3",
+  "question_type": "multiple",
+  "weight": 0.1,
+  "scoring": {
+    "positive_options": ["A", "B", "C"],
+    "score_per_option": 1.67,
+    "max_score": 5
+  }
+}
+```
+
+*满意度计算公式：*
+```
+单题得分率 = 题目得分 / 题目满分
+加权得分率 = Σ(单题得分率 × 权重)
+满意度分数 = 加权得分率 × total_score
+```
+
+*完整配置示例：*
+```json
+{
+  "satisfaction_config": {
+    "enabled": true,
+    "total_score": 100,
+    "questions": [
+      {
+        "question_id": "Q1",
+        "question_type": "scale",
+        "weight": 0.25,
+        "scoring": { "min": 1, "max": 5 }
+      },
+      {
+        "question_id": "Q2",
+        "question_type": "single",
+        "weight": 0.25,
+        "scoring": {
+          "options": { "非常满意": 5, "满意": 4, "一般": 3, "不满意": 2, "非常不满意": 1 }
+        }
+      },
+      {
+        "question_id": "Q3",
+        "question_type": "scale",
+        "weight": 0.25,
+        "scoring": { "min": 1, "max": 5 }
+      },
+      {
+        "question_id": "Q4",
+        "question_type": "multiple",
+        "weight": 0.25,
+        "scoring": {
+          "positive_options": ["教学质量好", "校园环境优美", "管理规范"],
+          "score_per_option": 1.67,
+          "max_score": 5
+        }
+      }
+    ]
+  }
+}
+```
+
+> **满意度结果用途**：计算出的满意度分数可关联到数据指标（如"家长满意度≥85%"），用于督导评估的达标判定。
 
 *异常流程：*
 | 异常 | 处理方式 |
