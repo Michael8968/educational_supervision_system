@@ -620,13 +620,13 @@ const ProjectConfig: React.FC = () => {
           >
             评估要素
           </Button>
-          <Button
+          {/* <Button
             icon={<PaperClipOutlined />}
             onClick={() => navigate(`${basePath}/data-tools`)}
             disabled={!isEditable}
           >
             采集工具
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -780,16 +780,16 @@ const ProjectConfig: React.FC = () => {
                 />
               ),
             },
-            {
-              key: 'data',
-              label: '采集工具',
-              children: (
-                <DataEntryTab
-                  projectId={projectId || ''}
-                  disabled={!isEditable}
-                />
-              ),
-            },
+            // {
+            //   key: 'data',
+            //   label: '采集工具',
+            //   children: (
+            //     <DataEntryTab
+            //       projectId={projectId || ''}
+            //       disabled={!isEditable}
+            //     />
+            //   ),
+            // },
             {
               key: 'task',
               label: '填报任务',

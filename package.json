@@ -2,9 +2,30 @@
   "name": "educational-supervision-system",
   "private": true,
   "dependencies": {
-    "@vercel/blob": "^2.0.0"
+    "@vercel/blob": "^2.0.0",
+    "puppeteer": "^24.34.0"
   },
   "devDependencies": {
     "xlsx": "^0.18.5"
-  }
+  },
+  "version": "1.0.0",
+  "description": "Educational Supervision System - 教育督导管理平台",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wincax88/educational_supervision_system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wincax88/educational_supervision_system/issues"
+  },
+  "homepage": "https://github.com/wincax88/educational_supervision_system#readme"
 }
