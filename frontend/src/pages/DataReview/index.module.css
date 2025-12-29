@@ -1,0 +1,36 @@
+.dataReviewPage {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: 100%;
+}
+
+.pageHeader {
+  margin-bottom: 24px;
+}
+
+.pageDescription {
+  color: #666;
+  font-size: 14px;
+  margin-left: 12px;
+}
+
+.statsCard {
+  margin-bottom: 16px;
+}
+
+.progressCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progressLabel {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+
+.filterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

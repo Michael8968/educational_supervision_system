@@ -44,6 +44,7 @@ import ReportStatistics from './pages/Reports/Statistics';
 import ReportRankings from './pages/Reports/Rankings';
 import ReportAlerts from './pages/Reports/Alerts';
 import ReportComparison from './pages/Reports/Comparison';
+import DataReview from './pages/DataReview';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/global.css';
 
@@ -238,6 +239,13 @@ const App: React.FC = () => {
             <Route path="home/kindergarten/project/:projectId/evaluation-summary" element={
               <ProtectedRoute requiredPermission="canManageProjects">
                 <EvaluationSummary />
+              </ProtectedRoute>
+            } />
+
+            {/* 数据审核 - 项目管理员和管理员可访问 */}
+            <Route path="data-review" element={
+              <ProtectedRoute requiredPermission="canManageProjects">
+                <DataReview />
               </ProtectedRoute>
             } />
 

@@ -15,6 +15,7 @@ import {
   AimOutlined,
   EyeOutlined,
   SyncOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore, UserRole } from '../stores/authStore';
@@ -43,6 +44,7 @@ const roleColorMap: Record<string, string> = {
 // 路由与角色的映射关系
 const routeRoleMap: Record<string, UserRole> = {
   '/home': 'project_admin',
+  '/data-review': 'project_admin',
   '/collector': 'data_collector',
   '/expert': 'project_expert',
   '/reports': 'decision_maker',
@@ -73,6 +75,15 @@ const MainLayout: React.FC = () => {
         key: '/home',
         icon: <HomeOutlined />,
         label: '教育督导',
+      });
+    }
+
+    // 数据审核 - 管理员和项目管理员可见
+    if (isAdmin || userRoles.includes('project_admin')) {
+      items.push({
+        key: '/data-review',
+        icon: <CheckSquareOutlined />,
+        label: '数据审核',
       });
     }
 
@@ -275,6 +286,7 @@ const MainLayout: React.FC = () => {
   // 获取当前选中的菜单项
   const getSelectedKey = () => {
     const path = location.pathname;
+    if (path.startsWith('/data-review')) return '/data-review';
     if (path.startsWith('/home')) return '/home';
     if (path.startsWith('/collector')) return '/collector';
     if (path.startsWith('/rectification')) return '/rectification';

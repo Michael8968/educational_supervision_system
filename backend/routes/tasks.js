@@ -629,6 +629,7 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
     // 核心逻辑：通过 phone/name 查找用户对应的 project_personnel 记录
     // 然后通过 assignee_id 匹配任务（任务只与用户ID相关，与scopes无关）
     let personnelIds = [];
+    let personnelPhones = [];
     let personnelDistrictIds = [];
     
     // 获取用户标识信息
@@ -690,6 +691,7 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
 
         const personnelResult = await db.query(personnelQuery, personnelParams);
         personnelIds = personnelResult.rows.map(r => r.id);
+        personnelPhones = personnelResult.rows.map(r => r.phone).filter(Boolean);
         personnelDistrictIds = personnelResult.rows.map(r => r.district_id).filter(Boolean);
 
         console.log(`[/my/tasks] 查询结果:`, {
@@ -721,8 +723,13 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
       console.warn(`[/my/tasks] 可能原因: 服务重启后 session 丢失，请重新登录`);
     }
 
-    // 如果没有匹配的 personnel 记录，返回空结果
-    if (personnelIds.length === 0) {
+    // 如果有当前用户手机号，也加入匹配列表（兼容 assignee_id 存手机号的情况）
+    if (phone && !personnelPhones.includes(phone)) {
+      personnelPhones.push(phone);
+    }
+
+    // 如果没有匹配的 personnel 记录且没有手机号，返回空结果
+    if (personnelIds.length === 0 && personnelPhones.length === 0) {
       const hasSession = req.auth?.phone || req.auth?.name;
       
       if (!hasSession) {
@@ -749,9 +756,10 @@ router.get('/my/tasks', verifyToken, roles.collector, async (req, res) => {
       }
     }
 
-    // 通过 assignee_id 过滤任务（任务只与用户ID相关）
+    // 通过 assignee_id 过滤任务（兼容 personnelId 和手机号两种格式）
+    const assigneeMatchers = [...personnelIds, ...personnelPhones];
     sql += ` AND t.assignee_id = ANY($${paramIndex++})`;
-    params.push(personnelIds);
+    params.push(assigneeMatchers);
 
     // 如果指定了当前 scope（例如用户选择了某个学校），还需要过滤任务的目标范围
     if (scopeType && scopeId) {
@@ -851,29 +859,37 @@ router.get('/my/projects', verifyToken, roles.collector, async (req, res) => {
     let phone = req.auth?.phone || username;
     let name = req.auth?.name;
     let personnelIds = [];
+    let personnelPhones = [];
 
     if (phone || name || username) {
       try {
         const personnelQuery = `
-          SELECT pp.id
+          SELECT pp.id, pp.phone
           FROM project_personnel pp
           WHERE pp.status = 'active' AND (pp.phone = $1 OR pp.name = $2 OR pp.name ILIKE $3)
         `;
         const personnelParams = [phone, name || username, `%${username || ''}%`];
         const personnelResult = await db.query(personnelQuery, personnelParams);
         personnelIds = personnelResult.rows.map(r => r.id);
+        personnelPhones = personnelResult.rows.map(r => r.phone).filter(Boolean);
       } catch (err) {
         console.error('查询 project_personnel 失败:', err);
       }
     }
 
-    // 如果没有匹配的 personnel 记录，返回空结果
-    if (personnelIds.length === 0) {
+    // 如果有当前用户手机号，也加入匹配列表（兼容 assignee_id 存手机号的情况）
+    if (phone && !personnelPhones.includes(phone)) {
+      personnelPhones.push(phone);
+    }
+
+    // 如果没有匹配的 personnel 记录且没有手机号，返回空结果
+    if (personnelIds.length === 0 && personnelPhones.length === 0) {
       return res.json({ code: 200, data: [] });
     }
 
-    // 将 personnelIds 作为第一个参数传入，用于统计当前用户的任务数
-    const params = [personnelIds];
+    // 将 personnelIds 和 personnelPhones 合并，用于匹配 assignee_id（兼容两种格式）
+    const assigneeMatchers = [...personnelIds, ...personnelPhones];
+    const params = [assigneeMatchers];
     let paramIndex = 2;
 
     let sql = `
