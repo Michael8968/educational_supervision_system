@@ -430,6 +430,74 @@
   color: #666;
 }
 
+/* 只读模式下的表单样式优化 - 提高可读性 */
+.formContentCard :global(.ant-form-item-label > label.ant-form-item-required::before) {
+  /* 只读模式下隐藏必填标记 */
+}
+
+/* 只读模式下的输入框样式 - 更清晰 */
+.formContentCard :global(.ant-input[disabled]),
+.formContentCard :global(.ant-input-number-input[disabled]),
+.formContentCard :global(.ant-select-disabled .ant-select-selection-item),
+.formContentCard :global(.ant-picker-input > input[disabled]) {
+  color: #333 !important;
+  background-color: #f5f5f5 !important;
+  cursor: default;
+  -webkit-text-fill-color: #333 !important;
+}
+
+/* 只读模式下 InputNumber 整体样式 */
+.formContentCard :global(.ant-input-number-disabled) {
+  background-color: #f5f5f5 !important;
+  border-color: #d9d9d9 !important;
+}
+
+/* 只读模式下 Select 样式 */
+.formContentCard :global(.ant-select-disabled.ant-select) {
+  background: #f5f5f5 !important;
+}
+
+.formContentCard :global(.ant-select-disabled .ant-select-selector) {
+  background: #f5f5f5 !important;
+  color: #333 !important;
+}
+
+/* 动态列表只读模式样式 */
+.dynamicListItem :global(.ant-input[disabled]),
+.dynamicListItem :global(.ant-input-number-input[disabled]),
+.dynamicListItem :global(.ant-select-disabled .ant-select-selection-item) {
+  color: #333 !important;
+  background-color: #fff !important;
+  border-color: #e8e8e8 !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+.dynamicListItem :global(.ant-input-number-disabled),
+.dynamicListItem :global(.ant-select-disabled .ant-select-selector) {
+  background-color: #fff !important;
+  border-color: #e8e8e8 !important;
+}
+
+/* 只读模式下动态列表行的背景色更浅，让内容更突出 */
+.dynamicListItem :global(.ant-form-item) {
+  margin-bottom: 0;
+}
+
+/* 只读模式下隐藏删除按钮 - 使用 Form 的 disabled 属性 */
+:global(.ant-form-disabled) .dynamicListItem > :global(.ant-btn) {
+  display: none;
+}
+
+/* 只读模式下隐藏添加按钮 */
+:global(.ant-form-disabled) .dynamicListCard :global(.ant-card-extra) {
+  display: none;
+}
+
+/* 只读模式下操作列隐藏 */
+:global(.ant-form-disabled) .dynamicListHeaderAction {
+  display: none;
+}
+
 /* 响应式布局 */
 @media (max-width: 768px) {
   .formFieldsContainer > :global(.ant-form-item[style*="25%"]),
