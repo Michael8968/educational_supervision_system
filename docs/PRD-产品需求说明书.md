@@ -1224,119 +1224,37 @@ canViewReports      → /reports/*
 
 *满意度调查配置 (satisfaction_config)：*
 
-本系统从第三方问卷系统获取原始答案数据，根据配置的计分规则计算满意度分数。
+第三方问卷系统返回每份回收问卷的总分数，本系统根据阈值判断该份问卷是否"满意"。
 
 | 属性 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
-| enabled | boolean | ✓ | 是否启用满意度计算 |
-| total_score | number | ✓ | 满分值（如 100） |
-| questions | array | ✓ | 参与计算的题目配置 |
+| enabled | boolean | ✓ | 是否启用满意度统计 |
+| max_score | number | ✓ | 问卷满分值（如 100） |
+| satisfied_threshold | number | ✓ | 满意阈值，≥此分数判定为"满意" |
 
-*题目计分配置 (questions[])：*
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| question_id | string | ✓ | 第三方问卷系统的题目ID |
-| question_type | enum | ✓ | 题目类型：scale / single / multiple |
-| weight | number | ✓ | 权重（所有题目权重之和应为1） |
-| scoring | object | ✓ | 计分规则 |
-
-*计分规则 (scoring) 按题目类型：*
-
-**量表题 (scale)**：直接使用量表分值
-```json
-{
-  "question_id": "Q1",
-  "question_type": "scale",
-  "weight": 0.2,
-  "scoring": {
-    "min": 1,
-    "max": 5
-  }
-}
-```
-
-**单选题 (single)**：每个选项对应分值
-```json
-{
-  "question_id": "Q2",
-  "question_type": "single",
-  "weight": 0.15,
-  "scoring": {
-    "options": {
-      "A": 5,
-      "B": 4,
-      "C": 3,
-      "D": 2,
-      "E": 1
-    }
-  }
-}
-```
-
-**多选题 (multiple)**：按选中正向选项数量计分
-```json
-{
-  "question_id": "Q3",
-  "question_type": "multiple",
-  "weight": 0.1,
-  "scoring": {
-    "positive_options": ["A", "B", "C"],
-    "score_per_option": 1.67,
-    "max_score": 5
-  }
-}
-```
-
-*满意度计算公式：*
-```
-单题得分率 = 题目得分 / 题目满分
-加权得分率 = Σ(单题得分率 × 权重)
-满意度分数 = 加权得分率 × total_score
-```
-
-*完整配置示例：*
+*配置示例：*
 ```json
 {
   "satisfaction_config": {
     "enabled": true,
-    "total_score": 100,
-    "questions": [
-      {
-        "question_id": "Q1",
-        "question_type": "scale",
-        "weight": 0.25,
-        "scoring": { "min": 1, "max": 5 }
-      },
-      {
-        "question_id": "Q2",
-        "question_type": "single",
-        "weight": 0.25,
-        "scoring": {
-          "options": { "非常满意": 5, "满意": 4, "一般": 3, "不满意": 2, "非常不满意": 1 }
-        }
-      },
-      {
-        "question_id": "Q3",
-        "question_type": "scale",
-        "weight": 0.25,
-        "scoring": { "min": 1, "max": 5 }
-      },
-      {
-        "question_id": "Q4",
-        "question_type": "multiple",
-        "weight": 0.25,
-        "scoring": {
-          "positive_options": ["教学质量好", "校园环境优美", "管理规范"],
-          "score_per_option": 1.67,
-          "max_score": 5
-        }
-      }
-    ]
+    "max_score": 100,
+    "satisfied_threshold": 60
   }
 }
 ```
 
-> **满意度结果用途**：计算出的满意度分数可关联到数据指标（如"家长满意度≥85%"），用于督导评估的达标判定。
+*满意度计算：*
+```
+单份问卷：问卷得分 ≥ satisfied_threshold → 满意
+满意率 = 满意问卷数 / 回收问卷总数 × 100%
+```
+
+*示例：*
+- 问卷满分 100 分，满意阈值 60 分
+- 回收 200 份问卷，其中 170 份得分 ≥ 60
+- 满意率 = 170 / 200 = 85%
+
+> **满意度结果用途**：计算出的满意率可关联到数据指标（如"家长满意度≥85%"），用于督导评估的达标判定。
 
 *异常流程：*
 | 异常 | 处理方式 |
@@ -1379,12 +1297,10 @@ canViewReports      → /reports/*
 │  文件上传     │  └───────────────────────────┘  │  最大值: [     ]           │
 │  开关        │  ┌───────────────────────────┐  │  单位: [     ]             │
 │  分割线      │  │ 在校学生数                │  │                            │
-│  分组容器     │  │ [________] 人             │  │  评价依据映射              │
-│  动态列表     │  └───────────────────────────┘  │  [+ 添加映射]              │
-│              │                                  │  ┌──────────────────────┐ │
-│              │  [+ 拖拽控件到此处添加字段]      │  │ 数据指标: D1-01      │ │
-│              │                                  │  │ 生师比               │ │
-│              │                                  │  └──────────────────────┘ │
+│  分组容器     │  │ [________] 人             │  │  字段ID                    │
+│  动态列表     │  └───────────────────────────┘  │  field_1703123456_abc123   │
+│              │                                  │  (只读，用于要素关联)       │
+│              │  [+ 拖拽控件到此处添加字段]      │                            │
 └──────────────┴─────────────────────────────────┴────────────────────────────┘
 ```
 
